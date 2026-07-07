@@ -1,0 +1,802 @@
+'use client';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  eleveApi, parentApi, professeurApi, adminApi,
+  caisseApi, platformApi, authApi, surveillantApi,
+} from '@/lib/api/endpoints';
+import { toast } from 'sonner';
+
+// --- ELEVE HOOKS ---
+export const useEleveProfil = () =>
+  useQuery({ queryKey: ['eleve', 'profil'], queryFn: () => eleveApi.profil().then(r => r.data?.data) });
+export const useEleveNotes = (trimestre?: string) =>
+  useQuery({ queryKey: ['eleve', 'notes', trimestre], queryFn: () => eleveApi.notes(trimestre).then(r => r.data?.data) });
+export const useEleveBulletins = () =>
+  useQuery({ queryKey: ['eleve', 'bulletins'], queryFn: () => eleveApi.bulletins().then(r => r.data?.data) });
+export const useEleveEmploiDuTemps = () =>
+  useQuery({ queryKey: ['eleve', 'emploi-du-temps'], queryFn: () => eleveApi.emploiDuTemps().then(r => r.data?.data) });
+export const useEleveAbsences = () =>
+  useQuery({ queryKey: ['eleve', 'absences'], queryFn: () => eleveApi.absences().then(r => r.data?.data) });
+export const useEleveNotifications = () =>
+  useQuery({ queryKey: ['eleve', 'notifications'], queryFn: () => eleveApi.notifications().then(r => r.data?.data) });
+export const useEleveReclamations = () =>
+  useQuery({ queryKey: ['eleve', 'reclamations'], queryFn: () => eleveApi.reclamations().then(r => r.data?.data) });
+
+export const useCreerReclamation = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { motif: string; noteId?: string }) => eleveApi.creerReclamation(data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['eleve', 'reclamations'] }); toast.success('Réclamation envoyée'); },
+    onError: () => toast.error("Erreur lors de l'envoi"),
+  });
+};
+
+export const useMarquerNotificationLue = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => eleveApi.marquerLu(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['eleve', 'notifications'] }); },
+  });
+};
+
+export const useToutLireNotifications = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => eleveApi.toutLire(),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['eleve', 'notifications'] }); toast.success('Toutes les notifications marquées comme lues'); },
+  });
+};
+
+// --- PARENT HOOKS ---
+export const useParentEnfants = () =>
+  useQuery({ queryKey: ['parent', 'enfants'], queryFn: () => parentApi.enfants().then(r => r.data?.data) });
+export const useParentEnfantNotes = (id: string, trimestre?: string) =>
+  useQuery({ queryKey: ['parent', 'enfant', id, 'notes', trimestre], queryFn: () => parentApi.enfantNotes(id, trimestre).then(r => r.data?.data), enabled: !!id });
+export const useParentEnfantAbsences = (id: string) =>
+  useQuery({ queryKey: ['parent', 'enfant', id, 'absences'], queryFn: () => parentApi.enfantAbsences(id).then(r => r.data?.data), enabled: !!id });
+export const useParentEnfantBulletins = (id: string) =>
+  useQuery({ queryKey: ['parent', 'enfant', id, 'bulletins'], queryFn: () => parentApi.enfantBulletins(id).then(r => r.data?.data), enabled: !!id });
+export const useParentEnfantEmploiDuTemps = (id: string) =>
+  useQuery({ queryKey: ['parent', 'enfant', id, 'emploi-du-temps'], queryFn: () => parentApi.enfantEmploiDuTemps(id).then(r => r.data?.data), enabled: !!id });
+export const useParentPaiements = () =>
+  useQuery({ queryKey: ['parent', 'paiements'], queryFn: () => parentApi.paiements().then(r => r.data?.data) });
+export const useParentNotifications = () =>
+  useQuery({ queryKey: ['parent', 'notifications'], queryFn: () => parentApi.notifications().then(r => r.data?.data) });
+export const useParentReclamations = () =>
+  useQuery({ queryKey: ['parent', 'reclamations'], queryFn: () => parentApi.reclamations().then(r => r.data?.data ?? r.data) });
+export const useCreerReclamationParent = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: unknown) => parentApi.creerReclamation(data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['parent', 'reclamations'] }); toast.success('Réclamation soumise'); },
+    onError: () => toast.error('Erreur lors de la soumission'),
+  });
+};
+
+// --- PROFESSEUR HOOKS ---
+export const useProfesseurMesClasses = () =>
+  useQuery({ queryKey: ['professeur', 'mes-classes'], queryFn: () => professeurApi.mesClasses().then(r => r.data?.data) });
+export const useProfesseurClassesMatieres = () =>
+  useQuery({ queryKey: ['professeur', 'classes-matieres'], queryFn: () => professeurApi.classesMatieres().then(r => r.data?.data) });
+export const useProfesseurPaiements = () =>
+  useQuery({ queryKey: ['professeur', 'paiements'], queryFn: () => professeurApi.paiements().then(r => r.data?.data) });
+export const useProfesseurEmploiDuTemps = () =>
+  useQuery({ queryKey: ['professeur', 'emploi-du-temps'], queryFn: () => professeurApi.emploiDuTemps().then(r => r.data?.data) });
+export const useProfesseurClasseEleves = (classeId: string) =>
+  useQuery({ queryKey: ['professeur', 'classe', classeId, 'eleves'], queryFn: () => professeurApi.classeEleves(classeId).then(r => r.data?.data), enabled: !!classeId });
+export const useProfesseurAbsences = () =>
+  useQuery({ queryKey: ['professeur', 'absences'], queryFn: () => professeurApi.absences().then(r => r.data?.data ?? r.data) });
+export const useDeclarerAbsenceProfesseur = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: unknown) => professeurApi.declarerAbsence(data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['professeur', 'absences'] }); toast.success('Absence déclarée'); },
+    onError: () => toast.error('Erreur lors de la déclaration'),
+  });
+};
+export const useCahierTexte = (coursId?: string) =>
+  useQuery({ queryKey: ['professeur', 'cahier-texte', coursId], queryFn: () => professeurApi.cahierTexte(coursId).then(r => r.data?.data ?? r.data) });
+export const useCreerCahierTexte = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: unknown) => professeurApi.creerCahierTexte(data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['professeur', 'cahier-texte'] }); toast.success('Entrée enregistrée'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+
+export const useFaireAppel = () => {
+  return useMutation({
+    mutationFn: ({ classeId, data }: { classeId: string; data: unknown }) =>
+      professeurApi.faireAppel({ classeId, ...(data as Record<string, unknown>) }),
+    onSuccess: () => { toast.success('Appel enregistré'); },
+    onError: () => toast.error("Erreur lors de l'appel"),
+  });
+};
+
+export const useSaisirNotes = () => {
+  return useMutation({
+    mutationFn: ({ classeId, matiereId, data }: { classeId: string; matiereId: string; data: unknown }) =>
+      professeurApi.saisirNotes({ classeId, matiereId, ...(data as Record<string, unknown>) }),
+    onSuccess: () => toast.success('Notes enregistrées'),
+    onError: () => toast.error('Erreur lors de la saisie'),
+  });
+};
+
+// --- ADMIN HOOKS ---
+export const useAdminClasses = (params?: Record<string, unknown>) =>
+  useQuery({ queryKey: ['admin', 'classes', params], queryFn: () => adminApi.classes(params).then(r => r.data?.data ?? r.data) });
+export const useAdminEleves = (params?: Record<string, unknown>) =>
+  useQuery({ queryKey: ['admin', 'eleves', params], queryFn: () => adminApi.eleves(params).then(r => r.data?.data ?? r.data) });
+export const useAdminParents = (params?: Record<string, unknown>) =>
+  useQuery({ queryKey: ['admin', 'parents', params], queryFn: () => adminApi.parents(params).then(r => r.data?.data ?? r.data) });
+export const useAdminProfesseurs = (params?: Record<string, unknown>) =>
+  useQuery({ queryKey: ['admin', 'professeurs', params], queryFn: () => adminApi.professeurs(params).then(r => r.data?.data ?? r.data) });
+export const useAdminMatieres = (params?: Record<string, unknown>) =>
+  useQuery({ queryKey: ['admin', 'matieres', params], queryFn: () => adminApi.matieres(params).then(r => r.data?.data ?? r.data) });
+export const useAdminNotes = (params?: Record<string, unknown>) =>
+  useQuery({ queryKey: ['admin', 'notes', params], queryFn: () => adminApi.notes(params).then(r => r.data?.data ?? r.data) });
+export const useAdminBulletins = (params?: Record<string, unknown>) =>
+  useQuery({ queryKey: ['admin', 'bulletins', params], queryFn: () => adminApi.bulletins(params).then(r => r.data?.data ?? r.data) });
+export const useAdminAbsencesEleves = (params?: Record<string, unknown>) =>
+  useQuery({ queryKey: ['admin', 'absences-eleves', params], queryFn: () => adminApi.absencesEleves(params).then(r => r.data?.data ?? r.data) });
+export const useAdminAnnonces = (params?: Record<string, unknown>) =>
+  useQuery({ queryKey: ['admin', 'annonces', params], queryFn: () => adminApi.annonces(params).then(r => r.data?.data ?? r.data) });
+export const useAdminReclamations = (params?: Record<string, unknown>) =>
+  useQuery({ queryKey: ['admin', 'reclamations', params], queryFn: () => adminApi.reclamations(params).then(r => r.data?.data ?? r.data) });
+export const useAdminEmploisDuTemps = (params?: Record<string, unknown>) =>
+  useQuery({ queryKey: ['admin', 'emplois-du-temps', params], queryFn: () => adminApi.emploisDuTemps(params).then(r => r.data?.data ?? r.data) });
+export const useAdminClasseEmploiDuTemps = (classeId: string) =>
+  useQuery({ queryKey: ['admin', 'emplois-du-temps', 'classe', classeId], queryFn: () => adminApi.classeEmploiDuTemps(classeId).then(r => r.data?.data ?? r.data), enabled: !!classeId });
+export const useAdminPaiements = (params?: Record<string, unknown>) =>
+  useQuery({ queryKey: ['admin', 'paiements', params], queryFn: () => adminApi.paiements(params).then(r => r.data?.data ?? r.data) });
+export const useAdminPersonnel = (params?: Record<string, unknown>) =>
+  useQuery({ queryKey: ['admin', 'personnel', params], queryFn: () => adminApi.personnel(params).then(r => r.data?.data ?? r.data) });
+export const useAdminConvocations = (params?: Record<string, unknown>) =>
+  useQuery({ queryKey: ['admin', 'convocations', params], queryFn: () => adminApi.convocations(params).then(r => r.data?.data ?? r.data) });
+export const useAdminStats = () =>
+  useQuery({ queryKey: ['admin', 'stats'], queryFn: () => adminApi.stats().then(r => r.data?.data ?? r.data) });
+export const useAdminStatsMensuel = (params?: { annee?: string }) =>
+  useQuery({ queryKey: ['admin', 'stats-mensuel', params], queryFn: () => adminApi.statsMensuel(params).then(r => r.data?.data ?? r.data) });
+export const useAppbarSummary = () =>
+  useQuery({ queryKey: ['appbar', 'summary'], queryFn: () => adminApi.appbarSummary().then(r => r.data?.data ?? r.data) });
+export const useAdminInscriptions = (params?: Record<string, unknown>) =>
+  useQuery({ queryKey: ['admin', 'inscriptions', params], queryFn: () => adminApi.inscriptions(params).then(r => r.data?.data ?? r.data) });
+export const useAdminPointages = (params?: Record<string, unknown>) =>
+  useQuery({ queryKey: ['admin', 'pointages', params], queryFn: () => adminApi.pointages(params).then(r => r.data?.data ?? r.data) });
+export const useAdminAbsencesPersonnel = (params?: Record<string, unknown>) =>
+  useQuery({ queryKey: ['admin', 'absences-personnel', params], queryFn: () => adminApi.absencesPersonnel(params).then(r => r.data?.data ?? r.data) });
+export const useAdminCalendrierScolaire = (params?: Record<string, unknown>) =>
+  useQuery({ queryKey: ['admin', 'calendrier-scolaire', params], queryFn: () => adminApi.calendrierScolaire(params).then(r => r.data?.data ?? r.data) });
+export const useAdminRapports = () =>
+  useQuery({ queryKey: ['admin', 'rapports'], queryFn: () => adminApi.rapports().then(r => r.data?.data ?? r.data) });
+
+// Examens
+export const useAdminExamens = (params?: Record<string, unknown>) =>
+  useQuery({ queryKey: ['admin', 'examens', params], queryFn: () => adminApi.examens(params).then(r => r.data?.data ?? r.data) });
+
+// Devoirs
+export const useAdminDevoirs = (params?: Record<string, unknown>) =>
+  useQuery({ queryKey: ['admin', 'devoirs', params], queryFn: () => adminApi.devoirs(params).then(r => r.data?.data ?? r.data) });
+
+// Discipline
+export const useAdminDiscipline = (params?: Record<string, unknown>) =>
+  useQuery({ queryKey: ['admin', 'discipline', params], queryFn: () => adminApi.discipline(params).then(r => r.data?.data ?? r.data) });
+
+// Documents
+export const useAdminDocuments = (params?: Record<string, unknown>) =>
+  useQuery({ queryKey: ['admin', 'documents', params], queryFn: () => adminApi.documents(params).then(r => r.data?.data ?? r.data) });
+
+// Bibliothèque
+export const useAdminOuvrages = (params?: Record<string, unknown>) =>
+  useQuery({ queryKey: ['admin', 'ouvrages', params], queryFn: () => adminApi.ouvrages(params).then(r => r.data?.data ?? r.data) });
+export const useAdminEmprunts = (params?: Record<string, unknown>) =>
+  useQuery({ queryKey: ['admin', 'emprunts', params], queryFn: () => adminApi.emprunts(params).then(r => r.data?.data ?? r.data) });
+
+// Santé
+export const useAdminConsultations = (params?: Record<string, unknown>) =>
+  useQuery({ queryKey: ['admin', 'consultations', params], queryFn: () => adminApi.consultations(params).then(r => r.data?.data ?? r.data) });
+export const useAdminStockMedical = () =>
+  useQuery({ queryKey: ['admin', 'stock-medical'], queryFn: () => adminApi.stockMedical().then(r => r.data?.data ?? r.data) });
+
+// Utilisateurs
+export const useAdminUtilisateurs = (params?: Record<string, unknown>) =>
+  useQuery({ queryKey: ['admin', 'utilisateurs', params], queryFn: () => adminApi.utilisateurs(params).then(r => r.data?.data ?? r.data) });
+
+// Audit
+export const useAdminAuditLogs = (params?: Record<string, unknown>) =>
+  useQuery({ queryKey: ['admin', 'audit-logs', params], queryFn: () => adminApi.auditLogs(params).then(r => r.data?.data ?? r.data) });
+
+// Archives
+export const useAdminArchives = (params?: Record<string, unknown>) =>
+  useQuery({ queryKey: ['admin', 'archives', params], queryFn: () => adminApi.archives(params).then(r => r.data?.data ?? r.data) });
+
+// Mutations admin existantes
+export const useCreateEleve = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: adminApi.createEleve,
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'eleves'] }); toast.success('Élève créé'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+export const useUpdateEleve = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: unknown }) => adminApi.updateEleve(id, data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'eleves'] }); toast.success('Élève modifié'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+export const useDeleteEleve = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: adminApi.deleteEleve,
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'eleves'] }); toast.success('Élève supprimé'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+export const useCreateClasse = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: adminApi.createClasse,
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'classes'] }); toast.success('Classe créée'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+export const useUpdateClasse = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: unknown }) => adminApi.updateClasse(id, data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'classes'] }); toast.success('Classe modifiée'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+export const useDeleteClasse = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: adminApi.deleteClasse,
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'classes'] }); toast.success('Classe supprimée'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+export const useCreateProfesseur = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: adminApi.createProfesseur,
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'professeurs'] }); toast.success('Professeur créé'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+export const useUpdateProfesseur = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: unknown }) => adminApi.updateProfesseur(id, data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'professeurs'] }); toast.success('Professeur modifié'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+export const useDeleteProfesseur = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: adminApi.deleteProfesseur,
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'professeurs'] }); toast.success('Professeur supprimé'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+export const useCreateParent = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: adminApi.createParent,
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'parents'] }); toast.success('Parent créé'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+export const useUpdateParent = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: unknown }) => adminApi.updateParent(id, data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'parents'] }); toast.success('Parent modifié'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+export const useCreateMatiere = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: adminApi.createMatiere,
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'matieres'] }); toast.success('Matière créée'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+export const useUpdateMatiere = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: unknown }) => adminApi.updateMatiere(id, data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'matieres'] }); toast.success('Matière modifiée'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+export const useDeleteMatiere = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => adminApi.deleteMatiere(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'matieres'] }); toast.success('Matière supprimée'); },
+    onError: () => toast.error('Erreur lors de la suppression'),
+  });
+};
+export const useCreateNote = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: adminApi.createNote,
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'notes'] }); toast.success('Note enregistrée'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+export const useUpdateNote = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: unknown }) => adminApi.updateNote(id, data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'notes'] }); toast.success('Note modifiée'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+export const useDeleteNote = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => adminApi.deleteNote(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'notes'] }); toast.success('Note supprimée'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+export const useCreateAnnonce = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: adminApi.createAnnonce,
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'annonces'] }); toast.success('Annonce créée'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+export const useUpdateAnnonce = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: unknown }) => adminApi.updateAnnonce(id, data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'annonces'] }); toast.success('Annonce modifiée'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+export const useDeleteAnnonce = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: adminApi.deleteAnnonce,
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'annonces'] }); toast.success('Annonce supprimée'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+export const useUpdateReclamation = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: unknown }) => adminApi.updateReclamation(id, data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'reclamations'] }); toast.success('Réclamation mise à jour'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+export const useUpdateAbsence = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: unknown }) => adminApi.updateAbsence(id, data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'absences-eleves'] }); toast.success('Absence mise à jour'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+export const useCreateConvocation = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: adminApi.createConvocation,
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'convocations'] }); toast.success('Convocation créée'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+export const useUpdateConvocation = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: unknown }) => adminApi.updateConvocation(id, data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'convocations'] }); toast.success('Convocation modifiée'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+export const useCreatePointage = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: adminApi.createPointage,
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'pointages'] }); toast.success('Pointage enregistré'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+export const useValiderInscription = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => adminApi.validerInscription(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'inscriptions'] }); qc.invalidateQueries({ queryKey: ['caisse', 'inscriptions'] }); toast.success('Inscription validée'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+export const usePublishBulletins = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: adminApi.publishBulletins,
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'bulletins'] }); toast.success('Bulletins publiés'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+export const useCreatePersonnel = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: adminApi.createPersonnel,
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'personnel'] }); toast.success('Personnel créé'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+export const useUpdatePersonnel = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: unknown }) => adminApi.updatePersonnel(id, data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'personnel'] }); toast.success('Personnel modifié'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+export const useCreateAbsencePersonnel = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: unknown) => adminApi.createAbsencePersonnel(data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'absences-personnel'] }); toast.success('Absence déclarée'); },
+    onError: () => toast.error('Erreur lors de la déclaration'),
+  });
+};
+
+// Mutations examens
+export const useCreateExamen = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: adminApi.createExamen,
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'examens'] }); toast.success('Examen créé'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+export const useUpdateExamen = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: unknown }) => adminApi.updateExamen(id, data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'examens'] }); toast.success('Examen modifié'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+export const useDeleteExamen = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => adminApi.deleteExamen(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'examens'] }); toast.success('Examen supprimé'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+export const useGenererPvExamen = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => adminApi.genererPvExamen(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'examens'] }); toast.success('PV généré'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+export const usePublierResultatsExamen = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => adminApi.publierResultatsExamen(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'examens'] }); toast.success('Résultats publiés'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+
+// Mutations devoirs
+export const useCreateDevoir = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: adminApi.createDevoir,
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'devoirs'] }); toast.success('Devoir créé'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+export const useUpdateDevoir = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: unknown }) => adminApi.updateDevoir(id, data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'devoirs'] }); toast.success('Devoir modifié'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+export const useDeleteDevoir = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => adminApi.deleteDevoir(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'devoirs'] }); toast.success('Devoir supprimé'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+
+// Mutations discipline
+export const useCreateDiscipline = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: adminApi.createDiscipline,
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'discipline'] }); toast.success('Incident enregistré'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+export const useUpdateDiscipline = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: unknown }) => adminApi.updateDiscipline(id, data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'discipline'] }); toast.success('Dossier mis à jour'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+export const useCloturerDiscipline = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: unknown }) => adminApi.cloturerDiscipline(id, data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'discipline'] }); toast.success('Dossier clôturé'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+
+// Mutations documents
+export const useCreateDocument = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: adminApi.createDocument,
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'documents'] }); toast.success('Document créé'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+export const useDeleteDocument = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => adminApi.deleteDocument(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'documents'] }); toast.success('Document supprimé'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+export const usePublierDocument = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => adminApi.publierDocument(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'documents'] }); toast.success('Document publié'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+export const useArchiverDocument = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => adminApi.archiverDocument(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'documents'] }); toast.success('Document archivé'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+
+// Mutations bibliothèque
+export const useCreateOuvrage = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: adminApi.createOuvrage,
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'ouvrages'] }); toast.success('Ouvrage ajouté'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+export const useCreateEmprunt = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: adminApi.createEmprunt,
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'emprunts'] }); qc.invalidateQueries({ queryKey: ['admin', 'ouvrages'] }); toast.success('Emprunt enregistré'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+export const useRetournerEmprunt = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => adminApi.retournerEmprunt(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'emprunts'] }); qc.invalidateQueries({ queryKey: ['admin', 'ouvrages'] }); toast.success('Retour enregistré'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+
+// Mutations santé
+export const useCreateConsultation = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: adminApi.createConsultation,
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'consultations'] }); toast.success('Consultation enregistrée'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+
+// Mutations utilisateurs
+export const useCreateUtilisateur = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: adminApi.createUtilisateur,
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'utilisateurs'] }); toast.success('Utilisateur créé'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+export const useSuspendreUtilisateur = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => adminApi.suspendreUtilisateur(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'utilisateurs'] }); toast.success('Utilisateur suspendu'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+export const useActiverUtilisateur = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => adminApi.activerUtilisateur(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'utilisateurs'] }); toast.success('Utilisateur activé'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+export const useDeleteUtilisateur = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => adminApi.deleteUtilisateur(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'utilisateurs'] }); toast.success('Utilisateur supprimé'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+
+// Mutation restauration archive
+export const useRestaurerArchive = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => adminApi.restaurerArchive(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'archives'] }); toast.success('Restauration lancée'); },
+    onError: () => toast.error('Erreur lors de la restauration'),
+  });
+};
+
+// --- CAISSE HOOKS ---
+export const useCaissePaiements = (params?: Record<string, unknown>) =>
+  useQuery({ queryKey: ['caisse', 'paiements', params], queryFn: () => caisseApi.paiements(params).then(r => r.data?.data ?? r.data) });
+export const useCaisseInscriptions = (params?: Record<string, unknown>) =>
+  useQuery({ queryKey: ['caisse', 'inscriptions', params], queryFn: () => caisseApi.inscriptions(params).then(r => r.data?.data ?? r.data) });
+export const useCreateCaissePaiement = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: caisseApi.createPaiement,
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['caisse', 'paiements'] }); toast.success('Paiement enregistré'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+export const useUpdateCaissePaiement = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: unknown }) => caisseApi.updatePaiement(id, data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['caisse', 'paiements'] }); toast.success('Paiement mis à jour'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+
+// --- PLATFORM HOOKS ---
+export const usePlatformTenants = (params?: Record<string, unknown>) =>
+  useQuery({ queryKey: ['platform', 'tenants', params], queryFn: () => platformApi.tenants(params).then(r => r.data?.data ?? r.data) });
+export const usePlatformStats = () =>
+  useQuery({ queryKey: ['platform', 'stats'], queryFn: () => platformApi.stats().then(r => r.data?.data ?? r.data) });
+export const usePlatformAuditLogs = (params?: Record<string, unknown>) =>
+  useQuery({ queryKey: ['platform', 'audit-logs', params], queryFn: () => platformApi.auditLogs(params).then(r => r.data?.data ?? r.data) });
+export const usePlatformUtilisateurs = (params?: Record<string, unknown>) =>
+  useQuery({ queryKey: ['platform', 'utilisateurs', params], queryFn: () => platformApi.utilisateurs(params).then(r => r.data?.data ?? r.data) });
+export const useCreateTenant = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: platformApi.createTenant,
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['platform', 'tenants'] }); toast.success('Établissement créé'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+export const useUpdateTenant = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: unknown }) => platformApi.updateTenant(id, data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['platform', 'tenants'] }); toast.success('Établissement modifié'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+export const useSuspendTenant = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => platformApi.suspendTenant(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['platform', 'tenants'] }); toast.success('Établissement suspendu'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+export const useReactivateTenant = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => platformApi.reactivateTenant(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['platform', 'tenants'] }); toast.success('Établissement réactivé'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+
+// --- AUTH HOOKS ---
+export const useChangePassword = () => {
+  return useMutation({
+    mutationFn: (data: { currentPassword: string; newPassword: string }) => authApi.changePassword(data),
+    onSuccess: () => toast.success('Mot de passe modifié'),
+    onError: () => toast.error('Erreur lors du changement de mot de passe'),
+  });
+};
+export const useUpdateProfile = () => {
+  return useMutation({
+    mutationFn: (data: Partial<{ firstName: string; lastName: string; email: string; telephone: string }>) => authApi.updateProfile(data),
+    onSuccess: () => toast.success('Profil mis à jour'),
+    onError: () => toast.error('Erreur lors de la mise à jour'),
+  });
+};
+
+// --- SURVEILLANT HOOKS ---
+export const useSurveillantAbsences = (params?: Record<string, unknown>) =>
+  useQuery({ queryKey: ['surveillant', 'absences', params], queryFn: () => surveillantApi.absencesEleves(params).then(r => r.data?.data ?? r.data) });
+export const useSurveillantClasses = (params?: Record<string, unknown>) =>
+  useQuery({ queryKey: ['surveillant', 'classes', params], queryFn: () => surveillantApi.classes(params).then(r => r.data?.data ?? r.data) });
+export const useSurveillantEleves = (params?: Record<string, unknown>) =>
+  useQuery({ queryKey: ['surveillant', 'eleves', params], queryFn: () => surveillantApi.eleves(params).then(r => r.data?.data ?? r.data) });
+export const useSurveillantParents = (params?: Record<string, unknown>) =>
+  useQuery({ queryKey: ['surveillant', 'parents', params], queryFn: () => surveillantApi.parents(params).then(r => r.data?.data ?? r.data) });
+export const useCreateAbsenceEleve = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: unknown) => surveillantApi.createAbsenceEleve(data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['surveillant', 'absences'] }); toast.success('Absence enregistrée'); },
+    onError: () => toast.error('Erreur lors de l\'enregistrement'),
+  });
+};
+export const useApprouverAbsence = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => surveillantApi.approuverAbsence(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['surveillant', 'absences'] }); toast.success('Absence approuvée'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+export const useRejeterAbsence = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => surveillantApi.rejeterAbsence(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['surveillant', 'absences'] }); toast.success('Absence rejetée'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+export const useSurveillantConvocations = (params?: Record<string, unknown>) =>
+  useQuery({ queryKey: ['surveillant', 'convocations', params], queryFn: () => surveillantApi.convocations(params).then(r => r.data?.data ?? r.data) });
+export const useCreateSurveillantConvocation = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: unknown) => surveillantApi.createConvocation(data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['surveillant', 'convocations'] }); toast.success('Convocation créée'); },
+    onError: () => toast.error('Erreur lors de la création'),
+  });
+};
+export const useCompteRenduConvocation = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, compteRendu }: { id: string; compteRendu: string }) => surveillantApi.compteRenduConvocation(id, compteRendu),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['surveillant', 'convocations'] }); toast.success('Compte-rendu enregistré'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+export const useDeleteConvocation = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => surveillantApi.deleteConvocation(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['surveillant', 'convocations'] }); toast.success('Convocation supprimée'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
