@@ -1,262 +1,300 @@
 'use client';
 
-import { useState } from 'react';
-import { toast } from 'sonner';
-import { useAdminReclamations } from '@/hooks/use-query-api';
+import { useState, useMemo } from 'react';
+import { useAdminReclamations, useRepondreReclamation } from '@/hooks/use-query-api';
 
-const STATIC_RECLAMATIONS = [
-  { id: 'r1', auteur: 'Moussa Diallo', role: 'Élève', sujet: 'Erreur sur note Maths T1', statut: 'nouveau', date: '27/06/2026', noteAvant: 8, noteApres: null },
-  { id: 'r2', auteur: 'Ibrahima Diallo', role: 'Parent', sujet: 'Absence injustifiée du 24 juin', statut: 'en_cours', date: '26/06/2026', noteAvant: null, noteApres: null },
-  { id: 'r3', auteur: 'Fatou Sall', role: 'Élève', sujet: 'Demande de changement de classe', statut: 'nouveau', date: '25/06/2026', noteAvant: null, noteApres: null },
-  { id: 'r4', auteur: 'Aminata Diop', role: 'Élève', sujet: 'Problème accès bulletin', statut: 'acceptee', date: '20/06/2026', noteAvant: 8, noteApres: 12 },
-  { id: 'r5', auteur: 'Babacar Diop', role: 'Parent', sujet: 'Frais supplémentaires non justifiés', statut: 'rejetee', date: '18/06/2026', noteAvant: null, noteApres: null },
-  { id: 'r6', auteur: 'Cheikh Fall', role: 'Élève', sujet: 'Note SVT incorrecte', statut: 'acceptee', date: '15/06/2026', noteAvant: 7, noteApres: 14 },
-];
+/* ── Types ── */
+type StatutRec = 'EN_ATTENTE' | 'TRAITEE' | 'REJETEE';
 
-const STATUT_MAP: Record<string, { label: string; bg: string; color: string }> = {
-  nouveau: { label: 'Nouveau', bg: '#eff6ff', color: '#2563eb' },
-  en_cours: { label: 'En cours', bg: '#fef3c7', color: '#d97706' },
-  acceptee: { label: 'Acceptée', bg: '#dcfce7', color: '#16a34a' },
-  rejetee: { label: 'Rejetée', bg: '#fee2e2', color: '#dc2626' },
+interface Eleve {
+  id: string;
+  firstName?: string;
+  lastName?: string;
+  matricule?: string;
+  email?: string;
+}
+
+interface Reclamation {
+  id: string;
+  eleveId: string;
+  noteId?: string | null;
+  motif: string;
+  statut: StatutRec;
+  reponse?: string | null;
+  pieceJointeUrl?: string | null;
+  createdAt: string;
+  eleve?: Eleve | null;
+}
+
+/* ── Config ── */
+const STATUT_CFG: Record<StatutRec, { label: string; bg: string; color: string }> = {
+  EN_ATTENTE: { label: 'En attente', bg: '#fef3c7', color: '#92400e' },
+  TRAITEE:    { label: 'Traitée',    bg: '#dcfce7', color: '#166534' },
+  REJETEE:    { label: 'Rejetée',    bg: '#fee2e2', color: '#991b1b' },
 };
 
-type Rec = Record<string, unknown>;
+function eleveName(r: Reclamation) {
+  if (!r.eleve) return r.eleveId.slice(0, 8);
+  return `${r.eleve.firstName ?? ''} ${r.eleve.lastName ?? ''}`.trim() || r.eleveId.slice(0, 8);
+}
+function initials(name: string) {
+  return name.split(' ').map(n => n[0] ?? '').join('').slice(0, 2).toUpperCase();
+}
+function fmtDate(d: string) {
+  try { return new Date(d).toLocaleDateString('fr-FR'); } catch { return d; }
+}
 
+/* ── Page ── */
 export default function ReclamationsAdminPage() {
-  const { data } = useAdminReclamations();
-  const rawList = Array.isArray(data) ? data : (data?.reclamations ?? data?.content ?? data?.data ?? []);
-  const reclamations = rawList.length > 0 ? rawList : STATIC_RECLAMATIONS;
+  const { data: raw, isLoading } = useAdminReclamations();
+  const reclamations: Reclamation[] = useMemo(() => {
+    const d = raw;
+    const list = Array.isArray(d) ? d : ((d as { content?: Reclamation[] })?.content ?? []);
+    return list as Reclamation[];
+  }, [raw]);
 
-  const [filterStatut, setFilterStatut] = useState('');
-  const [activeTab, setActiveTab] = useState<'en_attente' | 'historique'>('en_attente');
-  const [showModal, setShowModal] = useState(false);
-  const [selectedRec, setSelectedRec] = useState<Rec | null>(null);
-  const [reponse, setReponse] = useState('');
-  const [decision, setDecision] = useState<'acceptee' | 'rejetee'>('acceptee');
-  const [nouvelleNote, setNouvelleNote] = useState('');
-  const [saving, setSaving] = useState(false);
+  const repondre = useRepondreReclamation();
 
-  const pending = (reclamations as Rec[]).filter((r) => (r.statut as string) === 'nouveau' || (r.statut as string) === 'en_cours');
-  const historique = (reclamations as Rec[]).filter((r) => (r.statut as string) === 'acceptee' || (r.statut as string) === 'rejetee');
+  const [onglet, setOnglet] = useState<'en_attente' | 'historique'>('en_attente');
+  const [search, setSearch] = useState('');
+  const [selected, setSelected] = useState<Reclamation | null>(null);
+  const [reponseText, setReponseText] = useState('');
+  const [decision, setDecision] = useState<'TRAITEE' | 'REJETEE'>('TRAITEE');
 
-  const filtered = (activeTab === 'en_attente' ? pending : historique).filter((r) => {
-    return !filterStatut || r.statut === filterStatut;
-  });
+  /* ── Dérivés ── */
+  const enAttente   = reclamations.filter(r => r.statut === 'EN_ATTENTE');
+  const historique  = reclamations.filter(r => r.statut !== 'EN_ATTENTE');
 
-  const nbNouveau = (reclamations as Rec[]).filter((r) => r.statut === 'nouveau').length;
-  const nbEnCours = (reclamations as Rec[]).filter((r) => r.statut === 'en_cours').length;
-  const nbAcceptees = (reclamations as Rec[]).filter((r) => r.statut === 'acceptee').length;
-  const nbRejetees = (reclamations as Rec[]).filter((r) => r.statut === 'rejetee').length;
+  const currentList = onglet === 'en_attente' ? enAttente : historique;
+  const filtered = useMemo(() => {
+    if (!search.trim()) return currentList;
+    const q = search.toLowerCase();
+    return currentList.filter(r =>
+      eleveName(r).toLowerCase().includes(q) ||
+      r.motif.toLowerCase().includes(q),
+    );
+  }, [currentList, search]);
 
-  const openTraiter = (r: Rec) => {
-    setSelectedRec(r);
-    setReponse('');
-    setDecision('acceptee');
-    setNouvelleNote('');
-    setShowModal(true);
-  };
+  /* ── Actions ── */
+  function openDetail(r: Reclamation) {
+    setSelected(r);
+    setReponseText(r.reponse ?? '');
+    setDecision('TRAITEE');
+  }
 
-  const handleSave = async () => {
-    if (!reponse) { toast.error('La réponse est requise'); return; }
-    setSaving(true);
-    await new Promise((res) => setTimeout(res, 600));
-    setSaving(false);
-    setShowModal(false);
-    toast.success(decision === 'acceptee' ? 'Réclamation acceptée' : 'Réclamation rejetée');
-  };
+  function handleRepondre() {
+    if (!selected) return;
+    if (!reponseText.trim()) return;
+    repondre.mutate({ id: selected.id, message: reponseText, statut: decision }, {
+      onSuccess: () => setSelected(null),
+    });
+  }
+
+  /* ── Styles helpers ── */
+  const lbl = (): React.CSSProperties => ({ fontSize: 11, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 4, display: 'block' });
+  const val = (): React.CSSProperties => ({ fontSize: 13, color: '#334155' });
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#f5f7fa' }}>
-      {/* Header */}
-      <div style={{ background: '#fff', borderBottom: '1px solid #e6ebf1', height: 62, flexShrink: 0, display: 'flex', alignItems: 'center', padding: '0 28px', gap: 14 }}>
-        <div style={{ fontSize: 17, fontWeight: 700, color: '#0f172a' }}>Réclamations</div>
-        <div style={{ fontSize: 13, color: '#64748b' }}>{reclamations.length} total</div>
-        {nbNouveau > 0 && (
-          <span style={{ fontSize: 11, fontWeight: 700, color: '#2563eb', background: '#eff6ff', padding: '2px 8px' }}>{nbNouveau} nouveau{nbNouveau > 1 ? 'x' : ''}</span>
-        )}
-      </div>
+    <div style={{ display: 'flex', height: '100%', background: '#f5f7fa' }}>
 
-      {/* Stats */}
-      <div style={{ flexShrink: 0, padding: '18px 28px 0', display: 'flex', gap: 14 }}>
-        {[
-          { label: 'Nouveaux', val: nbNouveau, bg: '#eff6ff', color: '#2563eb' },
-          { label: 'En cours', val: nbEnCours, bg: '#fef3c7', color: '#d97706' },
-          { label: 'Acceptées', val: nbAcceptees, bg: '#dcfce7', color: '#16a34a' },
-          { label: 'Rejetées', val: nbRejetees, bg: '#fee2e2', color: '#dc2626' },
-        ].map((s) => (
-          <div key={s.label} style={{ flex: 1, background: '#fff', border: '1px solid #e6ebf1', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ width: 40, height: 40, background: s.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <span style={{ fontSize: 18, fontWeight: 800, color: s.color }}>{s.val}</span>
+      {/* ── Panneau gauche ── */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, borderRight: selected ? '1px solid #e6ebf1' : 'none' }}>
+
+        {/* Header */}
+        <div style={{ background: '#fff', borderBottom: '1px solid #e6ebf1', padding: '18px 28px', flexShrink: 0 }}>
+          <div style={{ fontSize: 17, fontWeight: 700, color: '#0f172a' }}>Réclamations</div>
+          <div style={{ fontSize: 13, color: '#64748b', marginTop: 2 }}>Supervision des réclamations élèves · notes · professeurs</div>
+        </div>
+
+        {/* KPIs */}
+        <div style={{ flexShrink: 0, padding: '16px 28px 0', display: 'flex', gap: 12 }}>
+          {[
+            { label: 'Total',      value: reclamations.length,                      color: '#0f172a' },
+            { label: 'En attente', value: enAttente.length,                          color: '#92400e' },
+            { label: 'Traitées',   value: reclamations.filter(r => r.statut === 'TRAITEE').length,  color: '#166534' },
+            { label: 'Rejetées',   value: reclamations.filter(r => r.statut === 'REJETEE').length,  color: '#991b1b' },
+          ].map(k => (
+            <div key={k.label} style={{ flex: 1, background: '#fff', border: '1px solid #e6ebf1', padding: '12px 14px' }}>
+              <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 4 }}>{k.label}</div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: k.color }}>{k.value}</div>
             </div>
-            <span style={{ fontSize: 12, color: '#64748b' }}>{s.label}</span>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
 
-      {/* Tabs */}
-      <div style={{ flexShrink: 0, padding: '14px 28px 0', display: 'flex', gap: 0, borderBottom: '1px solid #e6ebf1', background: '#fff', marginTop: 14 }}>
-        {([
-          { key: 'en_attente', label: `En attente (${pending.length})` },
-          { key: 'historique', label: `Historique (${historique.length})` },
-        ] as { key: 'en_attente' | 'historique'; label: string }[]).map((t) => (
-          <button
-            key={t.key}
-            onClick={() => { setActiveTab(t.key); setFilterStatut(''); }}
-            style={{ height: 42, padding: '0 18px', border: 'none', background: 'transparent', fontSize: 13, fontWeight: activeTab === t.key ? 700 : 400, color: activeTab === t.key ? '#2563eb' : '#64748b', borderBottom: activeTab === t.key ? '2px solid #2563eb' : '2px solid transparent', cursor: 'pointer', fontFamily: 'inherit' }}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Table */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '14px 28px 28px' }}>
-        <div style={{ background: '#fff', border: '1px solid #e6ebf1' }}>
-          {/* Header */}
-          <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr 100px 120px ' + (activeTab === 'historique' ? '140px ' : '') + '110px', padding: '11px 18px', background: '#f8fafc', borderBottom: '1px solid #e6ebf1' }}>
-            {['Auteur', 'Sujet', 'Date', 'Statut', ...(activeTab === 'historique' ? ['Note avant/après'] : []), 'Actions'].map((h) => (
-              <span key={h} style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.04em' }}>{h}</span>
+        {/* Onglets + filtres */}
+        <div style={{ flexShrink: 0, background: '#fff', borderBottom: '1px solid #e6ebf1', marginTop: 14, display: 'flex', alignItems: 'center', padding: '0 28px', gap: 0, justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex' }}>
+            {([
+              ['en_attente', `En attente (${enAttente.length})`],
+              ['historique',  `Historique (${historique.length})`],
+            ] as [typeof onglet, string][]).map(([key, label]) => (
+              <button key={key} onClick={() => { setOnglet(key); setSearch(''); }} style={{ height: 42, padding: '0 18px', border: 'none', background: 'none', fontSize: 13, fontWeight: onglet === key ? 700 : 400, color: onglet === key ? '#2563eb' : '#64748b', borderBottom: onglet === key ? '2px solid #2563eb' : '2px solid transparent', cursor: 'pointer', fontFamily: 'inherit' }}>
+                {label}
+              </button>
             ))}
           </div>
+          <input
+            value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="Rechercher élève, motif…"
+            style={{ height: 32, padding: '0 10px', border: '1px solid #d9e0e8', fontSize: 12, fontFamily: 'inherit', outline: 'none', width: 200 }}
+          />
+        </div>
 
-          {filtered.length === 0 && (
-            <div style={{ padding: '40px', textAlign: 'center', fontSize: 14, color: '#94a3b8' }}>Aucune réclamation</div>
+        {/* Liste */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '14px 28px 28px' }}>
+          {isLoading && (
+            <div style={{ background: '#fff', border: '1px solid #e6ebf1', padding: 32, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Chargement…</div>
           )}
 
-          {filtered.map((r, idx) => {
-            const id = String(r.id ?? idx);
-            const auteur = (r.auteur ?? '') as string;
-            const role = (r.role ?? '') as string;
-            const sujet = (r.sujet ?? '') as string;
-            const date = (r.date ?? '') as string;
-            const statut = (r.statut ?? 'nouveau') as string;
-            const noteAvant = r.noteAvant as number | null;
-            const noteApres = r.noteApres as number | null;
-            const st = STATUT_MAP[statut] ?? STATUT_MAP.nouveau;
-            const initials = auteur.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase();
+          {!isLoading && filtered.length === 0 && (
+            <div style={{ background: '#fff', border: '1px solid #e6ebf1', padding: 40, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>
+              {onglet === 'en_attente' ? 'Aucune réclamation en attente' : 'Aucune réclamation dans l\'historique'}
+            </div>
+          )}
 
-            return (
-              <div
-                key={id}
-                style={{ display: 'grid', gridTemplateColumns: '200px 1fr 100px 120px ' + (activeTab === 'historique' ? '140px ' : '') + '110px', padding: '12px 18px', borderBottom: idx < filtered.length - 1 ? '1px solid #eef2f6' : 'none', alignItems: 'center' }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{ width: 32, height: 32, background: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 10, fontWeight: 700, flexShrink: 0 }}>{initials}</div>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{auteur}</div>
-                    <div style={{ fontSize: 11, color: '#94a3b8' }}>{role}</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {filtered.map(r => {
+              const st = STATUT_CFG[r.statut] ?? STATUT_CFG.EN_ATTENTE;
+              const nom = eleveName(r);
+              const isActive = selected?.id === r.id;
+              return (
+                <div
+                  key={r.id}
+                  onClick={() => openDetail(r)}
+                  style={{ background: '#fff', border: `1px solid ${isActive ? '#2563eb' : '#e6ebf1'}`, padding: '14px 18px', cursor: 'pointer', display: 'flex', alignItems: 'flex-start', gap: 12 }}
+                >
+                  {/* Avatar */}
+                  <div style={{ width: 36, height: 36, background: r.noteId ? '#eff6ff' : '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: r.noteId ? '#2563eb' : '#166534', fontSize: 13, fontWeight: 700 }}>
+                    {initials(nom)}
                   </div>
-                </div>
-                <span style={{ fontSize: 13, color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 12 }}>{sujet}</span>
-                <span style={{ fontSize: 12, color: '#64748b' }}>{date}</span>
-                <span style={{ fontSize: 11, fontWeight: 700, color: st.color, background: st.bg, padding: '3px 8px', display: 'inline-block' }}>{st.label}</span>
-                {activeTab === 'historique' && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
-                    {noteAvant !== null && noteApres !== null ? (
-                      <>
-                        <span style={{ fontWeight: 700, color: '#dc2626' }}>{noteAvant}/20</span>
-                        <span style={{ color: '#94a3b8' }}>→</span>
-                        <span style={{ fontWeight: 700, color: '#16a34a' }}>{noteApres}/20</span>
-                      </>
-                    ) : (
-                      <span style={{ color: '#94a3b8' }}>—</span>
-                    )}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{nom}</span>
+                      {r.eleve?.matricule && <span style={{ fontSize: 11, color: '#94a3b8' }}>{r.eleve.matricule}</span>}
+                      <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 6px', background: r.noteId ? '#eff6ff' : '#f1f5f9', color: r.noteId ? '#2563eb' : '#475569' }}>
+                        {r.noteId ? 'Note' : 'Général'}
+                      </span>
+                      <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 6px', background: st.bg, color: st.color }}>{st.label}</span>
+                    </div>
+                    <div style={{ fontSize: 12, color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.motif}</div>
+                    <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 3 }}>{fmtDate(r.createdAt)}</div>
                   </div>
-                )}
-                <div style={{ display: 'flex', gap: 6 }}>
-                  {(statut === 'nouveau' || statut === 'en_cours') && (
-                    <button
-                      onClick={() => openTraiter(r)}
-                      style={{ height: 30, padding: '0 12px', border: 'none', background: '#2563eb', color: '#fff', fontSize: 11, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' }}
-                    >
-                      Traiter
-                    </button>
-                  )}
-                  {(statut === 'acceptee' || statut === 'rejetee') && (
-                    <button
-                      onClick={() => toast.success('Détails de la réclamation')}
-                      style={{ height: 30, padding: '0 12px', border: '1px solid #e2e8f0', background: '#fff', color: '#475569', fontSize: 11, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' }}
-                    >
-                      Voir
-                    </button>
+                  {r.statut === 'EN_ATTENTE' && (
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#f59e0b', flexShrink: 0, marginTop: 4 }} />
                   )}
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </div>
 
-      {/* Modal Traiter */}
-      {showModal && selectedRec && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: '#fff', width: 520, boxShadow: '0 8px 32px rgba(0,0,0,.14)' }}>
-            <div style={{ padding: '20px 24px', borderBottom: '1px solid #e6ebf1' }}>
-              <div style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', marginBottom: 4 }}>Traiter la réclamation</div>
-              <div style={{ fontSize: 13, color: '#64748b' }}>"{selectedRec.sujet as string}"</div>
+      {/* ── Panneau droit — Détail ── */}
+      {selected && (
+        <div style={{ width: 420, flexShrink: 0, background: '#fff', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
+          {/* Header détail */}
+          <div style={{ padding: '18px 22px', borderBottom: '1px solid #e6ebf1', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+            <span style={{ fontWeight: 700, fontSize: 15, color: '#0f172a' }}>Détail de la réclamation</span>
+            <button onClick={() => setSelected(null)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#94a3b8', lineHeight: 1 }}>×</button>
+          </div>
+
+          <div style={{ flex: 1, overflowY: 'auto', padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+            {/* Statut badge */}
+            <div>
+              {(() => { const st = STATUT_CFG[selected.statut]; return (
+                <span style={{ fontSize: 11, fontWeight: 700, padding: '4px 10px', background: st.bg, color: st.color }}>{st.label}</span>
+              ); })()}
             </div>
-            <div style={{ padding: '20px 24px' }}>
-              {/* Info */}
-              <div style={{ background: '#f8fafc', border: '1px solid #e6ebf1', padding: '12px 14px', marginBottom: 16 }}>
-                <div style={{ fontSize: 12, color: '#64748b' }}>
-                  <strong style={{ color: '#334155' }}>Auteur :</strong> {selectedRec.auteur as string} ({selectedRec.role as string})
+
+            {/* Élève */}
+            <div style={{ background: '#f8fafc', border: '1px solid #e6ebf1', padding: '12px 14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 40, height: 40, background: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 13 }}>
+                  {initials(eleveName(selected))}
                 </div>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>{eleveName(selected)}</div>
+                  {selected.eleve?.matricule && <div style={{ fontSize: 12, color: '#64748b' }}>{selected.eleve.matricule}</div>}
+                  {selected.eleve?.email && <div style={{ fontSize: 11, color: '#94a3b8' }}>{selected.eleve.email}</div>}
+                </div>
+              </div>
+            </div>
+
+            {/* Infos */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div>
+                <span style={lbl()}>Type</span>
+                <span style={val()}>{selected.noteId ? 'Contestation de note' : 'Réclamation générale'}</span>
+              </div>
+              <div>
+                <span style={lbl()}>Date</span>
+                <span style={val()}>{fmtDate(selected.createdAt)}</span>
+              </div>
+            </div>
+
+            {/* Motif */}
+            <div>
+              <span style={lbl()}>Motif / Description</span>
+              <div style={{ background: '#f8fafc', border: '1px solid #e6ebf1', padding: '12px 14px', fontSize: 13, color: '#334155', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+                {selected.motif}
+              </div>
+            </div>
+
+            {/* Pièce jointe */}
+            {selected.pieceJointeUrl && (
+              <div>
+                <span style={lbl()}>Pièce jointe</span>
+                <a href={selected.pieceJointeUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: '#2563eb' }}>Voir le document</a>
+              </div>
+            )}
+
+            {/* Réponse existante */}
+            {selected.reponse && (
+              <div>
+                <span style={lbl()}>Réponse précédente</span>
+                <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '12px 14px', fontSize: 13, color: '#166534', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+                  {selected.reponse}
+                </div>
+              </div>
+            )}
+
+            {/* Section réponse */}
+            <div style={{ borderTop: '1px solid #e6ebf1', paddingTop: 18 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', marginBottom: 14 }}>
+                {selected.statut === 'EN_ATTENTE' ? 'Répondre à cette réclamation' : 'Modifier la réponse'}
               </div>
 
               {/* Décision */}
-              <div style={{ marginBottom: 14 }}>
-                <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 8 }}>Décision</label>
-                <div style={{ display: 'flex', gap: 10 }}>
-                  {(['acceptee', 'rejetee'] as const).map((d) => (
-                    <button
-                      key={d}
-                      onClick={() => setDecision(d)}
-                      style={{ flex: 1, height: 38, border: `2px solid ${decision === d ? (d === 'acceptee' ? '#16a34a' : '#dc2626') : '#d9e0e8'}`, background: decision === d ? (d === 'acceptee' ? '#f0fdf4' : '#fef2f2') : '#fff', color: decision === d ? (d === 'acceptee' ? '#16a34a' : '#dc2626') : '#64748b', fontSize: 13, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer' }}
-                    >
-                      {d === 'acceptee' ? '✓ Accepter' : '✗ Rejeter'}
-                    </button>
-                  ))}
+              <div style={{ marginBottom: 12 }}>
+                <span style={lbl()}>Décision</span>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={() => setDecision('TRAITEE')} style={{ flex: 1, height: 36, border: `2px solid ${decision === 'TRAITEE' ? '#166534' : '#e2e8f0'}`, background: decision === 'TRAITEE' ? '#f0fdf4' : '#fff', color: decision === 'TRAITEE' ? '#166534' : '#64748b', fontSize: 12, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer' }}>
+                    Traitée
+                  </button>
+                  <button onClick={() => setDecision('REJETEE')} style={{ flex: 1, height: 36, border: `2px solid ${decision === 'REJETEE' ? '#991b1b' : '#e2e8f0'}`, background: decision === 'REJETEE' ? '#fff1f2' : '#fff', color: decision === 'REJETEE' ? '#991b1b' : '#64748b', fontSize: 12, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer' }}>
+                    Rejetée
+                  </button>
                 </div>
               </div>
-
-              {/* Note correcte si acceptée et note existe */}
-              {decision === 'acceptee' && (selectedRec.noteAvant as number | null) !== null && (
-                <div style={{ marginBottom: 14 }}>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 5 }}>
-                    Note actuelle : <strong>{selectedRec.noteAvant as number}/20</strong> → Nouvelle note
-                  </label>
-                  <input
-                    type="number"
-                    value={nouvelleNote}
-                    onChange={(e) => setNouvelleNote(e.target.value)}
-                    min={0}
-                    max={20}
-                    placeholder="Ex: 12"
-                    style={{ width: '100%', height: 38, border: '1px solid #d9e0e8', padding: '0 12px', fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }}
-                  />
-                </div>
-              )}
 
               {/* Réponse */}
-              <div style={{ marginBottom: 20 }}>
-                <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 5 }}>Réponse / commentaire</label>
+              <div style={{ marginBottom: 14 }}>
+                <span style={lbl()}>Message de réponse *</span>
                 <textarea
-                  value={reponse}
-                  onChange={(e) => setReponse(e.target.value)}
+                  value={reponseText}
+                  onChange={e => setReponseText(e.target.value)}
                   rows={4}
-                  placeholder="Rédigez votre réponse à l'auteur de la réclamation…"
-                  style={{ width: '100%', border: '1px solid #d9e0e8', padding: '10px 12px', fontSize: 13, fontFamily: 'inherit', outline: 'none', resize: 'none', boxSizing: 'border-box' }}
+                  placeholder="Saisissez votre réponse à l'élève…"
+                  style={{ width: '100%', border: '1px solid #d9e0e8', padding: '10px 12px', fontSize: 13, fontFamily: 'inherit', outline: 'none', resize: 'vertical', boxSizing: 'border-box' }}
                 />
               </div>
-            </div>
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', padding: '16px 24px', borderTop: '1px solid #e6ebf1' }}>
-              <button onClick={() => setShowModal(false)} style={{ height: 38, padding: '0 16px', border: '1px solid #d9e0e8', background: '#fff', color: '#334155', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' }}>Annuler</button>
+
               <button
-                onClick={handleSave}
-                disabled={saving}
-                style={{ height: 38, padding: '0 20px', border: 'none', background: decision === 'acceptee' ? '#16a34a' : '#dc2626', color: '#fff', fontSize: 13, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer', opacity: saving ? 0.7 : 1 }}
+                onClick={handleRepondre}
+                disabled={!reponseText.trim() || repondre.isPending}
+                style={{ width: '100%', height: 40, border: 'none', background: decision === 'TRAITEE' ? '#166534' : '#991b1b', color: '#fff', fontSize: 13, fontWeight: 700, fontFamily: 'inherit', cursor: !reponseText.trim() ? 'not-allowed' : 'pointer', opacity: (!reponseText.trim() || repondre.isPending) ? 0.6 : 1 }}
               >
-                {saving ? 'Enregistrement…' : decision === 'acceptee' ? 'Accepter & Répondre' : 'Rejeter & Répondre'}
+                {repondre.isPending ? 'Envoi…' : decision === 'TRAITEE' ? 'Marquer traitée & répondre' : 'Rejeter & répondre'}
               </button>
             </div>
           </div>

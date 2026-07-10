@@ -1,6 +1,7 @@
 'use client';
 
 import { useCaissePaiements, useUpdateCaissePaiement } from '@/hooks/use-query-api';
+import { classeLabel } from '@/lib/display';
 
 const STATIC_PAIEMENTS = [
   { id: 1, eleve: 'Moussa Diallo', classe: '3ème B', type: 'Scolarité T3', montant: 120000, date: '27 Jun 2025', mode: 'Espèces', statut: 'EN_ATTENTE' },
@@ -20,7 +21,7 @@ export default function CaissePaiementsPage() {
     ? (raw as Record<string, unknown>[]).map((p, i) => ({
         id: String(p.id ?? p._id ?? i),
         eleve: String(p.eleve ?? p.nomEleve ?? p.eleveName ?? ''),
-        classe: String(p.classe ?? ''),
+        classe: classeLabel(p.classe, ''),
         type: String(p.type ?? p.typePaiement ?? ''),
         montant: Number(p.montant ?? 0),
         date: String(p.date ?? p.datePaiement ?? p.createdAt ?? ''),

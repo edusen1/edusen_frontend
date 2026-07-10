@@ -9,6 +9,7 @@ import {
   useCompteRenduConvocation,
   useDeleteConvocation,
 } from '@/hooks/use-query-api';
+import { classeLabel } from '@/lib/display';
 
 type Conv = Record<string, unknown>;
 
@@ -240,7 +241,7 @@ export default function ConvocationsPage() {
                     <option value="">— Sélectionner un élève —</option>
                     {rawEleves.map((e) => (
                       <option key={String(e.id)} value={String(e.id)}>
-                        {String(e.prenom ?? '')} {String(e.nom ?? '')} {e.classe ? `— ${String(e.classe)}` : ''}
+                        {String(e.prenom ?? '')} {String(e.nom ?? '')} {e.classe ? `— ${classeLabel(e.classe, '')}` : ''}
                       </option>
                     ))}
                   </select>

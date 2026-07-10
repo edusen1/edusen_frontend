@@ -1,23 +1,38 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { useUpdateProfile, useChangePassword } from '@/hooks/use-query-api';
+import { useUpdateProfile, useChangePassword, useParentProfil } from '@/hooks/use-query-api';
 import { useAuthStore } from '@/stores/auth-store';
 
 export default function ParentProfilPage() {
   const { user } = useAuthStore();
   const updateProfile = useUpdateProfile();
   const changePassword = useChangePassword();
+  const { data: profilData } = useParentProfil();
 
   const [form, setForm] = useState({
-    prenom: user?.prenom ?? 'Abdoulaye',
-    nom: user?.nom ?? 'Diallo',
-    email: user?.email ?? 'abdoulaye.diallo@gmail.com',
-    telephone: (user as Record<string, unknown> | null)?.telephone as string ?? '77 456 78 90',
-    adresse: 'Rue 10 × 11, Liberté 6, Dakar',
-    profession: 'Ingénieur',
+    prenom: user?.prenom ?? '',
+    nom: user?.nom ?? '',
+    email: user?.email ?? '',
+    telephone: (user as Record<string, unknown> | null)?.telephone as string ?? '',
+    adresse: '',
+    profession: '',
   });
+
+  useEffect(() => {
+    if (profilData) {
+      const p = profilData as Record<string, unknown>;
+      setForm((f) => ({
+        prenom: (p.prenom ?? f.prenom) as string,
+        nom: (p.nom ?? f.nom) as string,
+        email: (p.email ?? f.email) as string,
+        telephone: (p.telephone ?? f.telephone) as string,
+        adresse: (p.adresse ?? '') as string,
+        profession: (p.profession ?? '') as string,
+      }));
+    }
+  }, [profilData]);
 
   const [pwForm, setPwForm] = useState({ actuel: '', nouveau: '', confirmer: '' });
   const [activeTab, setActiveTab] = useState<'infos' | 'securite'>('infos');

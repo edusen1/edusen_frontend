@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useCahierTexte, useCreerCahierTexte, useProfesseurMesClasses } from '@/hooks/use-query-api';
+import { classeLabel, entityLabel } from '@/lib/display';
 
 const STATIC_ENTREES = [
   { id: 1, date: '2025-06-27', classe: '3ème B', matiere: 'Mathématiques', contenu: 'Révision du théorème de Pythagore. Exercices 5, 6, 7 du manuel p.92. Correction en classe des devoirs.', devoirs: 'Exercice 8 p.93 pour jeudi' },
@@ -24,8 +25,8 @@ export default function CahierDeTextesPage() {
     ? (rawEntrees as Record<string, unknown>[]).map((e, i) => ({
         id: String(e.id ?? e._id ?? i),
         date: String(e.dateCours ?? e.date ?? ''),
-        classe: String(e.classe ?? e.className ?? ''),
-        matiere: String(e.matiere ?? e.matiereName ?? ''),
+        classe: classeLabel(e.classe ?? e.className, ''),
+        matiere: entityLabel(e.matiere ?? e.matiereName, ''),
         contenu: String(e.contenuTraite ?? e.contenu ?? ''),
         devoirs: String(e.observations ?? e.devoirs ?? ''),
       }))
@@ -34,7 +35,7 @@ export default function CahierDeTextesPage() {
   const rawClasses = Array.isArray(classesData) ? classesData : (classesData?.classes ?? classesData?.data ?? []);
   const classes = (rawClasses as Record<string, unknown>[]).map((c) => ({
     id: String(c.id ?? c._id ?? ''),
-    nom: String(c.nom ?? c.className ?? c.classe ?? ''),
+    nom: classeLabel(c.nom ?? c.className ?? c.classe, ''),
   }));
 
   const handleSubmit = () => {

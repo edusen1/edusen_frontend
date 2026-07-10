@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { useAdminPaiements, useAdminEleves, useCreateCaissePaiement, useUpdateCaissePaiement } from '@/hooks/use-query-api';
+import { classeLabel } from '@/lib/display';
 
 const STATIC_PAIEMENTS = [
   { id: 'p1', eleve: 'Awa Ndiaye', eleveId: 'e1', classe: '3ᵉ B', type: 'SCOLARITE', typLabel: 'Scolarité T2', montant: 45000, statut: 'PAYE', date: '12/01/2026', mode: 'MOBILE_MONEY' },
@@ -248,7 +249,7 @@ export default function AdminPaiementsPage() {
                 return (
                   <div key={String(p.id ?? idx)} style={{ display: 'grid', gridTemplateColumns: '1fr 100px 130px 120px 70px 110px 80px 130px', padding: '12px 18px', borderBottom: idx < filtered.length - 1 ? '1px solid #eef2f6' : 'none', alignItems: 'center' }}>
                     <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{getEleveLabel(p)}</div>
-                    <div style={{ fontSize: 12, color: '#475569' }}>{String(p.classe ?? '')}</div>
+                    <div style={{ fontSize: 12, color: '#475569' }}>{classeLabel(p.classe, '')}</div>
                     <div style={{ fontSize: 12, color: '#475569' }}>{getTypeLabel(p.type, p.typLabel)}</div>
                     <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{fmt(Number(p.montant) || 0)}</div>
                     <span style={{ fontSize: 11, fontWeight: 700, color: st.color, background: st.bg, padding: '3px 8px', display: 'inline-block' }}>{st.label}</span>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/stores/auth-store';
 import {
   useParentEnfants,
@@ -11,44 +11,6 @@ import {
 } from '@/hooks/use-query-api';
 
 type TabKey = 'notes' | 'absences' | 'planning' | 'paiements';
-
-const STATIC_ENFANTS = [
-  {
-    id: 'e1',
-    prenom: 'Moussa',
-    nom: 'Diallo',
-    classe: { nom: '3ème B' },
-    moyenne: 14.2,
-    rang: 4,
-    absences: 2,
-    scolarite: 'À payer',
-    scolariteColor: '#dc2626',
-  },
-  {
-    id: 'e2',
-    prenom: 'Aminata',
-    nom: 'Diallo',
-    classe: { nom: '6ème A' },
-    moyenne: 15.8,
-    rang: 2,
-    absences: 0,
-    scolarite: 'À jour',
-    scolariteColor: '#16a34a',
-  },
-];
-
-const STATIC_NOTES = [
-  { nom: 'Mathématiques', coef: 4, note: 16.0 },
-  { nom: 'Français', coef: 3, note: 13.5 },
-  { nom: 'Histoire-Géo', coef: 2, note: 14.0 },
-  { nom: 'Sciences Physiques', coef: 3, note: 13.5 },
-  { nom: 'SVT', coef: 2, note: 15.5 },
-];
-
-const STATIC_ABSENCES = [
-  { date: '24 Juin 2025', matiere: 'Mathématiques', statut: 'non_justifie', heure: '08h00' },
-  { date: '20 Juin 2025', matiere: 'Français', statut: 'justifie', heure: '10h00' },
-];
 
 const NOTE_COLORS = [
   { bg: '#eff6ff', stroke: '#2563eb' },
@@ -63,34 +25,36 @@ export default function EnfantsPage() {
   const user = session?.user;
   const nomParent = ((user?.prenom ?? '') + ' ' + (user?.nom ?? '')).trim() || 'Parent';
 
-  const { data: enfantsData } = useParentEnfants();
-  const rawEnfants = Array.isArray(enfantsData) ? enfantsData : [];
-  const enfants = rawEnfants.length > 0 ? rawEnfants : STATIC_ENFANTS;
+  const { data: enfantsData, isLoading: loadingEnfants } = useParentEnfants();
+  const enfants = (Array.isArray(enfantsData) ? enfantsData : []) as Record<string, unknown>[];
 
-  const [selectedId, setSelectedId] = useState<string>(String((enfants[0] as Record<string, unknown>)?.id ?? 'e1'));
+  const [selectedId, setSelectedId] = useState<string>('');
   const [activeTab, setActiveTab] = useState<TabKey>('notes');
 
-  const enfant = enfants.find((e: Record<string, unknown>) => String(e.id) === selectedId) as Record<string, unknown> | undefined
-    ?? enfants[0] as Record<string, unknown>;
+  useEffect(() => {
+    if (enfants.length > 0 && !selectedId) {
+      setSelectedId(String(enfants[0].id ?? ''));
+    }
+  }, [enfants, selectedId]);
+
+  const enfant = enfants.find((e) => String(e.id) === selectedId) ?? enfants[0];
 
   const classeObj = enfant?.classe as Record<string, unknown> | undefined;
-  const classeNom = (classeObj?.nom ?? '3ème B') as string;
-  const prenom = (enfant?.prenom ?? 'Élève') as string;
+  const classeNom = (classeObj?.nom ?? '') as string;
+  const prenom = (enfant?.prenom ?? '') as string;
   const nom = (enfant?.nom ?? '') as string;
-  const moyenne = (enfant?.moyenne ?? 14.2) as number;
+  const moyenne = (enfant?.moyenne ?? null) as number | null;
   const rang = (enfant?.rang ?? '—') as number | string;
-  const initials = ((prenom[0] ?? '') + (nom[0] ?? '')).toUpperCase() || 'E';
+  const initials = ((prenom[0] ?? '') + (nom[0] ?? '')).toUpperCase() || '?';
 
-  const { data: notesData } = useParentEnfantNotes(selectedId, 'T1');
-  const rawNotes = Array.isArray(notesData) ? notesData : (notesData?.notes ?? notesData?.matieres ?? []);
-  const notes = rawNotes.length > 0 ? rawNotes : STATIC_NOTES;
+  const { data: notesData, isLoading: loadingNotes } = useParentEnfantNotes(selectedId, 'T1');
+  const notes = (Array.isArray(notesData) ? notesData : ((notesData as Record<string, unknown> | null)?.notes ?? (notesData as Record<string, unknown> | null)?.matieres ?? [])) as Record<string, unknown>[];
 
-  const { data: absencesData } = useParentEnfantAbsences(selectedId);
-  const rawAbsences = Array.isArray(absencesData) ? absencesData : (absencesData?.absences ?? []);
-  const absences = rawAbsences.length > 0 ? rawAbsences : STATIC_ABSENCES;
+  const { data: absencesData, isLoading: loadingAbsences } = useParentEnfantAbsences(selectedId);
+  const absences = (Array.isArray(absencesData) ? absencesData : ((absencesData as Record<string, unknown> | null)?.absences ?? [])) as Record<string, unknown>[];
 
   const { data: planningData } = useParentEnfantEmploiDuTemps(selectedId);
-  const { data: paiementsData } = useParentPaiements();
+  const { data: paiementsData, isLoading: loadingPaiements } = useParentPaiements();
 
   const tabs: { key: TabKey; label: string }[] = [
     { key: 'notes', label: 'Notes' },
@@ -146,7 +110,14 @@ export default function EnfantsPage() {
 
       {/* Enfant cards list (accueil view) */}
       <div style={{ flex: 1, overflowY: 'auto' }}>
+        {loadingEnfants && (
+          <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: 13, padding: 40 }}>Chargement…</div>
+        )}
+        {!loadingEnfants && enfants.length === 0 && (
+          <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: 13, padding: 40 }}>Aucun enfant inscrit.</div>
+        )}
         {/* Selected child summary */}
+        {!loadingEnfants && enfants.length > 0 && (
         <div style={{ background: '#0f172a', margin: '16px 16px 0', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 14 }}>
           <div style={{ width: 48, height: 48, background: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 16, flexShrink: 0 }}>
             {initials}
@@ -193,7 +164,9 @@ export default function EnfantsPage() {
         <div style={{ padding: '14px 16px' }}>
           {activeTab === 'notes' && (
             <div style={{ background: '#fff', border: '1px solid #e6ebf1' }}>
-              {(notes as Record<string, unknown>[]).map((n, idx) => {
+              {loadingNotes && <div style={{ padding: 20, textAlign: 'center', color: '#94a3b8', fontSize: 12 }}>Chargement…</div>}
+              {!loadingNotes && notes.length === 0 && <div style={{ padding: 20, textAlign: 'center', color: '#94a3b8', fontSize: 12 }}>Aucune note disponible.</div>}
+              {notes.map((n, idx) => {
                 const matiereObj = n.matiere as Record<string, unknown> | undefined;
                 const nomMat = (matiereObj?.nom ?? n.nom ?? 'Matière') as string;
                 const coef = (matiereObj?.coefficient ?? n.coef ?? n.coefficient ?? 1) as number;
@@ -224,13 +197,14 @@ export default function EnfantsPage() {
 
           {activeTab === 'absences' && (
             <div>
-              {(absences as Record<string, unknown>[]).length === 0 ? (
+              {loadingAbsences && <div style={{ padding: 20, textAlign: 'center', color: '#94a3b8', fontSize: 12 }}>Chargement…</div>}
+              {!loadingAbsences && absences.length === 0 ? (
                 <div style={{ background: '#fff', border: '1px solid #e6ebf1', padding: 30, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>
                   Aucune absence enregistrée.
                 </div>
               ) : (
                 <div style={{ background: '#fff', border: '1px solid #e6ebf1' }}>
-                  {(absences as Record<string, unknown>[]).map((abs, idx) => {
+                  {absences.map((abs, idx) => {
                     const statut = (abs.statut ?? 'non_justifie') as string;
                     const isJust = statut === 'justifie' || statut === 'JUSTIFIE';
                     const isRetard = statut === 'retard' || statut === 'RETARD';
@@ -303,13 +277,12 @@ export default function EnfantsPage() {
             const rawPaiements = Array.isArray(paiementsData) ? paiementsData : ((paiementsData as Record<string, unknown> | null)?.paiements ?? (paiementsData as Record<string, unknown> | null)?.echeances ?? []);
             const paiements = rawPaiements as Record<string, unknown>[];
             const totalDu = paiements.filter((p) => p.statut !== 'paye' && p.statut !== 'PAYE').reduce((s, p) => s + ((p.montant as number) ?? 0), 0);
+            if (loadingPaiements) return (
+              <div style={{ padding: 20, textAlign: 'center', color: '#94a3b8', fontSize: 12 }}>Chargement…</div>
+            );
             if (paiements.length === 0) return (
-              <div style={{ background: '#fef2f2', border: '1px solid #fecaca', padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: '#dc2626' }}>Scolarité T3 — non réglée</div>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: '#dc2626' }}>75 000 FCFA</div>
-                </div>
-                <button style={{ background: '#dc2626', color: '#fff', border: 'none', padding: '8px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Payer</button>
+              <div style={{ background: '#fff', border: '1px solid #e6ebf1', padding: 30, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>
+                Aucune échéance enregistrée.
               </div>
             );
             return (
@@ -345,10 +318,12 @@ export default function EnfantsPage() {
           })()}
         </div>
 
+        )}
         {/* All children cards */}
+        {!loadingEnfants && enfants.length > 0 && (
         <div style={{ padding: '0 16px 16px' }}>
           <div style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>Tous les enfants</div>
-          {(enfants as Record<string, unknown>[]).map((e) => {
+          {enfants.map((e) => {
             const ep = (e.prenom ?? '') as string;
             const en = (e.nom ?? '') as string;
             const eid = String(e.id);
@@ -384,6 +359,7 @@ export default function EnfantsPage() {
             );
           })}
         </div>
+        )}
       </div>
     </div>
   );

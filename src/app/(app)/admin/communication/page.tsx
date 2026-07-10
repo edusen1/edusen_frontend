@@ -5,7 +5,7 @@ import { useState } from 'react';
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Canal = 'NOTIFICATION' | 'SMS' | 'EMAIL' | 'WHATSAPP';
 type Statut = 'PLANIFIE' | 'ENVOYE' | 'ECHEC' | 'BROUILLON';
-type Cible = 'TOUS' | 'ELEVES' | 'PARENTS' | 'ENSEIGNANTS' | 'PERSONNEL' | 'CLASSE';
+type Cible = 'TOUS' | 'ELEVES' | 'PARENTS' | 'ENSEIGNANTS' | 'PERSONNEL' | 'RH' | 'COMPTABLES' | 'SURVEILLANTS' | 'SECURITE' | 'CLASSE';
 
 interface Message {
   id: string;
@@ -38,7 +38,18 @@ const CANAL_LABELS: Record<Canal, string> = { NOTIFICATION: 'Notification', SMS:
 const CANAL_COLORS: Record<Canal, string> = { NOTIFICATION: '#7c3aed', SMS: '#0369a1', EMAIL: '#2563eb', WHATSAPP: '#16a34a' };
 const STATUT_LABELS: Record<Statut, string> = { PLANIFIE: 'Planifié', ENVOYE: 'Envoyé', ECHEC: 'Échec', BROUILLON: 'Brouillon' };
 const STATUT_COLORS: Record<Statut, string> = { PLANIFIE: '#d97706', ENVOYE: '#16a34a', ECHEC: '#dc2626', BROUILLON: '#94a3b8' };
-const CIBLE_LABELS: Record<Cible, string> = { TOUS: 'Tous', ELEVES: 'Élèves', PARENTS: 'Parents', ENSEIGNANTS: 'Enseignants', PERSONNEL: 'Personnel', CLASSE: 'Classe' };
+const CIBLE_LABELS: Record<Cible, string> = {
+  TOUS: 'Tous',
+  ELEVES: 'Élèves',
+  PARENTS: 'Parents',
+  ENSEIGNANTS: 'Enseignants',
+  PERSONNEL: 'Personnel',
+  RH: 'RH',
+  COMPTABLES: 'Comptables',
+  SURVEILLANTS: 'Surveillants',
+  SECURITE: 'Sécurité',
+  CLASSE: 'Classe',
+};
 
 // ─── Composants ───────────────────────────────────────────────────────────────
 function Badge({ label, color }: { label: string; color: string }) {
@@ -85,7 +96,7 @@ export default function CommunicationPage() {
       const e = validate();
       if (Object.keys(e).length) { setErrors(e); return; }
     }
-    const nb = form.cible === 'TOUS' ? 847 : form.cible === 'PARENTS' ? 312 : form.cible === 'ELEVES' ? 847 : form.cible === 'ENSEIGNANTS' ? 48 : form.cible === 'PERSONNEL' ? 14 : 28;
+    const nb = form.cible === 'TOUS' ? 847 : form.cible === 'PARENTS' ? 312 : form.cible === 'ELEVES' ? 847 : form.cible === 'ENSEIGNANTS' ? 48 : form.cible === 'PERSONNEL' ? 14 : form.cible === 'RH' ? 3 : form.cible === 'COMPTABLES' ? 2 : form.cible === 'SURVEILLANTS' ? 6 : form.cible === 'SECURITE' ? 4 : 28;
     const nouveau: Message = {
       id: 'm' + Date.now(),
       titre: form.titre,
@@ -240,7 +251,7 @@ export default function CommunicationPage() {
               <div>
                 <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Destinataires *</label>
                 <select value={form.cible} onChange={e => setForm({ ...form, cible: e.target.value as Cible })} style={{ width: '100%', border: '1px solid #e2e8f0', borderRadius: 6, padding: '8px 10px', fontSize: 13 }}>
-                  {(['TOUS', 'PARENTS', 'ELEVES', 'ENSEIGNANTS', 'PERSONNEL', 'CLASSE'] as Cible[]).map(c => (
+                  {(['TOUS', 'PARENTS', 'ELEVES', 'ENSEIGNANTS', 'PERSONNEL', 'RH', 'COMPTABLES', 'SURVEILLANTS', 'SECURITE', 'CLASSE'] as Cible[]).map(c => (
                     <option key={c} value={c}>{CIBLE_LABELS[c]}</option>
                   ))}
                 </select>

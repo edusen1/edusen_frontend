@@ -5,6 +5,7 @@ import { useAdminPersonnel, useAdminAbsencesPersonnel, useAdminPointages } from 
 const TYPE_COLORS: Record<string, string> = {
   PROFESSEUR: '#2563eb',
   SURVEILLANT: '#d97706',
+  SECURITE: '#475569',
   COMPTABLE: '#16a34a',
   ASSISTANT: '#9333ea',
   DIRECTION: '#e11d48',

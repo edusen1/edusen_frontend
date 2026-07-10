@@ -3,11 +3,6 @@
 import { useState } from 'react';
 import { useParentReclamations, useCreerReclamationParent } from '@/hooks/use-query-api';
 
-const STATIC_RECLAMATIONS = [
-  { id: 'r1', sujet: 'Note contestée — Mathématiques T1', message: 'La note de 8/20 attribuée à mon enfant Moussa au devoir n°2 de Mathématiques me semble incorrecte.', statut: 'en_cours', date: '15/01/2026', reponse: 'Votre réclamation a été transmise au professeur concerné.' },
-  { id: 'r2', sujet: 'Absence injustifiée', message: 'Mon enfant Aminata avait un certificat médical pour l\'absence du 10/01.', statut: 'resolu', date: '12/01/2026', reponse: 'L\'absence a été mise à jour comme justifiée.' },
-  { id: 'r3', sujet: 'Erreur sur le bulletin', message: 'La mention sur le bulletin du T1 est erronée.', statut: 'ouvert', date: '20/01/2026', reponse: null },
-];
 
 const STATUT_MAP: Record<string, { label: string; bg: string; color: string }> = {
   ouvert: { label: 'Ouvert', bg: '#eff6ff', color: '#2563eb' },
@@ -16,9 +11,9 @@ const STATUT_MAP: Record<string, { label: string; bg: string; color: string }> =
 };
 
 export default function ParentReclamationsPage() {
-  const { data } = useParentReclamations();
-  const rawList = Array.isArray(data) ? data : (data?.reclamations ?? data?.data ?? []);
-  const reclamations = rawList.length > 0 ? rawList : STATIC_RECLAMATIONS;
+  const { data, isLoading } = useParentReclamations();
+  const rawList = Array.isArray(data) ? data : ((data as Record<string, unknown> | null)?.reclamations ?? (data as Record<string, unknown> | null)?.data ?? []);
+  const reclamations = rawList as Record<string, unknown>[];
   const creerReclamation = useCreerReclamationParent();
 
   const [showModal, setShowModal] = useState(false);
@@ -49,7 +44,15 @@ export default function ParentReclamationsPage() {
 
       {/* List */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '18px 28px 28px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {(reclamations as Record<string, unknown>[]).map((r) => {
+        {isLoading && (
+          <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: 13, padding: 40 }}>Chargement…</div>
+        )}
+        {!isLoading && reclamations.length === 0 && (
+          <div style={{ background: '#fff', border: '1px solid #e6ebf1', padding: 40, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>
+            Aucune réclamation soumise.
+          </div>
+        )}
+        {reclamations.map((r) => {
           const statut = (r.statut ?? 'ouvert') as string;
           const st = STATUT_MAP[statut] ?? STATUT_MAP.ouvert;
           const reponse = r.reponse as string | null;
@@ -66,7 +69,7 @@ export default function ParentReclamationsPage() {
                   <div style={{ fontSize: 12, color: '#475569' }}>{reponse}</div>
                 </div>
               )}
-              <div style={{ fontSize: 11, color: '#94a3b8' }}>Soumise le {(r.date ?? '') as string}</div>
+              <div style={{ fontSize: 11, color: '#94a3b8' }}>Soumise le {(r.date ?? r.createdAt ?? '') as string}</div>
             </div>
           );
         })}

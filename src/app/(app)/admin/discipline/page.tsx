@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { useAdminDiscipline, useAdminClasses, useCreateDiscipline, useUpdateDiscipline, useCloturerDiscipline } from '@/hooks/use-query-api';
+import { apiClient } from '@/lib/api/client';
 
 type TypeSanction = 'AVERTISSEMENT' | 'BLAME' | 'RETENUE' | 'EXCLUSION_TEMPORAIRE' | 'EXCLUSION_DEFINITIVE' | 'CONSEIL_DISCIPLINE';
 type StatutDiscipline = 'OUVERT' | 'EN_TRAITEMENT' | 'CLOTURE' | 'APPEL';
@@ -50,7 +51,29 @@ function getClasse(i: Incident) {
   return i.eleveClasse ?? i.classe?.nom ?? '—';
 }
 
-const EMPTY_FORM = { eleveNom: '', eleveClasse: '', type: 'AVERTISSEMENT' as TypeSanction, motif: '', dateIncident: new Date().toISOString().slice(0, 10), gravite: 2 as 1 | 2 | 3, rapporteur: '' };
+type RapporteurType = 'ELEVE' | 'PROFESSEUR' | 'PERSONNEL' | 'PARENT';
+const RAPPORTEUR_TYPES: { value: RapporteurType; label: string }[] = [
+  { value: 'ELEVE',      label: 'Élève' },
+  { value: 'PROFESSEUR', label: 'Professeur' },
+  { value: 'PERSONNEL',  label: 'Personnel' },
+  { value: 'PARENT',     label: 'Parent' },
+];
+const RAPPORTEUR_URLS: Record<RapporteurType, string> = {
+  ELEVE: '/admin/eleves',
+  PROFESSEUR: '/admin/professeurs',
+  PERSONNEL: '/admin/personnel',
+  PARENT: '/admin/parents',
+};
+
+type PersonItem = { id: string; firstName?: string; lastName?: string; nom?: string; prenom?: string };
+
+const EMPTY_FORM = {
+  classeId: '', classeNom: '', eleveId: '', eleveNom: '',
+  type: 'AVERTISSEMENT' as TypeSanction,
+  motif: '', dateIncident: new Date().toISOString().slice(0, 10),
+  gravite: 2 as 1 | 2 | 3,
+  rapporteurType: '' as '' | RapporteurType, rapporteurId: '', rapporteurNom: '',
+};
 const EMPTY_CLOTURE = { sanction: '', compteRendu: '', dateDecision: new Date().toISOString().slice(0, 10) };
 
 export default function DisciplinePage() {
@@ -70,13 +93,42 @@ export default function DisciplinePage() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [cloture, setCloture] = useState(EMPTY_CLOTURE);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [elevesByClasse, setElevesByClasse] = useState<Record<string, PersonItem[]>>({});
+  const [rapporteurList, setRapporteurList] = useState<PersonItem[]>([]);
+  const [rapporteurLoading, setRapporteurLoading] = useState(false);
 
   const actifs    = incidents.filter(i => i.statut === 'OUVERT' || i.statut === 'EN_TRAITEMENT' || i.statut === 'APPEL');
   const historique = incidents.filter(i => i.statut === 'CLOTURE');
 
+  async function loadEleves(classeId: string) {
+    if (elevesByClasse[classeId]?.length) return;
+    try {
+      const res = await apiClient.get('/admin/eleves', { params: { classeId, size: 200 } });
+      const raw = res.data;
+      const data = raw?.data ?? raw?.content ?? (Array.isArray(raw) ? raw : []);
+      setElevesByClasse(prev => ({ ...prev, [classeId]: Array.isArray(data) ? data : [] }));
+    } catch { /* ignore */ }
+  }
+
+  async function loadRapporteurs(type: RapporteurType) {
+    setRapporteurList([]);
+    setRapporteurLoading(true);
+    try {
+      const res = await apiClient.get(RAPPORTEUR_URLS[type], { params: { size: 200 } });
+      const raw = res.data;
+      const list = raw?.data ?? raw?.content ?? (Array.isArray(raw) ? raw : []);
+      setRapporteurList(Array.isArray(list) ? list : []);
+    } catch { /* ignore */ }
+    finally { setRapporteurLoading(false); }
+  }
+
+  function personLabel(p: PersonItem) {
+    return `${p.firstName ?? p.prenom ?? ''} ${p.lastName ?? p.nom ?? ''}`.trim();
+  }
+
   function validateCreate() {
     const e: Record<string, string> = {};
-    if (!form.eleveNom.trim()) e.eleveNom = 'Nom requis';
+    if (!form.eleveNom.trim()) e.eleveNom = 'Élève requis';
     if (!form.motif.trim()) e.motif = 'Motif requis';
     if (!form.dateIncident) e.dateIncident = 'Date requise';
     return e;
@@ -87,18 +139,20 @@ export default function DisciplinePage() {
     if (Object.keys(e).length) { setErrors(e); return; }
     createDiscipline.mutate({
       eleveNom: form.eleveNom,
-      eleveClasse: form.eleveClasse,
+      eleveClasse: form.classeNom,
       type: form.type,
       motif: form.motif,
       dateIncident: form.dateIncident,
       gravite: form.gravite,
-      rapporteur: form.rapporteur,
       statut: 'OUVERT',
+      rapporteur: form.rapporteurNom || undefined,
+      rapporteurRole: form.rapporteurType || undefined,
     }, {
       onSuccess: () => {
         setShowCreate(false);
         setForm(EMPTY_FORM);
         setErrors({});
+        setRapporteurList([]);
       },
     });
   }
@@ -209,30 +263,45 @@ export default function DisciplinePage() {
               <button onClick={() => { setShowCreate(false); setErrors({}); }} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#94a3b8' }}>×</button>
             </div>
             <div style={{ padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Nom de l&apos;élève *</label>
-                <input value={form.eleveNom} onChange={e => setForm({ ...form, eleveNom: e.target.value })} placeholder="Prénom Nom" style={{ width: '100%', border: `1px solid ${errors.eleveNom ? '#dc2626' : '#e2e8f0'}`, borderRadius: 6, padding: '8px 10px', fontSize: 13, boxSizing: 'border-box' }} />
-                {errors.eleveNom && <div style={{ color: '#dc2626', fontSize: 11, marginTop: 3 }}>{errors.eleveNom}</div>}
-              </div>
+              {/* Classe → Élève */}
               <div style={{ display: 'flex', gap: 12 }}>
                 <div style={{ flex: 1 }}>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Classe</label>
-                  <select value={form.eleveClasse} onChange={e => setForm({ ...form, eleveClasse: e.target.value })} style={{ width: '100%', border: '1px solid #e2e8f0', borderRadius: 6, padding: '8px 10px', fontSize: 13 }}>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Classe *</label>
+                  <select value={form.classeId} onChange={e => {
+                    const c = classes.find(cl => cl.id === e.target.value);
+                    setForm(f => ({ ...f, classeId: e.target.value, classeNom: c?.nom ?? '', eleveId: '', eleveNom: '' }));
+                    if (e.target.value) loadEleves(e.target.value);
+                  }} style={{ width: '100%', border: `1px solid ${errors.eleveNom ? '#dc2626' : '#e2e8f0'}`, borderRadius: 6, padding: '8px 10px', fontSize: 13 }}>
                     <option value="">Choisir…</option>
-                    {classes.map(c => <option key={c.id} value={c.nom}>{c.nom}</option>)}
+                    {classes.map(c => <option key={c.id} value={c.id}>{c.nom}</option>)}
                   </select>
                 </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Élève *</label>
+                  <select value={form.eleveId} onChange={e => {
+                    const el = (elevesByClasse[form.classeId] ?? []).find(x => x.id === e.target.value);
+                    setForm(f => ({ ...f, eleveId: e.target.value, eleveNom: el ? personLabel(el) : '' }));
+                  }} disabled={!form.classeId} style={{ width: '100%', border: `1px solid ${errors.eleveNom ? '#dc2626' : '#e2e8f0'}`, borderRadius: 6, padding: '8px 10px', fontSize: 13, background: !form.classeId ? '#f8fafc' : '#fff' }}>
+                    <option value="">Sélectionner…</option>
+                    {(elevesByClasse[form.classeId] ?? []).map(el => <option key={el.id} value={el.id}>{personLabel(el)}</option>)}
+                  </select>
+                  {errors.eleveNom && <div style={{ color: '#dc2626', fontSize: 11, marginTop: 3 }}>{errors.eleveNom}</div>}
+                </div>
+              </div>
+              {/* Date + Type sanction */}
+              <div style={{ display: 'flex', gap: 12 }}>
                 <div style={{ flex: 1 }}>
                   <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Date *</label>
                   <input type="date" value={form.dateIncident} onChange={e => setForm({ ...form, dateIncident: e.target.value })} style={{ width: '100%', border: `1px solid ${errors.dateIncident ? '#dc2626' : '#e2e8f0'}`, borderRadius: 6, padding: '8px 10px', fontSize: 13, boxSizing: 'border-box' }} />
                 </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Type de sanction envisagée</label>
+                  <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value as TypeSanction })} style={{ width: '100%', border: '1px solid #e2e8f0', borderRadius: 6, padding: '8px 10px', fontSize: 13 }}>
+                    {(Object.keys(TYPE_LABELS) as TypeSanction[]).map(t => <option key={t} value={t}>{TYPE_LABELS[t].label}</option>)}
+                  </select>
+                </div>
               </div>
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Type de sanction envisagée</label>
-                <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value as TypeSanction })} style={{ width: '100%', border: '1px solid #e2e8f0', borderRadius: 6, padding: '8px 10px', fontSize: 13 }}>
-                  {(Object.keys(TYPE_LABELS) as TypeSanction[]).map(t => <option key={t} value={t}>{TYPE_LABELS[t].label}</option>)}
-                </select>
-              </div>
+              {/* Gravité */}
               <div>
                 <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Gravité</label>
                 <div style={{ display: 'flex', gap: 8 }}>
@@ -243,14 +312,35 @@ export default function DisciplinePage() {
                   ))}
                 </div>
               </div>
+              {/* Motif */}
               <div>
                 <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Motif *</label>
                 <textarea value={form.motif} onChange={e => setForm({ ...form, motif: e.target.value })} rows={3} placeholder="Décrivez l'incident précisément…" style={{ width: '100%', border: `1px solid ${errors.motif ? '#dc2626' : '#e2e8f0'}`, borderRadius: 6, padding: '8px 10px', fontSize: 13, resize: 'vertical', boxSizing: 'border-box' }} />
                 {errors.motif && <div style={{ color: '#dc2626', fontSize: 11, marginTop: 3 }}>{errors.motif}</div>}
               </div>
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Rapporteur</label>
-                <input value={form.rapporteur} onChange={e => setForm({ ...form, rapporteur: e.target.value })} placeholder="Nom du rapporteur" style={{ width: '100%', border: '1px solid #e2e8f0', borderRadius: 6, padding: '8px 10px', fontSize: 13, boxSizing: 'border-box' }} />
+              {/* Rapporteur */}
+              <div style={{ display: 'flex', gap: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Rôle du rapporteur</label>
+                  <select value={form.rapporteurType} onChange={e => {
+                    const t = e.target.value as '' | RapporteurType;
+                    setForm(f => ({ ...f, rapporteurType: t, rapporteurId: '', rapporteurNom: '' }));
+                    if (t) loadRapporteurs(t);
+                  }} style={{ width: '100%', border: '1px solid #e2e8f0', borderRadius: 6, padding: '8px 10px', fontSize: 13 }}>
+                    <option value="">— Aucun —</option>
+                    {RAPPORTEUR_TYPES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+                  </select>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Rapporteur</label>
+                  <select value={form.rapporteurId} onChange={e => {
+                    const p = rapporteurList.find(x => x.id === e.target.value);
+                    setForm(f => ({ ...f, rapporteurId: e.target.value, rapporteurNom: p ? personLabel(p) : '' }));
+                  }} disabled={!form.rapporteurType || rapporteurLoading} style={{ width: '100%', border: '1px solid #e2e8f0', borderRadius: 6, padding: '8px 10px', fontSize: 13, background: !form.rapporteurType ? '#f8fafc' : '#fff' }}>
+                    <option value="">{rapporteurLoading ? 'Chargement…' : 'Sélectionner…'}</option>
+                    {rapporteurList.map(p => <option key={p.id} value={p.id}>{personLabel(p)}</option>)}
+                  </select>
+                </div>
               </div>
             </div>
             <div style={{ padding: '14px 22px', borderTop: '1px solid #e6ebf1', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>

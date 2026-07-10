@@ -2,19 +2,12 @@
 
 import { useParentPaiements } from '@/hooks/use-query-api';
 
-const STATIC_PAIEMENTS = [
-  { id: 'p1', libelle: 'Scolarité T2', enfant: 'Moussa Diallo', montant: 75000, statut: 'a_payer', date: null },
-  { id: 'p2', libelle: 'Scolarité T1', enfant: 'Moussa Diallo', montant: 75000, statut: 'paye', date: '01 Mar 2025' },
-  { id: 'p3', libelle: 'Frais inscription', enfant: 'Moussa Diallo', montant: 25000, statut: 'paye', date: '15 Sep 2024' },
-  { id: 'p4', libelle: 'Scolarité T2', enfant: 'Aminata Diallo', montant: 75000, statut: 'paye', date: '02 Mar 2025' },
-];
-
 export default function PaiementsParentPage() {
-  const { data } = useParentPaiements();
-  const rawList = Array.isArray(data) ? data : (data?.paiements ?? data?.echeances ?? []);
-  const paiements = rawList.length > 0 ? rawList : STATIC_PAIEMENTS;
+  const { data, isLoading } = useParentPaiements();
+  const rawList = Array.isArray(data) ? data : ((data as Record<string, unknown> | null)?.paiements ?? (data as Record<string, unknown> | null)?.echeances ?? []);
+  const paiements = rawList as Record<string, unknown>[];
 
-  const totalDu = (paiements as Record<string, unknown>[])
+  const totalDu = paiements
     .filter((p) => p.statut !== 'paye' && p.statut !== 'PAYE')
     .reduce((s, p) => s + ((p.montant as number) ?? 0), 0);
 
@@ -28,8 +21,18 @@ export default function PaiementsParentPage() {
       {/* Content */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '16px 16px' }}>
 
+        {isLoading && (
+          <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: 13, padding: 40 }}>Chargement…</div>
+        )}
+
+        {!isLoading && paiements.length === 0 && (
+          <div style={{ background: '#fff', border: '1px solid #e6ebf1', padding: 40, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>
+            Aucune échéance enregistrée.
+          </div>
+        )}
+
         {/* Balance due alert */}
-        {totalDu > 0 && (
+        {!isLoading && totalDu > 0 && (
           <div style={{ background: '#fef2f2', border: '1px solid #fecaca', padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
             <div>
               <div style={{ fontSize: 12, fontWeight: 600, color: '#dc2626', marginBottom: 2 }}>Solde dû</div>
@@ -44,11 +47,14 @@ export default function PaiementsParentPage() {
         )}
 
         {/* List label */}
+        {!isLoading && paiements.length > 0 && (
         <div style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>Échéances</div>
+        )}
 
         {/* Payments list */}
+        {!isLoading && paiements.length > 0 && (
         <div style={{ background: '#fff', border: '1px solid #e6ebf1', marginBottom: 16 }}>
-          {(paiements as Record<string, unknown>[]).map((p, idx) => {
+          {paiements.map((p, idx) => {
             const statut = (p.statut ?? 'a_payer') as string;
             const isPaid = statut === 'paye' || statut === 'PAYE';
             const libelle = (p.libelle ?? p.description ?? 'Paiement') as string;
@@ -100,6 +106,7 @@ export default function PaiementsParentPage() {
             );
           })}
         </div>
+        )}
 
         {/* Info box */}
         <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', padding: '12px 14px', display: 'flex', gap: 10 }}>

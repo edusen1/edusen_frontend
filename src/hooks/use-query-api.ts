@@ -63,13 +63,29 @@ export const useParentPaiements = () =>
 export const useParentNotifications = () =>
   useQuery({ queryKey: ['parent', 'notifications'], queryFn: () => parentApi.notifications().then(r => r.data?.data) });
 export const useParentReclamations = () =>
-  useQuery({ queryKey: ['parent', 'reclamations'], queryFn: () => parentApi.reclamations().then(r => r.data?.data ?? r.data) });
+  useQuery({ queryKey: ['parent', 'reclamations'], queryFn: () => parentApi.reclamations().then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
 export const useCreerReclamationParent = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: unknown) => parentApi.creerReclamation(data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['parent', 'reclamations'] }); toast.success('Réclamation soumise'); },
     onError: () => toast.error('Erreur lors de la soumission'),
+  });
+};
+export const useParentProfil = () =>
+  useQuery({ queryKey: ['parent', 'profil'], queryFn: () => parentApi.profil().then(r => r.data?.data) });
+export const useMarquerNotificationLueParent = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => parentApi.marquerLu(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['parent', 'notifications'] }); },
+  });
+};
+export const useToutLireNotificationsParent = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => parentApi.toutLire(),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['parent', 'notifications'] }); toast.success('Toutes les notifications marquées comme lues'); },
   });
 };
 
@@ -85,7 +101,7 @@ export const useProfesseurEmploiDuTemps = () =>
 export const useProfesseurClasseEleves = (classeId: string) =>
   useQuery({ queryKey: ['professeur', 'classe', classeId, 'eleves'], queryFn: () => professeurApi.classeEleves(classeId).then(r => r.data?.data), enabled: !!classeId });
 export const useProfesseurAbsences = () =>
-  useQuery({ queryKey: ['professeur', 'absences'], queryFn: () => professeurApi.absences().then(r => r.data?.data ?? r.data) });
+  useQuery({ queryKey: ['professeur', 'absences'], queryFn: () => professeurApi.absences().then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
 export const useDeclarerAbsenceProfesseur = () => {
   const qc = useQueryClient();
   return useMutation({
@@ -95,7 +111,7 @@ export const useDeclarerAbsenceProfesseur = () => {
   });
 };
 export const useCahierTexte = (coursId?: string) =>
-  useQuery({ queryKey: ['professeur', 'cahier-texte', coursId], queryFn: () => professeurApi.cahierTexte(coursId).then(r => r.data?.data ?? r.data) });
+  useQuery({ queryKey: ['professeur', 'cahier-texte', coursId], queryFn: () => professeurApi.cahierTexte(coursId).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
 export const useCreerCahierTexte = () => {
   const qc = useQueryClient();
   return useMutation({
@@ -123,93 +139,128 @@ export const useSaisirNotes = () => {
   });
 };
 
+export const useProfesseurDiscipline = (params?: Record<string, unknown>) =>
+  useQuery({ queryKey: ['professeur', 'discipline', params], queryFn: () => professeurApi.discipline(params).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
+
+export const useCreateProfesseurDiscipline = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: unknown) => professeurApi.createDiscipline(data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['professeur', 'discipline'] }); toast.success('Incident enregistré'); },
+    onError: () => toast.error('Erreur lors de l\'enregistrement'),
+  });
+};
+
+export const useCloturerProfesseurDiscipline = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: unknown }) => professeurApi.cloturerDiscipline(id, data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['professeur', 'discipline'] }); toast.success('Dossier clôturé'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+
 // --- ADMIN HOOKS ---
 export const useAdminClasses = (params?: Record<string, unknown>) =>
-  useQuery({ queryKey: ['admin', 'classes', params], queryFn: () => adminApi.classes(params).then(r => r.data?.data ?? r.data) });
+  useQuery({ queryKey: ['admin', 'classes', params], queryFn: () => adminApi.classes(params).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
 export const useAdminEleves = (params?: Record<string, unknown>) =>
-  useQuery({ queryKey: ['admin', 'eleves', params], queryFn: () => adminApi.eleves(params).then(r => r.data?.data ?? r.data) });
+  useQuery({ queryKey: ['admin', 'eleves', params], queryFn: () => adminApi.eleves(params).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
 export const useAdminParents = (params?: Record<string, unknown>) =>
-  useQuery({ queryKey: ['admin', 'parents', params], queryFn: () => adminApi.parents(params).then(r => r.data?.data ?? r.data) });
+  useQuery({ queryKey: ['admin', 'parents', params], queryFn: () => adminApi.parents(params).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
 export const useAdminProfesseurs = (params?: Record<string, unknown>) =>
-  useQuery({ queryKey: ['admin', 'professeurs', params], queryFn: () => adminApi.professeurs(params).then(r => r.data?.data ?? r.data) });
+  useQuery({ queryKey: ['admin', 'professeurs', params], queryFn: () => adminApi.professeurs(params).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
 export const useAdminMatieres = (params?: Record<string, unknown>) =>
-  useQuery({ queryKey: ['admin', 'matieres', params], queryFn: () => adminApi.matieres(params).then(r => r.data?.data ?? r.data) });
+  useQuery({ queryKey: ['admin', 'matieres', params], queryFn: () => adminApi.matieres(params).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
 export const useAdminNotes = (params?: Record<string, unknown>) =>
-  useQuery({ queryKey: ['admin', 'notes', params], queryFn: () => adminApi.notes(params).then(r => r.data?.data ?? r.data) });
+  useQuery({ queryKey: ['admin', 'notes', params], queryFn: () => adminApi.notes(params).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
 export const useAdminBulletins = (params?: Record<string, unknown>) =>
-  useQuery({ queryKey: ['admin', 'bulletins', params], queryFn: () => adminApi.bulletins(params).then(r => r.data?.data ?? r.data) });
+  useQuery({ queryKey: ['admin', 'bulletins', params], queryFn: () => adminApi.bulletins(params).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
 export const useAdminAbsencesEleves = (params?: Record<string, unknown>) =>
-  useQuery({ queryKey: ['admin', 'absences-eleves', params], queryFn: () => adminApi.absencesEleves(params).then(r => r.data?.data ?? r.data) });
+  useQuery({ queryKey: ['admin', 'absences-eleves', params], queryFn: () => adminApi.absencesEleves(params).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
+export const useAdminAbsencesElevesStats = () =>
+  useQuery({ queryKey: ['admin', 'absences-eleves', 'stats'], queryFn: () => adminApi.absencesElevesStats().then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
+export const useAdminAbsencesElevesDemandes = () =>
+  useQuery({ queryKey: ['admin', 'absences-eleves', 'demandes'], queryFn: () => adminApi.absencesElevesDemandes().then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
+export const useAbsencesStatsParCycle = () =>
+  useQuery({ queryKey: ['admin', 'absences-eleves', 'stats', 'par-cycle'], queryFn: () => adminApi.absencesStatsParCycle().then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
+export const useAbsencesStatsParNiveau = (params?: Record<string, unknown>) =>
+  useQuery({ queryKey: ['admin', 'absences-eleves', 'stats', 'par-niveau', params], queryFn: () => adminApi.absencesStatsParNiveau(params).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }), enabled: params !== undefined });
+export const useAbsencesStatsParClasse = (params?: Record<string, unknown>) =>
+  useQuery({ queryKey: ['admin', 'absences-eleves', 'stats', 'par-classe', params], queryFn: () => adminApi.absencesStatsParClasse(params).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }), enabled: params !== undefined });
+export const useAbsencesEvolution = () =>
+  useQuery({ queryKey: ['admin', 'absences-eleves', 'stats', 'evolution'], queryFn: () => adminApi.absencesEvolution().then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
+export const useAbsencesTopAbsents = (params?: Record<string, unknown>) =>
+  useQuery({ queryKey: ['admin', 'absences-eleves', 'top-absents', params], queryFn: () => adminApi.absencesTopAbsents(params).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
 export const useAdminAnnonces = (params?: Record<string, unknown>) =>
-  useQuery({ queryKey: ['admin', 'annonces', params], queryFn: () => adminApi.annonces(params).then(r => r.data?.data ?? r.data) });
+  useQuery({ queryKey: ['admin', 'annonces', params], queryFn: () => adminApi.annonces(params).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
 export const useAdminReclamations = (params?: Record<string, unknown>) =>
-  useQuery({ queryKey: ['admin', 'reclamations', params], queryFn: () => adminApi.reclamations(params).then(r => r.data?.data ?? r.data) });
+  useQuery({ queryKey: ['admin', 'reclamations', params], queryFn: () => adminApi.reclamations(params).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
 export const useAdminEmploisDuTemps = (params?: Record<string, unknown>) =>
-  useQuery({ queryKey: ['admin', 'emplois-du-temps', params], queryFn: () => adminApi.emploisDuTemps(params).then(r => r.data?.data ?? r.data) });
+  useQuery({ queryKey: ['admin', 'emplois-du-temps', params], queryFn: () => adminApi.emploisDuTemps(params).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
 export const useAdminClasseEmploiDuTemps = (classeId: string) =>
-  useQuery({ queryKey: ['admin', 'emplois-du-temps', 'classe', classeId], queryFn: () => adminApi.classeEmploiDuTemps(classeId).then(r => r.data?.data ?? r.data), enabled: !!classeId });
+  useQuery({ queryKey: ['admin', 'emplois-du-temps', 'classe', classeId], queryFn: () => adminApi.classeEmploiDuTemps(classeId).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }), enabled: !!classeId });
 export const useAdminPaiements = (params?: Record<string, unknown>) =>
-  useQuery({ queryKey: ['admin', 'paiements', params], queryFn: () => adminApi.paiements(params).then(r => r.data?.data ?? r.data) });
+  useQuery({ queryKey: ['admin', 'paiements', params], queryFn: () => adminApi.paiements(params).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
 export const useAdminPersonnel = (params?: Record<string, unknown>) =>
-  useQuery({ queryKey: ['admin', 'personnel', params], queryFn: () => adminApi.personnel(params).then(r => r.data?.data ?? r.data) });
+  useQuery({ queryKey: ['admin', 'personnel', params], queryFn: () => adminApi.personnel(params).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
 export const useAdminConvocations = (params?: Record<string, unknown>) =>
-  useQuery({ queryKey: ['admin', 'convocations', params], queryFn: () => adminApi.convocations(params).then(r => r.data?.data ?? r.data) });
+  useQuery({ queryKey: ['admin', 'convocations', params], queryFn: () => adminApi.convocations(params).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
 export const useAdminStats = () =>
-  useQuery({ queryKey: ['admin', 'stats'], queryFn: () => adminApi.stats().then(r => r.data?.data ?? r.data) });
+  useQuery({ queryKey: ['admin', 'stats'], queryFn: () => adminApi.stats().then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
 export const useAdminStatsMensuel = (params?: { annee?: string }) =>
-  useQuery({ queryKey: ['admin', 'stats-mensuel', params], queryFn: () => adminApi.statsMensuel(params).then(r => r.data?.data ?? r.data) });
+  useQuery({ queryKey: ['admin', 'stats-mensuel', params], queryFn: () => adminApi.statsMensuel(params).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
 export const useAppbarSummary = () =>
-  useQuery({ queryKey: ['appbar', 'summary'], queryFn: () => adminApi.appbarSummary().then(r => r.data?.data ?? r.data) });
+  useQuery({ queryKey: ['appbar', 'summary'], queryFn: () => adminApi.appbarSummary().then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
 export const useAdminInscriptions = (params?: Record<string, unknown>) =>
-  useQuery({ queryKey: ['admin', 'inscriptions', params], queryFn: () => adminApi.inscriptions(params).then(r => r.data?.data ?? r.data) });
+  useQuery({ queryKey: ['admin', 'inscriptions', params], queryFn: () => adminApi.inscriptions(params).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
 export const useAdminPointages = (params?: Record<string, unknown>) =>
-  useQuery({ queryKey: ['admin', 'pointages', params], queryFn: () => adminApi.pointages(params).then(r => r.data?.data ?? r.data) });
+  useQuery({ queryKey: ['admin', 'pointages', params], queryFn: () => adminApi.pointages(params).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
 export const useAdminAbsencesPersonnel = (params?: Record<string, unknown>) =>
-  useQuery({ queryKey: ['admin', 'absences-personnel', params], queryFn: () => adminApi.absencesPersonnel(params).then(r => r.data?.data ?? r.data) });
+  useQuery({ queryKey: ['admin', 'absences-personnel', params], queryFn: () => adminApi.absencesPersonnel(params).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
 export const useAdminCalendrierScolaire = (params?: Record<string, unknown>) =>
-  useQuery({ queryKey: ['admin', 'calendrier-scolaire', params], queryFn: () => adminApi.calendrierScolaire(params).then(r => r.data?.data ?? r.data) });
+  useQuery({ queryKey: ['admin', 'calendrier-scolaire', params], queryFn: () => adminApi.calendrierScolaire(params).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
 export const useAdminRapports = () =>
-  useQuery({ queryKey: ['admin', 'rapports'], queryFn: () => adminApi.rapports().then(r => r.data?.data ?? r.data) });
+  useQuery({ queryKey: ['admin', 'rapports'], queryFn: () => adminApi.rapports().then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
 
 // Examens
 export const useAdminExamens = (params?: Record<string, unknown>) =>
-  useQuery({ queryKey: ['admin', 'examens', params], queryFn: () => adminApi.examens(params).then(r => r.data?.data ?? r.data) });
+  useQuery({ queryKey: ['admin', 'examens', params], queryFn: () => adminApi.examens(params).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
 
 // Devoirs
 export const useAdminDevoirs = (params?: Record<string, unknown>) =>
-  useQuery({ queryKey: ['admin', 'devoirs', params], queryFn: () => adminApi.devoirs(params).then(r => r.data?.data ?? r.data) });
+  useQuery({ queryKey: ['admin', 'devoirs', params], queryFn: () => adminApi.devoirs(params).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
 
 // Discipline
 export const useAdminDiscipline = (params?: Record<string, unknown>) =>
-  useQuery({ queryKey: ['admin', 'discipline', params], queryFn: () => adminApi.discipline(params).then(r => r.data?.data ?? r.data) });
+  useQuery({ queryKey: ['admin', 'discipline', params], queryFn: () => adminApi.discipline(params).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
 
 // Documents
 export const useAdminDocuments = (params?: Record<string, unknown>) =>
-  useQuery({ queryKey: ['admin', 'documents', params], queryFn: () => adminApi.documents(params).then(r => r.data?.data ?? r.data) });
+  useQuery({ queryKey: ['admin', 'documents', params], queryFn: () => adminApi.documents(params).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
 
 // Bibliothèque
 export const useAdminOuvrages = (params?: Record<string, unknown>) =>
-  useQuery({ queryKey: ['admin', 'ouvrages', params], queryFn: () => adminApi.ouvrages(params).then(r => r.data?.data ?? r.data) });
+  useQuery({ queryKey: ['admin', 'ouvrages', params], queryFn: () => adminApi.ouvrages(params).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
 export const useAdminEmprunts = (params?: Record<string, unknown>) =>
-  useQuery({ queryKey: ['admin', 'emprunts', params], queryFn: () => adminApi.emprunts(params).then(r => r.data?.data ?? r.data) });
+  useQuery({ queryKey: ['admin', 'emprunts', params], queryFn: () => adminApi.emprunts(params).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
 
 // Santé
 export const useAdminConsultations = (params?: Record<string, unknown>) =>
-  useQuery({ queryKey: ['admin', 'consultations', params], queryFn: () => adminApi.consultations(params).then(r => r.data?.data ?? r.data) });
+  useQuery({ queryKey: ['admin', 'consultations', params], queryFn: () => adminApi.consultations(params).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
 export const useAdminStockMedical = () =>
-  useQuery({ queryKey: ['admin', 'stock-medical'], queryFn: () => adminApi.stockMedical().then(r => r.data?.data ?? r.data) });
+  useQuery({ queryKey: ['admin', 'stock-medical'], queryFn: () => adminApi.stockMedical().then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
 
 // Utilisateurs
 export const useAdminUtilisateurs = (params?: Record<string, unknown>) =>
-  useQuery({ queryKey: ['admin', 'utilisateurs', params], queryFn: () => adminApi.utilisateurs(params).then(r => r.data?.data ?? r.data) });
+  useQuery({ queryKey: ['admin', 'utilisateurs', params], queryFn: () => adminApi.utilisateurs(params).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
 
 // Audit
 export const useAdminAuditLogs = (params?: Record<string, unknown>) =>
-  useQuery({ queryKey: ['admin', 'audit-logs', params], queryFn: () => adminApi.auditLogs(params).then(r => r.data?.data ?? r.data) });
+  useQuery({ queryKey: ['admin', 'audit-logs', params], queryFn: () => adminApi.auditLogs(params).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
 
 // Archives
 export const useAdminArchives = (params?: Record<string, unknown>) =>
-  useQuery({ queryKey: ['admin', 'archives', params], queryFn: () => adminApi.archives(params).then(r => r.data?.data ?? r.data) });
+  useQuery({ queryKey: ['admin', 'archives', params], queryFn: () => adminApi.archives(params).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
 
 // Mutations admin existantes
 export const useCreateEleve = () => {
@@ -380,11 +431,43 @@ export const useUpdateReclamation = () => {
     onError: () => toast.error('Erreur'),
   });
 };
+export const useRepondreReclamation = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, message, statut }: { id: string; message: string; statut?: string }) => adminApi.repondreReclamation(id, { message, statut }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'reclamations'] }); toast.success('Réponse envoyée'); },
+    onError: () => toast.error('Erreur lors de l\'envoi'),
+  });
+};
 export const useUpdateAbsence = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: unknown }) => adminApi.updateAbsence(id, data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'absences-eleves'] }); toast.success('Absence mise à jour'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+export const useAdminCreateAbsenceEleve = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: unknown) => adminApi.createAbsence(data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'absences-eleves'] }); toast.success('Absence déclarée'); },
+    onError: () => toast.error('Erreur lors de la déclaration'),
+  });
+};
+export const useApprouverAbsenceEleve = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => adminApi.approuverAbsence(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'absences-eleves'] }); toast.success('Absence approuvée'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+export const useRejeterAbsenceEleve = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, motifRejet }: { id: string; motifRejet?: string }) => adminApi.rejeterAbsence(id, motifRejet),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'absences-eleves'] }); toast.success('Absence rejetée'); },
     onError: () => toast.error('Erreur'),
   });
 };
@@ -401,6 +484,22 @@ export const useUpdateConvocation = () => {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: unknown }) => adminApi.updateConvocation(id, data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'convocations'] }); toast.success('Convocation modifiée'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+export const useAdminCompteRenduConvocation = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, compteRendu }: { id: string; compteRendu: string }) => adminApi.compteRenduConvocation(id, compteRendu),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'convocations'] }); toast.success('Compte-rendu enregistré'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+export const useAdminDeleteConvocation = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => adminApi.deleteConvocation(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'convocations'] }); toast.success('Convocation supprimée'); },
     onError: () => toast.error('Erreur'),
   });
 };
@@ -444,12 +543,43 @@ export const useUpdatePersonnel = () => {
     onError: () => toast.error('Erreur'),
   });
 };
+export const useDeletePersonnel = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => adminApi.deletePersonnel(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'personnel'] }); toast.success('Personnel supprimé'); },
+    onError: () => toast.error('Erreur lors de la suppression'),
+  });
+};
+export const useResetPersonnelCredentials = () => {
+  return useMutation({
+    mutationFn: (id: string) => adminApi.resetPersonnelCredentials(id),
+    onSuccess: () => toast.success('Credentials réinitialisés et envoyés par email'),
+    onError: () => toast.error('Erreur lors de la réinitialisation'),
+  });
+};
 export const useCreateAbsencePersonnel = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: unknown) => adminApi.createAbsencePersonnel(data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'absences-personnel'] }); toast.success('Absence déclarée'); },
     onError: () => toast.error('Erreur lors de la déclaration'),
+  });
+};
+export const useValiderAbsencePersonnel = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => adminApi.validerAbsencePersonnel(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'absences-personnel'] }); toast.success('Absence validée'); },
+    onError: () => toast.error('Erreur lors de la validation'),
+  });
+};
+export const useRefuserAbsencePersonnel = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, motifRefus }: { id: string; motifRefus?: string }) => adminApi.refuserAbsencePersonnel(id, motifRefus),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'absences-personnel'] }); toast.success('Absence refusée'); },
+    onError: () => toast.error('Erreur lors du refus'),
   });
 };
 
@@ -663,9 +793,9 @@ export const useRestaurerArchive = () => {
 
 // --- CAISSE HOOKS ---
 export const useCaissePaiements = (params?: Record<string, unknown>) =>
-  useQuery({ queryKey: ['caisse', 'paiements', params], queryFn: () => caisseApi.paiements(params).then(r => r.data?.data ?? r.data) });
+  useQuery({ queryKey: ['caisse', 'paiements', params], queryFn: () => caisseApi.paiements(params).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
 export const useCaisseInscriptions = (params?: Record<string, unknown>) =>
-  useQuery({ queryKey: ['caisse', 'inscriptions', params], queryFn: () => caisseApi.inscriptions(params).then(r => r.data?.data ?? r.data) });
+  useQuery({ queryKey: ['caisse', 'inscriptions', params], queryFn: () => caisseApi.inscriptions(params).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
 export const useCreateCaissePaiement = () => {
   const qc = useQueryClient();
   return useMutation({
@@ -685,13 +815,13 @@ export const useUpdateCaissePaiement = () => {
 
 // --- PLATFORM HOOKS ---
 export const usePlatformTenants = (params?: Record<string, unknown>) =>
-  useQuery({ queryKey: ['platform', 'tenants', params], queryFn: () => platformApi.tenants(params).then(r => r.data?.data ?? r.data) });
+  useQuery({ queryKey: ['platform', 'tenants', params], queryFn: () => platformApi.tenants(params).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
 export const usePlatformStats = () =>
-  useQuery({ queryKey: ['platform', 'stats'], queryFn: () => platformApi.stats().then(r => r.data?.data ?? r.data) });
+  useQuery({ queryKey: ['platform', 'stats'], queryFn: () => platformApi.stats().then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
 export const usePlatformAuditLogs = (params?: Record<string, unknown>) =>
-  useQuery({ queryKey: ['platform', 'audit-logs', params], queryFn: () => platformApi.auditLogs(params).then(r => r.data?.data ?? r.data) });
+  useQuery({ queryKey: ['platform', 'audit-logs', params], queryFn: () => platformApi.auditLogs(params).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
 export const usePlatformUtilisateurs = (params?: Record<string, unknown>) =>
-  useQuery({ queryKey: ['platform', 'utilisateurs', params], queryFn: () => platformApi.utilisateurs(params).then(r => r.data?.data ?? r.data) });
+  useQuery({ queryKey: ['platform', 'utilisateurs', params], queryFn: () => platformApi.utilisateurs(params).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
 export const useCreateTenant = () => {
   const qc = useQueryClient();
   return useMutation({
@@ -743,13 +873,13 @@ export const useUpdateProfile = () => {
 
 // --- SURVEILLANT HOOKS ---
 export const useSurveillantAbsences = (params?: Record<string, unknown>) =>
-  useQuery({ queryKey: ['surveillant', 'absences', params], queryFn: () => surveillantApi.absencesEleves(params).then(r => r.data?.data ?? r.data) });
+  useQuery({ queryKey: ['surveillant', 'absences', params], queryFn: () => surveillantApi.absencesEleves(params).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
 export const useSurveillantClasses = (params?: Record<string, unknown>) =>
-  useQuery({ queryKey: ['surveillant', 'classes', params], queryFn: () => surveillantApi.classes(params).then(r => r.data?.data ?? r.data) });
+  useQuery({ queryKey: ['surveillant', 'classes', params], queryFn: () => surveillantApi.classes(params).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
 export const useSurveillantEleves = (params?: Record<string, unknown>) =>
-  useQuery({ queryKey: ['surveillant', 'eleves', params], queryFn: () => surveillantApi.eleves(params).then(r => r.data?.data ?? r.data) });
+  useQuery({ queryKey: ['surveillant', 'eleves', params], queryFn: () => surveillantApi.eleves(params).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
 export const useSurveillantParents = (params?: Record<string, unknown>) =>
-  useQuery({ queryKey: ['surveillant', 'parents', params], queryFn: () => surveillantApi.parents(params).then(r => r.data?.data ?? r.data) });
+  useQuery({ queryKey: ['surveillant', 'parents', params], queryFn: () => surveillantApi.parents(params).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
 export const useCreateAbsenceEleve = () => {
   const qc = useQueryClient();
   return useMutation({
@@ -775,7 +905,7 @@ export const useRejeterAbsence = () => {
   });
 };
 export const useSurveillantConvocations = (params?: Record<string, unknown>) =>
-  useQuery({ queryKey: ['surveillant', 'convocations', params], queryFn: () => surveillantApi.convocations(params).then(r => r.data?.data ?? r.data) });
+  useQuery({ queryKey: ['surveillant', 'convocations', params], queryFn: () => surveillantApi.convocations(params).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
 export const useCreateSurveillantConvocation = () => {
   const qc = useQueryClient();
   return useMutation({
@@ -797,6 +927,27 @@ export const useDeleteConvocation = () => {
   return useMutation({
     mutationFn: (id: string) => surveillantApi.deleteConvocation(id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['surveillant', 'convocations'] }); toast.success('Convocation supprimée'); },
+    onError: () => toast.error('Erreur'),
+  });
+};
+
+export const useSurveillantDiscipline = (params?: Record<string, unknown>) =>
+  useQuery({ queryKey: ['surveillant', 'discipline', params], queryFn: () => surveillantApi.discipline(params).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
+
+export const useCreateSurveillantDiscipline = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: unknown) => surveillantApi.createDiscipline(data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['surveillant', 'discipline'] }); toast.success('Incident enregistré'); },
+    onError: () => toast.error('Erreur lors de l\'enregistrement'),
+  });
+};
+
+export const useCloturerSurveillantDiscipline = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: unknown }) => surveillantApi.cloturerDiscipline(id, data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['surveillant', 'discipline'] }); toast.success('Dossier clôturé'); },
     onError: () => toast.error('Erreur'),
   });
 };

@@ -4,6 +4,7 @@ export type UserRole =
   | 'ADMIN'
   | 'RH'
   | 'SURVEILLANT'
+  | 'SECURITE'
   | 'CAISSIER'
   | 'COMPTABLE'
   | 'ENSEIGNANT'

@@ -55,12 +55,12 @@ interface AlertItem { type: AlertType; texte: string; href: string }
 const ALERTES_STATIC: AlertItem[] = [
   { type: 'danger',  texte: 'Classes sans professeur principal assigné',     href: '/admin/classes' },
   { type: 'danger',  texte: 'Élèves absents aujourd\'hui non justifiés',     href: '/admin/absences-eleves' },
-  { type: 'danger',  texte: 'Cours non assuré ce matin (enseignant absent)', href: '/admin/absences-personnel' },
+  { type: 'danger',  texte: 'Cours non assuré ce matin (enseignant absent)', href: '/admin/personnel' },
   { type: 'warning', texte: 'Convocations disciplinaires en attente',        href: '/admin/discipline' },
   { type: 'warning', texte: 'Réclamations non traitées',                     href: '/admin/reclamations' },
   { type: 'warning', texte: 'Bulletins non générés pour le T3',              href: '/admin/bulletins' },
   { type: 'warning', texte: 'Professeurs sans cours dans l\'emploi du temps',href: '/admin/emplois-du-temps' },
-  { type: 'info',    texte: 'Élèves débiteurs — paiements en retard',        href: '/admin/paiements' },
+  { type: 'info',    texte: 'Élèves débiteurs — paiements en retard',        href: '/admin/inscriptions' },
   { type: 'info',    texte: 'Notes manquantes signalées',                    href: '/admin/notes' },
   { type: 'info',    texte: 'Élèves sans parent/tuteur associé',             href: '/admin/eleves' },
 ];

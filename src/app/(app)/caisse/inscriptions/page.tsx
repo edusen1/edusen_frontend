@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useCaisseInscriptions, useValiderInscription } from '@/hooks/use-query-api';
+import { classeLabel } from '@/lib/display';
 
 const STATIC_INSCRIPTIONS = [
   { id: 'i1', eleve: 'Moussa Diallo', classe: '3ème B', anneeScolaire: '2025-2026', dateInscription: '2025-09-01', frais: 25000, statut: 'EN_ATTENTE' },
@@ -27,7 +28,7 @@ export default function CaisseInscriptionsPage() {
     ? (raw as Record<string, unknown>[]).map((i, idx) => ({
         id: String(i.id ?? i._id ?? idx),
         eleve: String(i.eleve ?? i.nomEleve ?? (i.eleve as Record<string, unknown>)?.prenom + ' ' + (i.eleve as Record<string, unknown>)?.nom ?? ''),
-        classe: String(i.classe ?? (i.classe as Record<string, unknown>)?.nom ?? ''),
+        classe: classeLabel(i.classe, ''),
         anneeScolaire: String(i.anneeScolaire ?? i.annee ?? '2025-2026'),
         dateInscription: String(i.dateInscription ?? i.createdAt ?? ''),
         frais: Number(i.fraisInscription ?? i.frais ?? i.montant ?? 0),

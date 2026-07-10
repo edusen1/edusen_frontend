@@ -1,16 +1,7 @@
 'use client';
 
 import { toast } from 'sonner';
-import { useParentNotifications, useMarquerNotificationLue, useToutLireNotifications } from '@/hooks/use-query-api';
-
-const STATIC_NOTIFS = [
-  { id: 'n1', titre: 'Note de Mathématiques', message: 'Moussa a obtenu 16/20 au devoir n°3 de Mathématiques.', type: 'note', date: 'Il y a 2h', lu: false },
-  { id: 'n2', titre: 'Absence signalée', message: 'Aminata a été absente lors du cours de Français le 27/01.', type: 'absence', date: 'Il y a 5h', lu: false },
-  { id: 'n3', titre: 'Rappel de paiement', message: 'Le paiement de la scolarité du 2ème trimestre est dû avant le 15 février.', type: 'paiement', date: 'Hier', lu: false },
-  { id: 'n4', titre: 'Bulletin disponible', message: 'Le bulletin du 1er trimestre de Moussa est disponible.', type: 'bulletin', date: '15/01/2026', lu: true },
-  { id: 'n5', titre: 'Retard signalé', message: 'Moussa est arrivé en retard de 20 minutes au cours de Physique.', type: 'absence', date: '10/01/2026', lu: true },
-  { id: 'n6', titre: 'Réunion parents-professeurs', message: 'Une réunion est prévue le 05/02/2026 à 15h00 en salle A01.', type: 'annonce', date: '08/01/2026', lu: true },
-];
+import { useParentNotifications, useMarquerNotificationLueParent, useToutLireNotificationsParent } from '@/hooks/use-query-api';
 
 const TYPE_ICONS: Record<string, { icon: string; bg: string; color: string }> = {
   note: { icon: '📊', bg: '#eff6ff', color: '#2563eb' },
@@ -21,12 +12,12 @@ const TYPE_ICONS: Record<string, { icon: string; bg: string; color: string }> = 
 };
 
 export default function ParentNotificationsPage() {
-  const { data } = useParentNotifications();
-  const rawList = Array.isArray(data) ? data : (data?.notifications ?? data?.data ?? []);
-  const notifs = rawList.length > 0 ? rawList : STATIC_NOTIFS;
+  const { data, isLoading } = useParentNotifications();
+  const rawList = Array.isArray(data) ? data : ((data as Record<string, unknown> | null)?.notifications ?? (data as Record<string, unknown> | null)?.data ?? []);
+  const notifs = rawList as Record<string, unknown>[];
 
-  const marquerLue = useMarquerNotificationLue();
-  const toutLire = useToutLireNotifications();
+  const marquerLue = useMarquerNotificationLueParent();
+  const toutLire = useToutLireNotificationsParent();
 
   const nbNonLues = (notifs as Record<string, unknown>[]).filter((n) => !n.lu).length;
 
@@ -64,8 +55,17 @@ export default function ParentNotificationsPage() {
 
       {/* List */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '18px 28px 28px' }}>
+        {isLoading && (
+          <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: 13, padding: 40 }}>Chargement…</div>
+        )}
+        {!isLoading && notifs.length === 0 && (
+          <div style={{ background: '#fff', border: '1px solid #e6ebf1', padding: 40, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>
+            Aucune notification.
+          </div>
+        )}
+        {!isLoading && notifs.length > 0 && (
         <div style={{ background: '#fff', border: '1px solid #e6ebf1' }}>
-          {(notifs as Record<string, unknown>[]).map((n, idx) => {
+          {notifs.map((n, idx) => {
             const type = (n.type ?? 'annonce') as string;
             const ti = TYPE_ICONS[type] ?? TYPE_ICONS.annonce;
             const lu = !!n.lu;
@@ -91,6 +91,7 @@ export default function ParentNotificationsPage() {
             );
           })}
         </div>
+        )}
       </div>
     </div>
   );

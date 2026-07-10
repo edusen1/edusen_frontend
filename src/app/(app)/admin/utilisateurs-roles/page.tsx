@@ -3,7 +3,7 @@
 import { useState } from 'react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type Role = 'DIRECTEUR' | 'ADMIN' | 'ENSEIGNANT' | 'CAISSE' | 'SURVEILLANT' | 'BIBLIOTHECAIRE' | 'INFIRMIER' | 'PARENT' | 'ELEVE';
+type Role = 'DIRECTEUR' | 'ADMIN' | 'ENSEIGNANT' | 'CAISSE' | 'SURVEILLANT' | 'SECURITE' | 'BIBLIOTHECAIRE' | 'INFIRMIER' | 'PARENT' | 'ELEVE';
 type StatutUser = 'ACTIF' | 'INACTIF' | 'SUSPENDU';
 
 interface Utilisateur {
@@ -25,7 +25,8 @@ const PERMISSIONS_PAR_ROLE: Record<Role, string[]> = {
   ADMIN: ['dashboard', 'eleves', 'inscriptions', 'classes', 'professeurs', 'personnel', 'notes', 'bulletins', 'examens', 'devoirs', 'absences', 'discipline', 'paiements', 'emplois-du-temps', 'communication', 'documents', 'rapports', 'parametres'],
   ENSEIGNANT: ['dashboard', 'notes', 'devoirs', 'absences-eleves', 'emplois-du-temps'],
   CAISSE: ['dashboard', 'paiements', 'rapports-financiers'],
-  SURVEILLANT: ['dashboard', 'absences-eleves', 'absences-personnel', 'discipline', 'emplois-du-temps'],
+  SURVEILLANT: ['dashboard', 'absences-eleves', 'discipline', 'emplois-du-temps'],
+  SECURITE: ['dashboard'],
   BIBLIOTHECAIRE: ['dashboard', 'bibliotheque'],
   INFIRMIER: ['dashboard', 'sante'],
   PARENT: ['dashboard-parent', 'notes-enfant', 'absences-enfant', 'paiements-enfant', 'communication'],
@@ -38,13 +39,14 @@ const USERS_INIT: Utilisateur[] = [
   { id: 'u3', nom: 'BA', prenom: 'Moussa', email: 'moussa.ba@ecole.sn', role: 'ENSEIGNANT', statut: 'ACTIF', dateCreation: '2023-09-05', derniereConnexion: '2025-06-28T16:00', permissions: PERMISSIONS_PAR_ROLE['ENSEIGNANT'] },
   { id: 'u4', nom: 'KANE', prenom: 'Aïssatou', email: 'aissatou.kane@ecole.sn', role: 'CAISSE', statut: 'ACTIF', dateCreation: '2024-01-15', derniereConnexion: '2025-06-29T10:00', permissions: PERMISSIONS_PAR_ROLE['CAISSE'] },
   { id: 'u5', nom: 'TRAORE', prenom: 'Ibrahima', email: 'ibrahima.traore@ecole.sn', role: 'SURVEILLANT', statut: 'ACTIF', dateCreation: '2024-09-01', derniereConnexion: '2025-06-28T18:00', permissions: PERMISSIONS_PAR_ROLE['SURVEILLANT'] },
+  { id: 'u9', nom: 'FALL', prenom: 'Mamadou', email: 'mamadou.fall@ecole.sn', role: 'SECURITE', statut: 'ACTIF', dateCreation: '2025-01-10', derniereConnexion: '2025-06-29T07:10', permissions: PERMISSIONS_PAR_ROLE['SECURITE'] },
   { id: 'u6', nom: 'COULIBALY', prenom: 'Mariama', email: 'mariama.c@ecole.sn', role: 'ENSEIGNANT', statut: 'SUSPENDU', dateCreation: '2023-09-05', derniereConnexion: '2025-05-10T11:00', permissions: [] },
   { id: 'u7', nom: 'BARRY', prenom: 'Seydou', email: 'seydou.barry@ecole.sn', role: 'BIBLIOTHECAIRE', statut: 'ACTIF', dateCreation: '2024-03-01', derniereConnexion: '2025-06-27T15:00', permissions: PERMISSIONS_PAR_ROLE['BIBLIOTHECAIRE'] },
   { id: 'u8', nom: 'CAMARA', prenom: 'Ndeye', email: 'ndeye.camara@ecole.sn', role: 'INFIRMIER', statut: 'INACTIF', dateCreation: '2024-09-01', permissions: [] },
 ];
 
-const ROLE_LABELS: Record<Role, string> = { DIRECTEUR: 'Directeur', ADMIN: 'Administrateur', ENSEIGNANT: 'Enseignant', CAISSE: 'Caissier', SURVEILLANT: 'Surveillant', BIBLIOTHECAIRE: 'Bibliothécaire', INFIRMIER: 'Infirmier', PARENT: 'Parent', ELEVE: 'Élève' };
-const ROLE_COLORS: Record<Role, string> = { DIRECTEUR: '#7c3aed', ADMIN: '#2563eb', ENSEIGNANT: '#0369a1', CAISSE: '#16a34a', SURVEILLANT: '#d97706', BIBLIOTHECAIRE: '#475569', INFIRMIER: '#dc2626', PARENT: '#94a3b8', ELEVE: '#64748b' };
+const ROLE_LABELS: Record<Role, string> = { DIRECTEUR: 'Directeur', ADMIN: 'Administrateur', ENSEIGNANT: 'Enseignant', CAISSE: 'Caissier', SURVEILLANT: 'Surveillant', SECURITE: 'Sécurité', BIBLIOTHECAIRE: 'Bibliothécaire', INFIRMIER: 'Infirmier', PARENT: 'Parent', ELEVE: 'Élève' };
+const ROLE_COLORS: Record<Role, string> = { DIRECTEUR: '#7c3aed', ADMIN: '#2563eb', ENSEIGNANT: '#0369a1', CAISSE: '#16a34a', SURVEILLANT: '#d97706', SECURITE: '#475569', BIBLIOTHECAIRE: '#475569', INFIRMIER: '#dc2626', PARENT: '#94a3b8', ELEVE: '#64748b' };
 const STATUT_LABELS: Record<StatutUser, string> = { ACTIF: 'Actif', INACTIF: 'Inactif', SUSPENDU: 'Suspendu' };
 const STATUT_COLORS: Record<StatutUser, string> = { ACTIF: '#16a34a', INACTIF: '#94a3b8', SUSPENDU: '#dc2626' };
 

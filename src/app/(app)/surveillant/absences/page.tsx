@@ -5,6 +5,7 @@ import {
   useSurveillantAbsences, useSurveillantClasses, useSurveillantEleves,
   useCreateAbsenceEleve, useApprouverAbsence, useRejeterAbsence,
 } from '@/hooks/use-query-api';
+import { classeLabel } from '@/lib/display';
 
 // TypeAbsence enum du backend
 const TYPE_ABSENCE = [
@@ -227,7 +228,7 @@ export default function SurveillantAbsencesPage() {
                   <option value="">— Sélectionner un élève —</option>
                   {rawEleves.map((e) => (
                     <option key={String(e.id)} value={String(e.id)}>
-                      {String(e.prenom ?? e.firstName ?? '')} {String(e.nom ?? e.lastName ?? '')} {e.classe ? `— ${String((e.classe as Record<string, unknown>)?.nom ?? e.classe)}` : ''}
+                      {String(e.prenom ?? e.firstName ?? '')} {String(e.nom ?? e.lastName ?? '')} {e.classe ? `— ${classeLabel(e.classe, '')}` : ''}
                     </option>
                   ))}
                 </select>

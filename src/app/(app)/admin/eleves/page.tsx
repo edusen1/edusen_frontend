@@ -342,6 +342,7 @@ export default function ElevesAdminPage() {
   const [parentLoading, setParentLoading]     = useState(false);
   const [parentDropOpen, setParentDropOpen]   = useState(false);
   const [selectedParent, setSelectedParent]   = useState<ParentItem | null>(null);
+  const [lienParente, setLienParente]         = useState('');
   const [showParentForm, setShowParentForm]   = useState(false);
   const [parentForm, setParentForm]           = useState({ prenom: '', nom: '', telephone: '', email: '' });
   const [creatingParent, setCreatingParent]   = useState(false);
@@ -452,7 +453,7 @@ export default function ElevesAdminPage() {
     setEditId(null); setCredentials(null); setErrors({});
     setForm(EMPTY_FORM);
     setPhotoFile(null); setPhotoPreview(''); setPhotoChanged(false);
-    setParentSearch(''); setSelectedParent(null); setParentResults([]);
+    setParentSearch(''); setSelectedParent(null); setLienParente(''); setParentResults([]);
     setShowParentForm(false); setParentForm({ prenom: '', nom: '', telephone: '', email: '' });
     setModalOpen(true);
   };
@@ -461,8 +462,9 @@ export default function ElevesAdminPage() {
     setEditId(String(e.id ?? e.eleveId));
     setCredentials(null); setErrors({});
     setPhotoFile(null); setPhotoPreview(String(e.photoUrl ?? '')); setPhotoChanged(false);
-    const elevParents = e.elevParents as Array<{ parent: ParentItem }> | undefined;
-    const parentRaw = elevParents?.[0]?.parent ?? (e.parent as ParentItem | undefined);
+    const elevParents = e.elevParents as Array<{ parent: ParentItem; lienParente?: string }> | undefined;
+    const parentEntry = elevParents?.[0];
+    const parentRaw = parentEntry?.parent ?? (e.parent as ParentItem | undefined);
     let sp: ParentItem | null = null;
     let pid = '';
     if (parentRaw && typeof parentRaw === 'object') {
@@ -470,6 +472,7 @@ export default function ElevesAdminPage() {
       sp = p; pid = String(p.id ?? '');
     }
     setSelectedParent(sp);
+    setLienParente(parentEntry?.lienParente ?? (e.lienParente as string | undefined) ?? '');
     setParentSearch(sp ? parentLabel(sp) : '');
     setParentResults([]); setParentDropOpen(false);
     setShowParentForm(false); setParentForm({ prenom: '', nom: '', telephone: '', email: '' });
@@ -567,6 +570,9 @@ export default function ElevesAdminPage() {
       if (editId) {
         await updateEleve.mutateAsync({ id: editId, data: payload });
         await uploadStudentPhoto(editId);
+        if (selectedParent && lienParente) {
+          await apiClient.put(`/admin/parents/${selectedParent.id}`, { lienParente }).catch(() => {});
+        }
         setModalOpen(false);
         fetchEleves();
       } else {
@@ -589,6 +595,9 @@ export default function ElevesAdminPage() {
           setCredentials({ username: String(creds.username), password: String(creds.password ?? '') });
         }
         if (cardUrl) window.open(cardUrl, '_blank', 'noopener,noreferrer');
+        if (selectedParent && lienParente) {
+          await apiClient.put(`/admin/parents/${selectedParent.id}`, { lienParente }).catch(() => {});
+        }
         setModalOpen(false);
         fetchEleves();
       }
@@ -867,7 +876,7 @@ export default function ElevesAdminPage() {
                         {selectedParent.telephone && <span style={{ color: '#64748b', fontSize: 12 }}> · {selectedParent.telephone}</span>}
                       </div>
                       <button
-                        onClick={() => { setSelectedParent(null); setForm((f) => ({ ...f, parentIds: [] })); setParentSearch(''); }}
+                        onClick={() => { setSelectedParent(null); setForm((f) => ({ ...f, parentIds: [] })); setParentSearch(''); setLienParente(''); }}
                         style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: 16, padding: 0, lineHeight: 1 }}
                       >✕</button>
                     </div>
@@ -908,6 +917,33 @@ export default function ElevesAdminPage() {
                     </div>
                   )}
                 </div>
+
+                {/* Lien de parenté */}
+                {selectedParent && (
+                  <div style={{ marginTop: 10 }}>
+                    <label style={lbl()}>Lien de parenté</label>
+                    <select
+                      value={lienParente}
+                      onChange={(e) => setLienParente(e.target.value)}
+                      style={{ ...inp(), height: 38 }}
+                    >
+                      <option value="">-- Sélectionner --</option>
+                      {[
+                        { v: 'PERE',      l: 'Père' },
+                        { v: 'MERE',      l: 'Mère' },
+                        { v: 'TUTEUR',    l: 'Tuteur' },
+                        { v: 'TUTRICE',   l: 'Tutrice' },
+                        { v: 'GRAND_PERE', l: 'Grand-père' },
+                        { v: 'GRAND_MERE', l: 'Grand-mère' },
+                        { v: 'ONCLE',     l: 'Oncle' },
+                        { v: 'TANTE',     l: 'Tante' },
+                        { v: 'AUTRE',     l: 'Autre' },
+                      ].map(({ v, l }) => (
+                        <option key={v} value={v}>{l}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
 
               {/* Inline parent creation */}

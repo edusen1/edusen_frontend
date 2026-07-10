@@ -48,6 +48,8 @@ export const parentApi = {
   notifications: () => apiClient.get('/parent/notifications'),
   reclamations: () => apiClient.get('/parent/reclamations'),
   creerReclamation: (data: unknown) => apiClient.post('/parent/reclamations', data),
+  marquerLu: (id: string) => apiClient.patch(`/parent/notifications/${id}/lire`),
+  toutLire: () => apiClient.post('/parent/notifications/tout-lire'),
 };
 
 // ENSEIGNANT (professeur) — /api/enseignant/*
@@ -68,6 +70,10 @@ export const professeurApi = {
   creerCahierTexte: (data: unknown) => apiClient.post('/enseignant/cahier-texte', data),
   modifierCahierTexte: (id: string, data: unknown) =>
     apiClient.patch(`/enseignant/cahier-texte/${id}`, data),
+  // Discipline (professeurs peuvent signaler — /admin/discipline avec rôle ENSEIGNANT autorisé)
+  discipline: (params?: Record<string, unknown>) => apiClient.get('/admin/discipline', { params }),
+  createDiscipline: (data: unknown) => apiClient.post('/admin/discipline', data),
+  cloturerDiscipline: (id: string, data: unknown) => apiClient.post(`/admin/discipline/${id}/cloturer`, data),
 };
 
 // ADMIN — /api/admin/*  and  /api/v1/*
@@ -91,10 +97,10 @@ export const adminApi = {
   updateParent: (id: string, data: unknown) => apiClient.put(`/admin/parents/${id}`, data),
 
   // Enseignants (professeurs)
-  professeurs: (params?: Record<string, unknown>) => apiClient.get('/admin/enseignants', { params }),
-  createProfesseur: (data: unknown) => apiClient.post('/admin/enseignants', data),
-  updateProfesseur: (id: string, data: unknown) => apiClient.put(`/admin/enseignants/${id}`, data),
-  deleteProfesseur: (id: string) => apiClient.delete(`/admin/enseignants/${id}`),
+  professeurs: (params?: Record<string, unknown>) => apiClient.get('/admin/professeurs', { params }),
+  createProfesseur: (data: unknown) => apiClient.post('/admin/professeurs', data),
+  updateProfesseur: (id: string, data: unknown) => apiClient.put(`/admin/professeurs/${id}`, data),
+  deleteProfesseur: (id: string) => apiClient.delete(`/admin/professeurs/${id}`),
 
   // Matières
   matieres: (params?: Record<string, unknown>) => apiClient.get('/admin/matieres', { params }),
@@ -114,8 +120,18 @@ export const adminApi = {
 
   // Absences élèves
   absencesEleves: (params?: Record<string, unknown>) => apiClient.get('/admin/absences-eleves', { params }),
+  absencesElevesStats: () => apiClient.get('/admin/absences-eleves/stats'),
+  absencesElevesDemandes: () => apiClient.get('/admin/absences-eleves/demandes'),
   createAbsence: (data: unknown) => apiClient.post('/admin/absences-eleves', data),
   updateAbsence: (id: string, data: unknown) => apiClient.put(`/admin/absences-eleves/${id}`, data),
+  approuverAbsence: (id: string) => apiClient.post(`/admin/absences-eleves/${id}/approuver`, {}),
+  rejeterAbsence: (id: string, motifRejet?: string) => apiClient.post(`/admin/absences-eleves/${id}/rejeter`, { motifRejet }),
+  deleteAbsence: (id: string) => apiClient.delete(`/admin/absences-eleves/${id}`),
+  absencesStatsParCycle: () => apiClient.get('/admin/absences-eleves/stats/par-cycle'),
+  absencesStatsParNiveau: (params?: Record<string, unknown>) => apiClient.get('/admin/absences-eleves/stats/par-niveau', { params }),
+  absencesStatsParClasse: (params?: Record<string, unknown>) => apiClient.get('/admin/absences-eleves/stats/par-classe', { params }),
+  absencesEvolution: () => apiClient.get('/admin/absences-eleves/stats/evolution'),
+  absencesTopAbsents: (params?: Record<string, unknown>) => apiClient.get('/admin/absences-eleves/top-absents', { params }),
 
   // Annonces / Communication
   annonces: (params?: Record<string, unknown>) => apiClient.get('/admin/annonces', { params }),
@@ -126,6 +142,7 @@ export const adminApi = {
   // Réclamations
   reclamations: (params?: Record<string, unknown>) => apiClient.get('/admin/reclamations', { params }),
   updateReclamation: (id: string, data: unknown) => apiClient.put(`/admin/reclamations/${id}`, data),
+  repondreReclamation: (id: string, data: { message: string; statut?: string }) => apiClient.post(`/admin/reclamations/${id}/repondre`, data),
 
   // Emplois du temps
   emploisDuTemps: (params?: Record<string, unknown>) => apiClient.get('/admin/emplois-du-temps', { params }),
@@ -137,10 +154,12 @@ export const adminApi = {
   createPaiement: (data: unknown) => apiClient.post('/admin/paiements', data),
   updatePaiement: (id: string, data: unknown) => apiClient.put(`/admin/paiements/${id}`, data),
 
-  // Personnel (v1)
-  personnel: (params?: Record<string, unknown>) => apiClient.get('/v1/personnel', { params }),
-  createPersonnel: (data: unknown) => apiClient.post('/v1/personnel', data),
-  updatePersonnel: (id: string, data: unknown) => apiClient.put(`/v1/personnel/${id}`, data),
+  // Personnel
+  personnel: (params?: Record<string, unknown>) => apiClient.get('/admin/personnel', { params }),
+  createPersonnel: (data: unknown) => apiClient.post('/admin/personnel', data),
+  updatePersonnel: (id: string, data: unknown) => apiClient.put(`/admin/personnel/${id}`, data),
+  deletePersonnel: (id: string) => apiClient.delete(`/admin/personnel/${id}`),
+  resetPersonnelCredentials: (id: string) => apiClient.post(`/admin/personnel/${id}/reset-credentials`, {}),
 
   // Pointages (v1)
   pointages: (params?: Record<string, unknown>) => apiClient.get('/v1/pointages', { params }),
@@ -149,11 +168,16 @@ export const adminApi = {
   // Absences personnel (v1)
   absencesPersonnel: (params?: Record<string, unknown>) => apiClient.get('/v1/absences-personnel', { params }),
   createAbsencePersonnel: (data: unknown) => apiClient.post('/v1/absences-personnel', data),
+  validerAbsencePersonnel: (id: string) => apiClient.patch(`/v1/absences-personnel/${id}/valider`),
+  refuserAbsencePersonnel: (id: string, motifRefus?: string) => apiClient.patch(`/v1/absences-personnel/${id}/refuser`, { motifRefus }),
 
   // Convocations (v1)
   convocations: (params?: Record<string, unknown>) => apiClient.get('/v1/convocations', { params }),
   createConvocation: (data: unknown) => apiClient.post('/v1/convocations', data),
   updateConvocation: (id: string, data: unknown) => apiClient.put(`/v1/convocations/${id}`, data),
+  compteRenduConvocation: (id: string, compteRendu: string) =>
+    apiClient.patch(`/v1/convocations/${id}/compte-rendu`, { compteRendu }),
+  deleteConvocation: (id: string) => apiClient.delete(`/v1/convocations/${id}`),
 
   // Stats globales
   stats: () => apiClient.get('/v1/stats/etablissement'),
@@ -242,6 +266,10 @@ export const surveillantApi = {
   eleves: (params?: Record<string, unknown>) => apiClient.get('/admin/eleves', { params }),
   classes: (params?: Record<string, unknown>) => apiClient.get('/admin/classes', { params }),
   parents: (params?: Record<string, unknown>) => apiClient.get('/admin/parents', { params }),
+  // Discipline — same endpoint as admin (SURVEILLANT role authorized)
+  discipline: (params?: Record<string, unknown>) => apiClient.get('/admin/discipline', { params }),
+  createDiscipline: (data: unknown) => apiClient.post('/admin/discipline', data),
+  cloturerDiscipline: (id: string, data: unknown) => apiClient.post(`/admin/discipline/${id}/cloturer`, data),
 };
 
 // CAISSE — /api/caisse/*

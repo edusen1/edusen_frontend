@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useProfesseurEmploiDuTemps } from '@/hooks/use-query-api';
+import { classeLabel, entityLabel } from '@/lib/display';
 
 const JOURS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
 const HEURES = ['07:00', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00'];
@@ -61,8 +62,8 @@ export default function EmploiDuTempsProf() {
   const cours: Cours[] = (raw as Record<string, unknown>[]).length > 0
     ? (raw as Record<string, unknown>[]).map((c, i) => ({
         id: String(c.id ?? c._id ?? i),
-        matiere: String(c.matiere ?? c.matiereName ?? c.subject ?? ''),
-        classe: String(c.classe ?? c.className ?? ''),
+        matiere: entityLabel(c.matiere ?? c.matiereName ?? c.subject, ''),
+        classe: classeLabel(c.classe ?? c.className, ''),
         salle: String(c.salle ?? c.room ?? ''),
         jourIndex: Number(c.jourIndex ?? c.jour ?? c.dayIndex ?? 0),
         heureDebut: String(c.heureDebut ?? c.startTime ?? '08:00'),

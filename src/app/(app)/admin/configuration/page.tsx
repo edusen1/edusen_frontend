@@ -4,13 +4,14 @@ import { useState, useEffect, useRef } from 'react';
 import { apiClient } from '@/lib/api/client';
 import { toast } from 'sonner';
 
-type Tab = 'identite' | 'apparence' | 'sections' | 'annees' | 'whatsapp' | 'coefficients';
+type Tab = 'identite' | 'apparence' | 'cycles' | 'annees' | 'batiments' | 'whatsapp' | 'coefficients';
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'identite', label: 'Identité école' },
   { key: 'apparence', label: 'Apparence' },
-  { key: 'sections', label: 'Niveaux' },
+  { key: 'cycles', label: 'Cycles & Niveaux' },
   { key: 'annees', label: 'Années académiques' },
+  { key: 'batiments', label: 'Bâtiments & Salles' },
   { key: 'whatsapp', label: 'WhatsApp' },
   { key: 'coefficients', label: 'Coefficients' },
 ];
@@ -64,12 +65,12 @@ const PALETTE_COLORS = [
   { key: 'black', label: 'Noir', primary: '#1f2937', bg: '#111827' },
 ];
 
-type SectionItem = { id: string; nom: string; actif: boolean };
+type CycleItem = { id: string; nom: string; actif: boolean; typePeriode?: string; moyenneMaximale?: number; seeded?: boolean };
 type FraisItem = { sectionId?: string; section: string; niveau: string; inscription: number; mensualite: number; nbMois: number; actif: boolean };
 
 type CoefNiveau = { id: string; nom: string };
 type CoefMatiere = { id: string; libelle: string };
-type CoefRow = { id: string; matiere?: { libelle?: string }; enseignant?: { prenom?: string; nom?: string }; coefficient?: number; volumeHoraireHebdo?: number };
+type CoefRow = { id: string; niveauId?: string; matiere?: { libelle?: string }; niveau?: { id?: string; libelle?: string; nom?: string }; coefficient?: number };
 
 function getDevise(paysCode: string): string {
   return PAYS_LIST.find((p) => p.code === paysCode)?.symbole ?? 'MRU';
@@ -203,14 +204,15 @@ export default function ConfigurationPage() {
     await handleSaveApparence(true);
   };
 
-  // ── Sections & Frais & Niveaux ────────────────────────────────────────
+  // ── Cycles & Frais & Niveaux ─────────────────────────────────────────
   type NiveauConfigItem = { id: string; nom: string; section: string; moyennePassage: number; actif: boolean };
-  const [sections, setSections] = useState<SectionItem[]>([]);
+  const [cycles, setCycles] = useState<CycleItem[]>([]);
   const [fraisList, setFraisList] = useState<FraisItem[]>([]);
   const [niveauxConfig, setNiveauxConfig] = useState<NiveauConfigItem[]>([]);
-  const [loadingSections, setLoadingSections] = useState(true);
-  const [showSectionModal, setShowSectionModal] = useState(false);
-  const [sectionForm, setSectionForm] = useState({ nom: '' });
+  const [loadingCycles, setLoadingCycles] = useState(true);
+  const [showCycleModal, setShowCycleModal] = useState(false);
+  const [editCycleId, setEditCycleId] = useState<string | null>(null);
+  const [cycleForm, setCycleForm] = useState({ nom: '', typePeriode: 'TRIMESTRE' });
   const [showNiveauModal, setShowNiveauModal] = useState(false);
   const [niveauForm, setNiveauForm] = useState({ sectionId: '', niveau: '', inscription: '', mensualite: '', nbMois: '9' });
   const [savingFrais, setSavingFrais] = useState(false);
@@ -224,13 +226,13 @@ export default function ConfigurationPage() {
       apiClient.get('/admin/configuration/niveaux'),
     ])
       .then(([secRes, fraisRes, nvRes]) => {
-        setSections(secRes.data ?? []);
+        setCycles(secRes.data ?? []);
         setFraisList(fraisRes.data ?? []);
         const d = nvRes.data as Record<string, unknown>;
         setNiveauxConfig((Array.isArray(d) ? d : (d?.data ?? d?.content ?? [])) as NiveauConfigItem[]);
       })
       .catch(() => {})
-      .finally(() => setLoadingSections(false));
+      .finally(() => setLoadingCycles(false));
   }, []);
 
   const getMoyenne = (id: string, def: number) =>
@@ -275,24 +277,31 @@ export default function ConfigurationPage() {
     }
   };
 
-  const handleToggleSection = async (s: SectionItem) => {
+  const handleToggleCycle = async (s: CycleItem) => {
     try {
       await apiClient.patch(`/admin/configuration/sections/${s.id}`, { actif: !s.actif });
-      setSections((prev) => prev.map((x) => x.id === s.id ? { ...x, actif: !x.actif } : x));
+      setCycles((prev) => prev.map((x) => x.id === s.id ? { ...x, actif: !x.actif } : x));
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
       toast.error(msg ?? 'Erreur');
     }
   };
 
-  const handleAddSection = async () => {
-    if (!sectionForm.nom.trim()) return;
+  const handleSaveCycle = async () => {
+    if (!cycleForm.nom.trim()) return;
     try {
-      const res = await apiClient.post('/admin/configuration/sections', { nom: sectionForm.nom.trim() });
-      setSections((prev) => [...prev, res.data]);
-      setSectionForm({ nom: '' });
-      setShowSectionModal(false);
-      toast.success('Section ajoutée');
+      if (editCycleId) {
+        await apiClient.patch(`/admin/configuration/sections/${editCycleId}`, { nom: cycleForm.nom.trim(), typePeriode: cycleForm.typePeriode });
+        setCycles((prev) => prev.map((c) => c.id === editCycleId ? { ...c, nom: cycleForm.nom.trim(), typePeriode: cycleForm.typePeriode } : c));
+        toast.success('Cycle modifié');
+      } else {
+        const res = await apiClient.post('/admin/configuration/sections', { nom: cycleForm.nom.trim(), typePeriode: cycleForm.typePeriode });
+        setCycles((prev) => [...prev, res.data]);
+        toast.success('Cycle ajouté');
+      }
+      setCycleForm({ nom: '', typePeriode: 'TRIMESTRE' });
+      setEditCycleId(null);
+      setShowCycleModal(false);
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
       toast.error(msg ?? 'Erreur');
@@ -300,7 +309,7 @@ export default function ConfigurationPage() {
   };
 
   const handleAddNiveau = async () => {
-    if (!niveauForm.sectionId || !niveauForm.niveau) { toast.error('Section et niveau obligatoires'); return; }
+    if (!niveauForm.sectionId || !niveauForm.niveau) { toast.error('Cycle et niveau obligatoires'); return; }
     try {
       await apiClient.post('/admin/configuration/niveaux', {
         sectionId: niveauForm.sectionId,
@@ -458,6 +467,76 @@ export default function ConfigurationPage() {
     toast.success('Message de test envoyé !');
   };
 
+  // ── Bâtiments & Salles ──────────────────────────────────────────────
+  type BatimentItem = { id: string; nom: string; description?: string; actif: boolean };
+  type SalleItem2 = { id: string; nom: string; batimentId: string; capacite?: number; typeSalle?: string; actif: boolean };
+  const [batiments, setBatiments] = useState<BatimentItem[]>([]);
+  const [batSalles, setBatSalles] = useState<SalleItem2[]>([]);
+  const [batLoading, setBatLoading] = useState(true);
+  const [showBatModal, setShowBatModal] = useState(false);
+  const [editBatId, setEditBatId] = useState<string | null>(null);
+  const [batForm, setBatForm] = useState({ nom: '', description: '' });
+  const [showSalleModal, setShowSalleModal] = useState(false);
+  const [editSalleId, setEditSalleId] = useState<string | null>(null);
+  const [salleForm, setSalleForm] = useState({ batimentId: '', nom: '', capacite: '', typeSalle: '' });
+  const [batSaving, setBatSaving] = useState(false);
+
+  useEffect(() => {
+    if (activeTab !== 'batiments') return;
+    setBatLoading(true);
+    Promise.all([
+      apiClient.get('/admin/batiments', { params: { size: 500 } }),
+      apiClient.get('/admin/salles', { params: { size: 500 } }),
+    ]).then(([batR, salR]) => {
+      const ext = (r: { data: unknown }) => { const d = r.data as Record<string, unknown>; return Array.isArray(d) ? d : ((d?.data ?? d?.content ?? []) as Record<string, unknown>[]); };
+      setBatiments(ext(batR) as BatimentItem[]);
+      setBatSalles(ext(salR) as SalleItem2[]);
+    }).catch(() => {}).finally(() => setBatLoading(false));
+  }, [activeTab]);
+
+  const handleSaveBat = async () => {
+    if (!batForm.nom.trim()) { toast.error('Nom obligatoire'); return; }
+    setBatSaving(true);
+    try {
+      if (editBatId) {
+        await apiClient.put(`/admin/batiments/${editBatId}`, { nom: batForm.nom.trim(), description: batForm.description || undefined });
+        setBatiments((prev) => prev.map((b) => b.id === editBatId ? { ...b, nom: batForm.nom.trim(), description: batForm.description } : b));
+      } else {
+        const res = await apiClient.post('/admin/batiments', { nom: batForm.nom.trim(), description: batForm.description || undefined });
+        const d = (res.data?.data ?? res.data) as BatimentItem;
+        setBatiments((prev) => [...prev, d]);
+      }
+      setShowBatModal(false);
+      toast.success(editBatId ? 'Bâtiment modifié' : 'Bâtiment ajouté');
+    } catch { toast.error('Erreur'); }
+    finally { setBatSaving(false); }
+  };
+
+  const handleSaveSalle = async () => {
+    if (!salleForm.batimentId || !salleForm.nom.trim()) { toast.error('Bâtiment et nom obligatoires'); return; }
+    setBatSaving(true);
+    try {
+      const payload = { batimentId: salleForm.batimentId, nom: salleForm.nom.trim(), capacite: Number(salleForm.capacite) || undefined, typeSalle: salleForm.typeSalle || undefined };
+      if (editSalleId) {
+        await apiClient.put(`/admin/salles/${editSalleId}`, payload);
+        setBatSalles((prev) => prev.map((s) => s.id === editSalleId ? { ...s, ...payload, capacite: Number(salleForm.capacite) || undefined, actif: s.actif } as SalleItem2 : s));
+      } else {
+        const res = await apiClient.post('/admin/salles', payload);
+        const d = (res.data?.data ?? res.data) as SalleItem2;
+        setBatSalles((prev) => [...prev, d]);
+      }
+      setShowSalleModal(false);
+      toast.success(editSalleId ? 'Salle modifiée' : 'Salle ajoutée');
+    } catch { toast.error('Erreur'); }
+    finally { setBatSaving(false); }
+  };
+
+  const handleDeleteSalle = async (id: string) => {
+    if (!confirm('Supprimer cette salle ?')) return;
+    try { await apiClient.delete(`/admin/salles/${id}`); setBatSalles((prev) => prev.filter((s) => s.id !== id)); toast.success('Salle supprimée'); }
+    catch { toast.error('Erreur (salle peut-être utilisée)'); }
+  };
+
   // ── Coefficients ─────────────────────────────────────────────────────
   const [selectedNiveauId, setSelectedNiveauId] = useState('');
   const [coefNiveaux, setCoefNiveaux] = useState<CoefNiveau[]>([]);
@@ -476,30 +555,20 @@ export default function ConfigurationPage() {
       const d = res.data as Record<string, unknown>;
       return Array.isArray(d) ? d : ((d?.data ?? d?.content ?? []) as unknown[]);
     };
+    setLoadingCoefRows(true);
     Promise.all([
       apiClient.get('/admin/configuration/niveaux'),
       apiClient.get('/admin/matieres'),
-    ]).then(([nr, mr]) => {
+      apiClient.get('/admin/matieres-niveaux', { params: { size: 2000 } }),
+    ]).then(([nr, mr, mnr]) => {
       setCoefNiveaux(extract(nr) as CoefNiveau[]);
       setCoefMatieres(extract(mr) as CoefMatiere[]);
-    }).catch(() => {});
+      setCoefRows(extract(mnr) as CoefRow[]);
+    }).catch(() => {}).finally(() => setLoadingCoefRows(false));
   }, [activeTab]);
 
-  useEffect(() => {
-    if (!selectedNiveauId) { setCoefRows([]); return; }
-    setLoadingCoefRows(true);
-    apiClient.get('/admin/matieres-niveaux', { params: { niveauId: selectedNiveauId } })
-      .then((res) => {
-        const d = res.data as Record<string, unknown>;
-        setCoefRows((Array.isArray(d) ? d : (d?.data ?? d?.content ?? [])) as CoefRow[]);
-      })
-      .catch(() => setCoefRows([]))
-      .finally(() => setLoadingCoefRows(false));
-  }, [selectedNiveauId]);
-
   const refreshCoefRows = async () => {
-    if (!selectedNiveauId) return;
-    const res = await apiClient.get('/admin/matieres-niveaux', { params: { niveauId: selectedNiveauId } });
+    const res = await apiClient.get('/admin/matieres-niveaux', { params: { size: 2000 } });
     const d = res.data as Record<string, unknown>;
     setCoefRows((Array.isArray(d) ? d : (d?.data ?? d?.content ?? [])) as CoefRow[]);
   };
@@ -515,7 +584,6 @@ export default function ConfigurationPage() {
         niveauId: selectedNiveauId,
         matiereId: assignForm.matiereId,
         coefficient: Number(assignForm.coefficient) || 1,
-        volumeHoraireHebdo: Number(assignForm.volumeHoraire) || 1,
       });
       toast.success('Matière assignée au niveau');
       setAssignForm({ matiereId: '', coefficient: '1', volumeHoraire: '1' });
@@ -529,7 +597,7 @@ export default function ConfigurationPage() {
 
   const handleSaveCoef = async (id: string, newCoef: number) => {
     try {
-      await apiClient.patch(`/admin/matieres-niveaux/${id}`, { coefficient: newCoef });
+      await apiClient.put(`/admin/matieres-niveaux/${id}`, { coefficient: newCoef });
       setCoefRows((prev) => prev.map((r) => r.id === id ? { ...r, coefficient: newCoef } : r));
       toast.success('Coefficient mis à jour');
     } catch {
@@ -724,29 +792,50 @@ export default function ConfigurationPage() {
         )}
 
         {/* ── NIVEAUX ──────────────────────────────────────────────── */}
-        {activeTab === 'sections' && (
+        {activeTab === 'cycles' && (
           <div>
-            {loadingSections && <div style={{ textAlign: 'center', padding: '40px 0', color: '#64748b', fontSize: 13 }}>Chargement…</div>}
-            {!loadingSections && <div style={{ display: 'flex', gap: 20, marginBottom: 20 }}>
-              {/* Sections list */}
-              <div style={{ width: 260, flexShrink: 0 }}>
+            {loadingCycles && <div style={{ textAlign: 'center', padding: '40px 0', color: '#64748b', fontSize: 13 }}>Chargement…</div>}
+            {!loadingCycles && <div style={{ display: 'flex', gap: 20, marginBottom: 20 }}>
+              {/* Cycles list */}
+              <div style={{ width: 320, flexShrink: 0 }}>
                 <div style={{ background: '#fff', border: '1px solid #e6ebf1', padding: 20 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>Sections</span>
-                    <button onClick={() => setShowSectionModal(true)} style={{ height: 30, padding: '0 12px', border: 'none', background: '#2563eb', color: '#fff', fontSize: 12, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>Cycles</span>
+                    <button onClick={() => { setCycleForm({ nom: '', typePeriode: 'TRIMESTRE' }); setEditCycleId(null); setShowCycleModal(true); }} style={{ height: 30, padding: '0 12px', border: 'none', background: '#2563eb', color: '#fff', fontSize: 12, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' }}>
                       + Ajouter
                     </button>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {sections.map((s) => (
-                      <div key={s.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', background: s.actif ? '#f8fafc' : '#f1f5f9', border: '1px solid #e6ebf1' }}>
-                        <div>
-                          <span style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{s.nom}</span>
-                          <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 700, color: s.actif ? '#16a34a' : '#dc2626', background: s.actif ? '#dcfce7' : '#fee2e2', padding: '2px 6px' }}>{s.actif ? 'Active' : 'Inactive'}</span>
+                    {cycles.map((s) => (
+                      <div key={s.id} style={{ padding: '12px 14px', background: s.actif ? '#f8fafc' : '#f1f5f9', border: '1px solid #e6ebf1' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            {s.seeded && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>}
+                            <span style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>{s.nom}</span>
+                          </div>
+                          <span style={{ fontSize: 10, fontWeight: 700, color: s.actif ? '#16a34a' : '#dc2626', background: s.actif ? '#dcfce7' : '#fee2e2', padding: '2px 6px' }}>{s.actif ? 'Actif' : 'Inactif'}</span>
                         </div>
-                        <button onClick={() => handleToggleSection(s)} style={{ fontSize: 11, color: s.actif ? '#dc2626' : '#16a34a', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}>
-                          {s.actif ? 'Désactiver' : 'Activer'}
-                        </button>
+                        <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: 11, color: '#2563eb', fontWeight: 600, background: '#eff6ff', padding: '2px 8px' }}>
+                            {s.typePeriode === 'SEMESTRE' ? 'Semestres' : 'Trimestres'}
+                          </span>
+                          <span style={{ fontSize: 11, color: '#7c3aed', fontWeight: 600, background: '#f5f3ff', padding: '2px 8px' }}>
+                            Moyenne /{s.moyenneMaximale ?? 20}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                          {!s.seeded && (
+                            <>
+                              <button onClick={() => { setEditCycleId(s.id); setCycleForm({ nom: s.nom, typePeriode: s.typePeriode ?? 'TRIMESTRE' }); setShowCycleModal(true); }} style={{ fontSize: 11, color: '#2563eb', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}>
+                                Modifier
+                              </button>
+                              <span style={{ color: '#e2e8f0' }}>|</span>
+                            </>
+                          )}
+                          <button onClick={() => handleToggleCycle(s)} style={{ fontSize: 11, color: s.actif ? '#dc2626' : '#16a34a', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}>
+                            {s.actif ? 'Désactiver' : 'Activer'}
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -769,7 +858,7 @@ export default function ConfigurationPage() {
                   </div>
                   <div style={{ overflowX: 'auto' }}>
                     <div style={{ display: 'grid', gridTemplateColumns: '120px 120px 130px 130px 80px 100px', padding: '10px 14px', background: '#f8fafc', borderBottom: '1px solid #e6ebf1' }}>
-                      {['Section', 'Niveau', 'Inscription', 'Mensualité', 'Nb Mois', 'Total/an'].map((h) => (
+                      {['Cycle', 'Niveau', 'Inscription', 'Mensualité', 'Nb Mois', 'Total/an'].map((h) => (
                         <span key={h} style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.04em' }}>{h}</span>
                       ))}
                     </div>
@@ -819,7 +908,7 @@ export default function ConfigurationPage() {
             </div>}
 
             {/* Niveaux — moyenne de passage */}
-            {!loadingSections && (
+            {!loadingCycles && (
               <div style={{ background: '#fff', border: '1px solid #e6ebf1', marginTop: 20 }}>
                 <div style={{ padding: '14px 20px', borderBottom: '1px solid #e6ebf1', fontSize: 13, fontWeight: 700, color: '#0f172a' }}>
                   Moyenne de passage par niveau
@@ -829,7 +918,7 @@ export default function ConfigurationPage() {
                 ) : (
                   <>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px 160px 90px', padding: '10px 20px', background: '#f8fafc', borderBottom: '1px solid #e6ebf1' }}>
-                      {['Niveau', 'Section', 'Moy. passage (0–20)', 'Action'].map((h) => (
+                      {['Niveau', 'Cycle', 'Moy. passage (0–20)', 'Action'].map((h) => (
                         <span key={h} style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.04em' }}>{h}</span>
                       ))}
                     </div>
@@ -968,6 +1057,167 @@ export default function ConfigurationPage() {
                   })}
                 </>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* ── BÂTIMENTS & SALLES ────────────────────────────────────── */}
+        {activeTab === 'batiments' && (
+          <div style={{ display: 'flex', gap: 20 }}>
+            {/* Bâtiments */}
+            <div style={{ width: 300, flexShrink: 0 }}>
+              <div style={{ background: '#fff', border: '1px solid #e6ebf1', padding: 20 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>Bâtiments</span>
+                  <button onClick={() => { setEditBatId(null); setBatForm({ nom: '', description: '' }); setShowBatModal(true); }} style={{ height: 30, padding: '0 12px', border: 'none', background: '#2563eb', color: '#fff', fontSize: 12, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' }}>
+                    + Ajouter
+                  </button>
+                </div>
+                {batLoading ? (
+                  <div style={{ textAlign: 'center', padding: '20px 0', color: '#94a3b8', fontSize: 13 }}>Chargement…</div>
+                ) : batiments.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '20px 0', color: '#94a3b8', fontSize: 13 }}>Aucun bâtiment</div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {batiments.map((b) => {
+                      const sallesCount = batSalles.filter((s) => s.batimentId === b.id).length;
+                      return (
+                        <div key={b.id} style={{ padding: '10px 12px', background: '#f8fafc', border: '1px solid #e6ebf1' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                            <span style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>{b.nom}</span>
+                            <span style={{ fontSize: 11, color: '#64748b' }}>{sallesCount} salle{sallesCount > 1 ? 's' : ''}</span>
+                          </div>
+                          {b.description && <div style={{ fontSize: 11, color: '#64748b', marginBottom: 6 }}>{b.description}</div>}
+                          <button onClick={() => { setEditBatId(b.id); setBatForm({ nom: b.nom, description: b.description ?? '' }); setShowBatModal(true); }}
+                            style={{ fontSize: 11, color: '#2563eb', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}>
+                            Modifier
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Salles */}
+            <div style={{ flex: 1 }}>
+              <div style={{ background: '#fff', border: '1px solid #e6ebf1' }}>
+                <div style={{ padding: '14px 20px', borderBottom: '1px solid #e6ebf1', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>Salles</span>
+                    <span style={{ fontSize: 12, color: '#64748b', marginLeft: 8 }}>{batSalles.length} salle(s)</span>
+                  </div>
+                  <button onClick={() => { setEditSalleId(null); setSalleForm({ batimentId: batiments[0]?.id ?? '', nom: '', capacite: '', typeSalle: '' }); setShowSalleModal(true); }}
+                    disabled={batiments.length === 0}
+                    style={{ height: 30, padding: '0 12px', border: 'none', background: batiments.length === 0 ? '#e2e8f0' : '#2563eb', color: '#fff', fontSize: 12, fontWeight: 600, fontFamily: 'inherit', cursor: batiments.length === 0 ? 'default' : 'pointer' }}>
+                    + Ajouter
+                  </button>
+                </div>
+
+                {batSalles.length === 0 ? (
+                  <div style={{ padding: '40px 20px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>
+                    {batiments.length === 0 ? 'Ajoutez d\'abord un bâtiment' : 'Aucune salle'}
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px 80px 100px 60px', padding: '8px 20px', background: '#f8fafc', borderBottom: '1px solid #e6ebf1' }}>
+                      {['Salle', 'Bâtiment', 'Capacité', 'Type', ''].map((h) => (
+                        <span key={h} style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.04em' }}>{h}</span>
+                      ))}
+                    </div>
+                    {batSalles.map((s, si) => {
+                      const bat = batiments.find((b) => b.id === s.batimentId);
+                      return (
+                        <div key={s.id} style={{ display: 'grid', gridTemplateColumns: '1fr 120px 80px 100px 60px', padding: '10px 20px', borderBottom: si < batSalles.length - 1 ? '1px solid #f1f5f9' : 'none', alignItems: 'center' }}>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{s.nom}</span>
+                          <span style={{ fontSize: 12, color: '#64748b' }}>{bat?.nom ?? '—'}</span>
+                          <span style={{ fontSize: 12, color: '#64748b' }}>{s.capacite ?? '—'}</span>
+                          <span style={{ fontSize: 11, color: '#94a3b8' }}>{s.typeSalle ?? '—'}</span>
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            <button onClick={() => { setEditSalleId(s.id); setSalleForm({ batimentId: s.batimentId, nom: s.nom, capacite: String(s.capacite ?? ''), typeSalle: s.typeSalle ?? '' }); setShowSalleModal(true); }}
+                              style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 2 }}>
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>
+                            </button>
+                            <button onClick={() => handleDeleteSalle(s.id)} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 2 }}>
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6M9 6V4h6v2"/></svg>
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal bâtiment */}
+        {showBatModal && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+            <div style={{ background: '#fff', width: 400, padding: 28, boxShadow: '0 8px 32px rgba(0,0,0,.14)' }}>
+              <div style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', marginBottom: 20 }}>{editBatId ? 'Modifier le bâtiment' : 'Nouveau bâtiment'}</div>
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 5 }}>Nom *</label>
+                <input value={batForm.nom} onChange={(e) => setBatForm((f) => ({ ...f, nom: e.target.value }))} style={{ width: '100%', height: 38, border: '1px solid #d9e0e8', padding: '0 12px', fontSize: 13, fontFamily: 'inherit', boxSizing: 'border-box' }} placeholder="Ex: Bâtiment A" autoFocus />
+              </div>
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 5 }}>Description</label>
+                <input value={batForm.description} onChange={(e) => setBatForm((f) => ({ ...f, description: e.target.value }))} style={{ width: '100%', height: 38, border: '1px solid #d9e0e8', padding: '0 12px', fontSize: 13, fontFamily: 'inherit', boxSizing: 'border-box' }} placeholder="Optionnel" />
+              </div>
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                <button onClick={() => setShowBatModal(false)} style={{ height: 38, padding: '0 16px', border: '1px solid #d9e0e8', background: '#fff', color: '#334155', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' }}>Annuler</button>
+                <button onClick={handleSaveBat} disabled={batSaving} style={{ height: 38, padding: '0 20px', border: 'none', background: '#2563eb', color: '#fff', fontSize: 13, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer', opacity: batSaving ? 0.7 : 1 }}>
+                  {batSaving ? 'Enregistrement…' : editBatId ? 'Enregistrer' : 'Ajouter'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal salle */}
+        {showSalleModal && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+            <div style={{ background: '#fff', width: 460, padding: 28, boxShadow: '0 8px 32px rgba(0,0,0,.14)' }}>
+              <div style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', marginBottom: 20 }}>{editSalleId ? 'Modifier la salle' : 'Nouvelle salle'}</div>
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 5 }}>Bâtiment *</label>
+                <select value={salleForm.batimentId} onChange={(e) => setSalleForm((f) => ({ ...f, batimentId: e.target.value }))}
+                  style={{ width: '100%', height: 38, border: '1px solid #d9e0e8', padding: '0 12px', fontSize: 13, fontFamily: 'inherit' }}>
+                  <option value="">Sélectionner…</option>
+                  {batiments.map((b) => <option key={b.id} value={b.id}>{b.nom}</option>)}
+                </select>
+              </div>
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 5 }}>Nom de la salle *</label>
+                <input value={salleForm.nom} onChange={(e) => setSalleForm((f) => ({ ...f, nom: e.target.value }))} style={{ width: '100%', height: 38, border: '1px solid #d9e0e8', padding: '0 12px', fontSize: 13, fontFamily: 'inherit', boxSizing: 'border-box' }} placeholder="Ex: Salle 101" />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 5 }}>Capacité</label>
+                  <input type="number" min={1} value={salleForm.capacite} onChange={(e) => setSalleForm((f) => ({ ...f, capacite: e.target.value }))} style={{ width: '100%', height: 38, border: '1px solid #d9e0e8', padding: '0 12px', fontSize: 13, fontFamily: 'inherit', boxSizing: 'border-box' }} placeholder="Ex: 40" />
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 5 }}>Type</label>
+                  <select value={salleForm.typeSalle} onChange={(e) => setSalleForm((f) => ({ ...f, typeSalle: e.target.value }))}
+                    style={{ width: '100%', height: 38, border: '1px solid #d9e0e8', padding: '0 12px', fontSize: 13, fontFamily: 'inherit' }}>
+                    <option value="">Standard</option>
+                    <option value="CLASSE">Classe</option>
+                    <option value="LABO">Laboratoire</option>
+                    <option value="INFORMATIQUE">Informatique</option>
+                    <option value="SPORT">Sport / Terrain</option>
+                    <option value="REUNION">Réunion</option>
+                    <option value="AUTRE">Autre</option>
+                  </select>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                <button onClick={() => setShowSalleModal(false)} style={{ height: 38, padding: '0 16px', border: '1px solid #d9e0e8', background: '#fff', color: '#334155', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' }}>Annuler</button>
+                <button onClick={handleSaveSalle} disabled={batSaving} style={{ height: 38, padding: '0 20px', border: 'none', background: '#2563eb', color: '#fff', fontSize: 13, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer', opacity: batSaving ? 0.7 : 1 }}>
+                  {batSaving ? 'Enregistrement…' : editSalleId ? 'Enregistrer' : 'Ajouter'}
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -1125,10 +1375,6 @@ export default function ConfigurationPage() {
                   <label style={lbl()}>Coeff.</label>
                   <input type="number" value={assignForm.coefficient} onChange={(e) => setAssignForm((f) => ({ ...f, coefficient: e.target.value }))} style={inp()} min={1} max={10} />
                 </div>
-                <div>
-                  <label style={lbl()}>Vol. h/sem.</label>
-                  <input type="number" value={assignForm.volumeHoraire} onChange={(e) => setAssignForm((f) => ({ ...f, volumeHoraire: e.target.value }))} style={inp()} min={1} />
-                </div>
                 <button onClick={handleAssign} disabled={savingAssign} style={{ height: 38, padding: '0 18px', border: 'none', background: '#2563eb', color: '#fff', fontSize: 13, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer', opacity: savingAssign ? 0.7 : 1, whiteSpace: 'nowrap' }}>
                   {savingAssign ? '…' : 'Assigner'}
                 </button>
@@ -1137,62 +1383,65 @@ export default function ConfigurationPage() {
 
             {/* Coefficients table */}
             <div style={{ background: '#fff', border: '1px solid #e6ebf1' }}>
-              <div style={{ padding: '14px 20px', borderBottom: '1px solid #e6ebf1', display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>
-                  {selectedNiveauId ? `Matières — ${coefNiveaux.find((n) => n.id === selectedNiveauId)?.nom ?? ''}` : 'Sélectionnez un niveau'}
-                </span>
-                <span style={{ fontSize: 12, color: '#64748b' }}>{coefRows.length} matière(s)</span>
-              </div>
-              {selectedNiveauId ? (
-                <>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 100px 72px', padding: '10px 20px', background: '#f8fafc', borderBottom: '1px solid #e6ebf1' }}>
-                    {['Matière', 'Coeff.', 'Vol. h/sem.', 'Action'].map((h) => (
-                      <span key={h} style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.04em' }}>{h}</span>
+              {loadingCoefRows ? (
+                <div style={{ padding: '40px 20px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Chargement…</div>
+              ) : coefRows.length === 0 ? (
+                <div style={{ padding: '40px 20px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Aucune matière assignée. Utilisez le formulaire ci-dessus pour assigner.</div>
+              ) : (() => {
+                // Grouper par niveau
+                const byNiveau = new Map<string, { niveauNom: string; rows: typeof coefRows }>();
+                for (const r of coefRows) {
+                  const nid = r.niveauId ?? r.niveau?.id ?? '';
+                  const nnom = r.niveau?.libelle ?? r.niveau?.nom ?? coefNiveaux.find((n) => n.id === nid)?.nom ?? '—';
+                  if (!byNiveau.has(nid)) byNiveau.set(nid, { niveauNom: nnom, rows: [] });
+                  byNiveau.get(nid)!.rows.push(r);
+                }
+                return Array.from(byNiveau.entries()).map(([nid, { niveauNom, rows }]) => (
+                  <div key={nid}>
+                    <div style={{ padding: '10px 20px', background: '#f8fafc', borderBottom: '1px solid #e6ebf1', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: '#0f172a' }}>{niveauNom}</span>
+                      <span style={{ fontSize: 11, color: '#64748b' }}>{rows.length} matière(s)</span>
+                    </div>
+                    {rows.map((r, idx) => (
+                      <div key={r.id} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 72px', padding: '10px 20px', borderBottom: idx < rows.length - 1 ? '1px solid #f1f5f9' : '1px solid #e6ebf1', alignItems: 'center' }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{r.matiere?.libelle ?? '—'}</span>
+                        <input type="number" value={getEditCoef(r.id, r.coefficient ?? 1)}
+                          onChange={(e) => setEditCoefs((prev) => ({ ...prev, [r.id]: Number(e.target.value) }))}
+                          onBlur={() => handleSaveCoef(r.id, getEditCoef(r.id, r.coefficient ?? 1))}
+                          style={{ width: 60, height: 28, border: '1px solid #d9e0e8', padding: '0 8px', fontSize: 13, fontFamily: 'inherit', textAlign: 'center' }}
+                          min={1} max={10} />
+                        <button onClick={() => handleSaveCoef(r.id, getEditCoef(r.id, r.coefficient ?? 1))} style={{ height: 26, padding: '0 10px', border: 'none', background: '#dcfce7', color: '#16a34a', fontSize: 11, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer' }}>
+                          Enregistrer
+                        </button>
+                      </div>
                     ))}
                   </div>
-                  {loadingCoefRows ? (
-                    <div style={{ padding: '24px 20px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Chargement…</div>
-                  ) : coefRows.length === 0 ? (
-                    <div style={{ padding: '24px 20px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Aucune matière assignée à ce niveau</div>
-                  ) : coefRows.map((r, idx) => (
-                    <div key={r.id} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 100px 72px', padding: '12px 20px', borderBottom: idx < coefRows.length - 1 ? '1px solid #eef2f6' : 'none', alignItems: 'center' }}>
-                      <span style={{ fontSize: 14, fontWeight: 600, color: '#0f172a' }}>{r.matiere?.libelle ?? '—'}</span>
-                      <input
-                        type="number"
-                        value={getEditCoef(r.id, r.coefficient ?? 1)}
-                        onChange={(e) => setEditCoefs((prev) => ({ ...prev, [r.id]: Number(e.target.value) }))}
-                        style={{ width: 60, height: 30, border: '1px solid #d9e0e8', padding: '0 8px', fontSize: 13, fontFamily: 'inherit', outline: 'none' }}
-                        min={1} max={10}
-                      />
-                      <span style={{ fontSize: 13, color: '#64748b' }}>{r.volumeHoraireHebdo ?? 0}h/sem</span>
-                      <button onClick={() => handleSaveCoef(r.id, getEditCoef(r.id, r.coefficient ?? 1))} style={{ height: 28, padding: '0 12px', border: 'none', background: '#dcfce7', color: '#16a34a', fontSize: 11, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer' }}>
-                        Enregistrer
-                      </button>
-                    </div>
-                  ))}
-                </>
-              ) : (
-                <div style={{ padding: '40px 20px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>
-                  Sélectionnez un niveau pour voir ses matières et coefficients
-                </div>
-              )}
+                ));
+              })()}
             </div>
           </div>
         )}
       </div>
 
-      {/* ── MODAL SECTION ── */}
-      {showSectionModal && (
+      {/* ── MODAL CYCLE ── */}
+      {showCycleModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div style={{ background: '#fff', width: 400, padding: 28, boxShadow: '0 8px 32px rgba(0,0,0,.14)' }}>
-            <div style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', marginBottom: 20 }}>Nouvelle section</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', marginBottom: 20 }}>{editCycleId ? 'Modifier le cycle' : 'Nouveau cycle'}</div>
+            <div style={fieldWrap()}>
+              <label style={lbl()}>Nom du cycle *</label>
+              <input value={cycleForm.nom} onChange={(e) => setCycleForm((f) => ({ ...f, nom: e.target.value }))} style={inp()} placeholder="Ex: Collège, Lycée" autoFocus />
+            </div>
             <div style={fieldWrap(20)}>
-              <label style={lbl()}>Nom de la section *</label>
-              <input value={sectionForm.nom} onChange={(e) => setSectionForm({ nom: e.target.value })} style={inp()} placeholder="Ex: Maternelle" autoFocus />
+              <label style={lbl()}>Découpage de l'année</label>
+              <select value={cycleForm.typePeriode} onChange={(e) => setCycleForm((f) => ({ ...f, typePeriode: e.target.value }))} style={{ ...inp(), cursor: 'pointer' }}>
+                <option value="TRIMESTRE">Trimestres (T1, T2, T3)</option>
+                <option value="SEMESTRE">Semestres (S1, S2)</option>
+              </select>
             </div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-              <button onClick={() => setShowSectionModal(false)} style={{ height: 38, padding: '0 16px', border: '1px solid #d9e0e8', background: '#fff', color: '#334155', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' }}>Annuler</button>
-              <button onClick={handleAddSection} style={{ height: 38, padding: '0 20px', border: 'none', background: '#2563eb', color: '#fff', fontSize: 13, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer' }}>Ajouter</button>
+              <button onClick={() => { setShowCycleModal(false); setEditCycleId(null); }} style={{ height: 38, padding: '0 16px', border: '1px solid #d9e0e8', background: '#fff', color: '#334155', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' }}>Annuler</button>
+              <button onClick={handleSaveCycle} style={{ height: 38, padding: '0 20px', border: 'none', background: '#2563eb', color: '#fff', fontSize: 13, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer' }}>{editCycleId ? 'Enregistrer' : 'Ajouter'}</button>
             </div>
           </div>
         </div>
@@ -1204,10 +1453,10 @@ export default function ConfigurationPage() {
           <div style={{ background: '#fff', width: 460, padding: 28, boxShadow: '0 8px 32px rgba(0,0,0,.14)' }}>
             <div style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', marginBottom: 20 }}>Nouveau niveau</div>
             <div style={fieldWrap()}>
-              <label style={lbl()}>Section *</label>
+              <label style={lbl()}>Cycle *</label>
               <select value={niveauForm.sectionId} onChange={(e) => setNiveauForm((f) => ({ ...f, sectionId: e.target.value }))} style={{ ...inp() }}>
                 <option value="">Sélectionner…</option>
-                {sections.filter((s) => s.actif).map((s) => <option key={s.id} value={s.id}>{s.nom}</option>)}
+                {cycles.filter((s) => s.actif).map((s) => <option key={s.id} value={s.id}>{s.nom}</option>)}
               </select>
             </div>
             <div style={fieldWrap()}>
