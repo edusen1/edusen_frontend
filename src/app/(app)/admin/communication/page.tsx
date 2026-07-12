@@ -124,6 +124,16 @@ function fileToBase64(file: File): Promise<string> {
   });
 }
 
+function normalizePreviewResult(value: unknown): PreviewResult | null {
+  if (!value || typeof value !== 'object') return null;
+  const obj = value as Record<string, unknown>;
+  const source = obj.data && typeof obj.data === 'object' ? obj.data as Record<string, unknown> : obj;
+  return {
+    total: typeof source.total === 'number' ? source.total : undefined,
+    parRole: source.parRole && typeof source.parRole === 'object' ? source.parRole as Record<string, number> : undefined,
+  };
+}
+
 function docIcon(mimeType: string): string {
   if (mimeType === 'application/pdf') return 'PDF';
   if (mimeType?.startsWith('image/')) return 'IMG';
@@ -221,7 +231,9 @@ export default function CommunicationPage() {
 
   // Initialise le filtre sur l'année active dès que les données chargent
   useEffect(() => {
-    if (anneeActive && !filtreAnnee) setFiltreAnnee(anneeActive.id);
+    if (!anneeActive || filtreAnnee) return;
+    const timer = window.setTimeout(() => setFiltreAnnee(anneeActive.id), 0);
+    return () => window.clearTimeout(timer);
   }, [anneeActive?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const filtered = messages.filter(m => {
@@ -354,9 +366,8 @@ export default function CommunicationPage() {
 
   async function refreshPreview() {
     try {
-      const result = await previewDestinataires.mutateAsync(buildPayload(false)) as { data?: PreviewResult } | PreviewResult;
-      const value = 'data' in result ? result.data : result;
-      setPreview(value ?? null);
+      const result = await previewDestinataires.mutateAsync(buildPayload(false));
+      setPreview(normalizePreviewResult(result));
     } catch {
       setPreview(null);
       toast.error('Impossible de calculer les destinataires');

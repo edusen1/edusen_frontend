@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuthStore } from '@/stores/auth-store';
 import {
   useParentEnfants,
@@ -26,15 +26,15 @@ export default function EnfantsPage() {
   const nomParent = ((user?.prenom ?? '') + ' ' + (user?.nom ?? '')).trim() || 'Parent';
 
   const { data: enfantsData, isLoading: loadingEnfants } = useParentEnfants();
-  const enfants = (Array.isArray(enfantsData) ? enfantsData : []) as Record<string, unknown>[];
+  const enfants = useMemo(() => (Array.isArray(enfantsData) ? enfantsData : []) as Record<string, unknown>[], [enfantsData]);
 
   const [selectedId, setSelectedId] = useState<string>('');
   const [activeTab, setActiveTab] = useState<TabKey>('notes');
 
   useEffect(() => {
-    if (enfants.length > 0 && !selectedId) {
-      setSelectedId(String(enfants[0].id ?? ''));
-    }
+    if (enfants.length === 0 || selectedId) return;
+    const timer = window.setTimeout(() => setSelectedId(String(enfants[0].id ?? '')), 0);
+    return () => window.clearTimeout(timer);
   }, [enfants, selectedId]);
 
   const enfant = enfants.find((e) => String(e.id) === selectedId) ?? enfants[0];
@@ -118,6 +118,7 @@ export default function EnfantsPage() {
         )}
         {/* Selected child summary */}
         {!loadingEnfants && enfants.length > 0 && (
+        <>
         <div style={{ background: '#0f172a', margin: '16px 16px 0', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 14 }}>
           <div style={{ width: 48, height: 48, background: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 16, flexShrink: 0 }}>
             {initials}
@@ -317,6 +318,7 @@ export default function EnfantsPage() {
             );
           })()}
         </div>
+        </>
 
         )}
         {/* All children cards */}

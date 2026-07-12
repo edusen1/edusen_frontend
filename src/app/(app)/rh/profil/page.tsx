@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useAuthStore } from '@/store/auth-store';
+import { useAuthStore } from '@/stores/auth-store';
 import { useUpdateProfile, useChangePassword } from '@/hooks/use-query-api';
 
 type Tab = 'info' | 'securite';

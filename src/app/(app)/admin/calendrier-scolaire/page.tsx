@@ -69,7 +69,10 @@ export default function CalendrierScolairePage() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { void fetchEvents(); }, [fetchEvents]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void fetchEvents(); }, 0);
+    return () => window.clearTimeout(timer);
+  }, [fetchEvents]);
 
   function openCreate(date?: string) {
     setEditId(null);
@@ -221,7 +224,7 @@ export default function CalendrierScolairePage() {
                       <>
                         <div style={{ fontSize: 11, fontWeight: isToday ? 800 : 500, color: isToday ? '#2563eb' : '#475569', marginBottom: 2 }}>{day}</div>
                         {dayEvts.slice(0, 3).map((e) => {
-                          const c = e.couleur || TYPE_COLORS[e.type] || '#475569';
+                          const c = String(e.couleur || TYPE_COLORS[e.type] || '#475569');
                           return (
                             <div key={e.id} onClick={(ev) => { ev.stopPropagation(); openEdit(e); }} style={{ fontSize: 9, padding: '1px 4px', marginBottom: 1, background: c + '18', color: c, borderLeft: `2px solid ${c}`, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'pointer', textDecoration: e.statut === 'ANNULE' ? 'line-through' : 'none' }}>
                               {e.important ? '★ ' : ''}{e.titre}
