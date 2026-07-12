@@ -297,6 +297,10 @@ export default function ScolaritePage() {
   const [transferSaving, setTransferSaving] = useState(false);
   const [debtTarget, setDebtTarget] = useState<DebtPaymentTarget | null>(null);
   const [debtSaving, setDebtSaving] = useState(false);
+  const [debtMode, setDebtMode] = useState('ESPECES');
+  const [mensuDebtTarget, setMensuDebtTarget] = useState<Paiement | null>(null);
+  const [mensuDebtMode, setMensuDebtMode] = useState('ESPECES');
+  const [mensuDebtSaving, setMensuDebtSaving] = useState(false);
 
   // ── Mensualités state ──
   const [paiements, setPaiements] = useState<Paiement[]>([]);
@@ -370,7 +374,7 @@ export default function ScolaritePage() {
   const fetchInscriptions = useCallback(() => {
     setInscLoading(true);
     const params: Record<string,string> = { size: '200' };
-    if (inscFilterStatut) params['statut'] = inscFilterStatut;
+    if (inscFilterStatut && inscFilterStatut !== 'REDUCTION_EN_ATTENTE') params['statut'] = inscFilterStatut;
     if (inscSearch)       params['search'] = inscSearch;
     Promise.all([
       apiClient.get('/admin/inscriptions', { params }),
@@ -413,7 +417,10 @@ export default function ScolaritePage() {
           statut: (redByInscId.get(ins.id) ?? redByEleveId.get(ins.eleveId))!.statut,
         } : null,
       }));
-      setInscriptions(enriched);
+      const filtered = inscFilterStatut === 'REDUCTION_EN_ATTENTE'
+        ? enriched.filter((ins) => ins._reduction?.statut === 'EN_ATTENTE')
+        : enriched;
+      setInscriptions(filtered);
     })
       .catch(() => toast.error('Erreur chargement inscriptions'))
       .finally(() => setInscLoading(false));
@@ -588,7 +595,7 @@ export default function ScolaritePage() {
         inscriptionId: ins.id,
         montant: montantDette,
         typePaiement: 'INSCRIPTION',
-        modePaiement: 'ESPECES',
+        modePaiement: debtMode,
         anneeScolaire: ins.anneeAcademique?.libelle ?? anneeCourante?.libelle ?? '',
         description: 'Remboursement dette inscription',
         statut: 'VALIDE',
@@ -642,7 +649,22 @@ export default function ScolaritePage() {
     apiClient.get('/admin/paiements', { params })
       .then((r) => {
         const d = r.data as Record<string,unknown>;
-        setPaiements((Array.isArray(d) ? d : (d?.content ?? d?.data ?? [])) as Paiement[]);
+        const raw = (Array.isArray(d) ? d : (d?.content ?? d?.data ?? [])) as Paiement[];
+        // Consolider par eleve+mois : garder la ligne la plus recente, utiliser _totalPayeMois du backend
+        const grouped = new Map<string, Paiement>();
+        for (const p of raw) {
+          const key = `${p.eleveId}_${p.trimestre}_${p.anneeScolaire}`;
+          const existing = grouped.get(key);
+          if (!existing || new Date(p.updatedAt ?? p.createdAt ?? '').getTime() > new Date(existing.updatedAt ?? existing.createdAt ?? '').getTime()) {
+            grouped.set(key, {
+              ...p,
+              // Utiliser le total et la dette calcules par le backend (deja corrects)
+              montant: Number(p._totalPayeMois ?? p.montant ?? 0),
+              _dette: Number(p._dette ?? 0),
+            });
+          }
+        }
+        setPaiements([...grouped.values()]);
       })
       .catch(() => toast.error('Erreur chargement mensualités'))
       .finally(() => setPaiLoading(false));
@@ -753,35 +775,38 @@ export default function ScolaritePage() {
     } finally { setPaiSaving(false); }
   };
 
-  const handlePaiCompleteDebt = async (payment: Paiement) => {
+  const handlePaiCompleteDebt = (payment: Paiement) => {
+    const dette = Math.round(Number(payment._dette ?? 0));
+    if (dette <= 0) { toast.error('Pas de dette'); return; }
+    setMensuDebtTarget(payment);
+    setMensuDebtMode('ESPECES');
+  };
+
+  const handleConfirmMensuDebt = async () => {
+    if (!mensuDebtTarget) return;
+    const payment = mensuDebtTarget;
     const dette = Math.round(Number(payment._dette ?? 0));
     const month = Number(String(payment.trimestre ?? '').replace('MOIS_', ''));
-    if (!payment.eleveId || !Number.isFinite(month) || month < 1 || month > 12 || dette <= 0) {
-      toast.error('Dette introuvable pour cette mensualité');
-      return;
-    }
-    const target = window.open('', '_blank');
+    if (!Number.isFinite(month) || month < 1) { toast.error('Mois invalide'); return; }
+    setMensuDebtSaving(true);
     try {
-      const res = await apiClient.post('/admin/paiements/mensualites', {
+      // Utilise le meme endpoint mensualites — le backend detecte le paiement existant
+      // et cree un complement avec le montant restant uniquement
+      await apiClient.post('/admin/paiements/mensualites', {
         eleveId: payment.eleveId,
         mois: [month],
-        modePaiement: payment.modePaiement,
+        modePaiement: mensuDebtMode,
         anneeScolaire: payment.anneeScolaire,
         montantRecu: dette,
         statut: 'VALIDE',
       });
-      const data = res.data as { receiptPdfUrl?: string | null; content?: Array<{ receiptPdfUrl?: string | null }> };
-      const url = data.receiptPdfUrl ?? data.content?.find((item) => item.receiptPdfUrl)?.receiptPdfUrl ?? null;
-      if (url) openPreparedUrl(target, url);
-      else {
-        target?.close();
-        openReceiptUrls(res.data);
-      }
       toast.success('Dette mensualité complétée');
+      setMensuDebtTarget(null);
       fetchPaiements();
     } catch (err: unknown) {
-      target?.close();
-      toast.error((err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Erreur lors du paiement de la dette');
+      toast.error((err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Erreur');
+    } finally {
+      setMensuDebtSaving(false);
     }
   };
 
@@ -951,6 +976,7 @@ export default function ScolaritePage() {
             <select value={inscFilterStatut} onChange={e => setInscFilterStatut(e.target.value)} style={{ height: 38, border: '1px solid #e2e8f0', background: '#fff', padding: '0 12px', fontSize: 13, color: '#0f172a', fontFamily: 'inherit' }}>
               <option value="">Tous statuts</option>
               <option value="ACTIF">Actifs</option>
+              <option value="REDUCTION_EN_ATTENTE">Réduction en attente</option>
               <option value="INACTIF">Inactifs</option>
               <option value="TRANSFERE">Transférés</option>
               <option value="EXCLU">Exclus</option>
@@ -1102,7 +1128,7 @@ export default function ScolaritePage() {
                     const ini = ((pr[0] ?? '') + (nm[0] ?? '')).toUpperCase();
                     const photo = p.eleve?.photoUrl;
                     const st = STATUT_PAI[p.statut] ?? { label: p.statut, bg: '#f1f5f9', color: '#64748b' };
-                    const dateStr = p.datePaiement ? new Date(p.datePaiement).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' }) : relDate(p.createdAt);
+                    const dateStr = p.datePaiement ? new Date(p.datePaiement).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : relDate(p.createdAt);
                     const dette = Math.round(Number(p._dette ?? 0));
                     const totalPayeMois = Math.round(Number(p._totalPayeMois ?? p.montant));
                     const montantDu = Math.round(Number(p._montantDu ?? p.montant));
@@ -1372,7 +1398,11 @@ export default function ScolaritePage() {
                   <label style={lbl()}>Classe <span style={{ color: '#dc2626' }}>*</span></label>
                   <select value={classeId} onChange={e => setClasseId(e.target.value)} style={{ ...inp(!!inscErrors.classe), cursor: 'pointer' }}>
                     <option value="">Sélectionner...</option>
-                    {classesSuggestion.map(c => <option key={c.id} value={c.id}>{c.nom}{c.effectifMax ? ` (max ${c.effectifMax})` : ''}</option>)}
+                    {classesSuggestion.map(c => {
+                      const places = c.placesRestantes ?? (c.effectifMax ? c.effectifMax - (c.nbEleves ?? 0) : null);
+                      const placesTxt = places !== null ? ` — ${places} place(s) restante(s)` : '';
+                      return <option key={c.id} value={c.id}>{c.nom}{placesTxt}</option>;
+                    })}
                   </select>
                   {errTxt(inscErrors.classe)}
                 </div>
@@ -1424,7 +1454,7 @@ export default function ScolaritePage() {
               {/* Réduction */}
               <div style={{ background: isAdmin ? '#fffbeb' : '#f0f9ff', border: `1px solid ${isAdmin ? '#fde68a' : '#bae6fd'}`, padding: '11px 13px', margin: '12px 0 16px' }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 9, cursor: 'pointer' }}>
-                  <input type="checkbox" checked={hasReduction} onChange={e => { setHasReduction(e.target.checked); if (!e.target.checked) { setReductionPct(''); setMotifReduction(''); } }} style={{ width: 14, height: 14, cursor: 'pointer', accentColor: isAdmin ? '#d97706' : '#0284c7' }} />
+                  <input type="checkbox" checked={hasReduction} onChange={e => { setHasReduction(e.target.checked); if (!e.target.checked) { setReductionPct(''); setMotifReduction(''); } else if (!isAdmin) { setHasPaiement(false); setMontantRecu(''); } }} style={{ width: 14, height: 14, cursor: 'pointer', accentColor: isAdmin ? '#d97706' : '#0284c7' }} />
                   <div>
                     <span style={{ fontSize: 13, fontWeight: 600, color: isAdmin ? '#92400e' : '#0c4a6e' }}>{isAdmin ? 'Appliquer une réduction / bourse' : 'Demander une réduction / bourse'}</span>
                     {!isAdmin && <div style={{ fontSize: 11, color: '#0369a1' }}>Nécessite validation admin</div>}
@@ -1435,7 +1465,7 @@ export default function ScolaritePage() {
                     <div>
                       <label style={lbl(isAdmin ? '#92400e' : '#0c4a6e')}>% de réduction <span style={{ color: '#dc2626' }}>*</span></label>
                       <div style={{ position: 'relative' }}>
-                        <input type="number" min="1" max="100" value={reductionPct} onChange={e => setReductionPct(e.target.value)} placeholder="Ex : 50" style={{ ...inp(!!inscErrors.reductionPct), paddingRight: 28 }} />
+                        <input type="number" min="1" max="100" value={reductionPct} onChange={e => setReductionPct(e.target.value)} onWheel={e => (e.target as HTMLInputElement).blur()} placeholder="Ex : 50" style={{ ...inp(!!inscErrors.reductionPct), paddingRight: 28 }} />
                         <span style={{ position: 'absolute', right: 9, top: '50%', transform: 'translateY(-50%)', fontSize: 13, color: '#64748b', pointerEvents: 'none' }}>%</span>
                       </div>
                       {errTxt(inscErrors.reductionPct)}
@@ -1461,10 +1491,16 @@ export default function ScolaritePage() {
               </div>
               {/* Paiement */}
               <div style={{ borderTop: '1px solid #e6ebf1', paddingTop: 14 }}>
+                {!isAdmin && hasReduction && reductionPct ? (
+                  <div style={{ background: '#fffbeb', border: '1px solid #fde68a', padding: '10px 14px', fontSize: 12, color: '#92400e' }}>
+                    Le paiement ne peut être enregistré qu&apos;après validation de la demande de réduction par l&apos;administration.
+                  </div>
+                ) : (
                 <label style={{ display: 'flex', alignItems: 'center', gap: 9, cursor: 'pointer', marginBottom: hasPaiement ? 12 : 0 }}>
                   <input type="checkbox" checked={hasPaiement} onChange={e => { setHasPaiement(e.target.checked); if (e.target.checked && (isAdmin ? fraisNet : fraisBase) != null && !montantRecu) setMontantRecu(String(isAdmin ? fraisNet : fraisBase)); }} style={{ width: 15, height: 15, cursor: 'pointer' }} />
                   <span style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>Un paiement a été reçu lors de l&apos;inscription</span>
                 </label>
+                )}
                 {hasPaiement && (
                   <div style={{ background: '#f8fafc', border: '1px solid #e6ebf1', padding: '14px 12px' }}>
                     {!isAdmin && hasReduction && reductionPct && (
@@ -1481,7 +1517,7 @@ export default function ScolaritePage() {
                       </div>
                       <div>
                         <label style={lbl()}>Montant reçu (F CFA) <span style={{ color: '#dc2626' }}>*</span></label>
-                        {(() => { const ref = isAdmin ? fraisNet : fraisBase; return (<><input type="number" value={montantRecu} onChange={e => setMontantRecu(e.target.value)} placeholder={ref != null ? fmt(ref) : 'Ex : 150 000'} style={inp(!!inscErrors.montantRecu)} />{errTxt(inscErrors.montantRecu)}</>); })()}
+                        {(() => { const ref = isAdmin ? fraisNet : fraisBase; return (<><input type="number" value={montantRecu} onChange={e => setMontantRecu(e.target.value)} onWheel={e => (e.target as HTMLInputElement).blur()} placeholder={ref != null ? fmt(ref) : 'Ex : 150 000'} style={inp(!!inscErrors.montantRecu)} />{errTxt(inscErrors.montantRecu)}</>); })()}
                       </div>
                     </div>
                     {(() => {
@@ -1530,7 +1566,10 @@ export default function ScolaritePage() {
               <label style={lbl()}>Nouvelle classe <span style={{ color: '#dc2626' }}>*</span></label>
               <select value={newClasseId} onChange={e => setNewClasseId(e.target.value)} style={{ ...inp(), cursor: 'pointer' }}>
                 <option value="">Sélectionner...</option>
-                {allClasses.filter(c => c.id !== transferTarget.classeId).map(c => <option key={c.id} value={c.id}>{c.nom}</option>)}
+                {allClasses.filter(c => c.id !== transferTarget.classeId).map(c => {
+                      const places = c.placesRestantes ?? (c.effectifMax ? c.effectifMax - (c.nbEleves ?? 0) : null);
+                      return <option key={c.id} value={c.id}>{c.nom}{places !== null ? ` (${places} places)` : ''}</option>;
+                    })}
               </select>
             </div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', padding: '12px 22px', borderTop: '1px solid #e6ebf1' }}>
@@ -1568,13 +1607,64 @@ export default function ScolaritePage() {
                   <strong style={{ color: '#0f172a', textAlign: 'right' }}>{debtTarget.inscription.anneeAcademique?.libelle ?? anneeCourante?.libelle ?? '—'}</strong>
                 </div>
               </div>
-              <div style={{ marginTop: 14, padding: '10px 12px', background: '#f8fafc', border: '1px solid #e6ebf1', color: '#64748b', fontSize: 12, lineHeight: 1.45 }}>
-                Un nouveau reçu sera généré avec les informations du premier paiement et du remboursement de dette.
+              <div style={{ marginTop: 14 }}>
+                <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 5 }}>Mode de paiement</label>
+                <select value={debtMode} onChange={(e) => setDebtMode(e.target.value)} style={{ width: '100%', height: 38, border: '1px solid #e2e8f0', padding: '0 12px', fontSize: 13, fontFamily: 'inherit', background: '#fff' }}>
+                  <option value="ESPECES">Espèces</option>
+                  <option value="MOBILE_MONEY">Mobile Money (Wave, OM)</option>
+                  <option value="VIREMENT">Virement bancaire</option>
+                  <option value="CHEQUE">Chèque</option>
+                </select>
               </div>
             </div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', padding: '12px 20px', borderTop: '1px solid #e6ebf1' }}>
               <button onClick={() => setDebtTarget(null)} disabled={debtSaving} style={{ height: 36, padding: '0 14px', border: '1px solid #d9e0e8', background: '#fff', color: '#334155', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', cursor: debtSaving ? 'not-allowed' : 'pointer', opacity: debtSaving ? 0.6 : 1 }}>Annuler</button>
               <button onClick={handlePayDebt} disabled={debtSaving} style={{ height: 36, padding: '0 18px', border: 'none', background: '#c2410c', color: '#fff', fontSize: 13, fontWeight: 700, fontFamily: 'inherit', cursor: debtSaving ? 'wait' : 'pointer', opacity: debtSaving ? 0.75 : 1 }}>{debtSaving ? 'Paiement...' : 'Confirmer'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Modal dette mensualité ─── */}
+      {mensuDebtTarget && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
+          <div style={{ width: 390, background: '#fff', border: '1px solid #e2e8f0', boxShadow: '0 24px 60px rgba(15,23,42,.30)' }}>
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid #e6ebf1', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a' }}>Compléter la mensualité</div>
+              <button onClick={() => setMensuDebtTarget(null)} disabled={mensuDebtSaving} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+            </div>
+            <div style={{ padding: '18px 20px' }}>
+              <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', padding: '12px 14px', marginBottom: 14 }}>
+                <div style={{ fontSize: 12, color: '#9a3412', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em' }}>Reste à payer</div>
+                <div style={{ fontSize: 28, color: '#c2410c', fontWeight: 800, marginTop: 4 }}>{fmt(Math.round(Number(mensuDebtTarget._dette ?? 0)))} F</div>
+              </div>
+              <div style={{ display: 'grid', gap: 8, fontSize: 13, marginBottom: 14 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#64748b' }}>Mois</span>
+                  <strong>{String(mensuDebtTarget.trimestre ?? '').replace('MOIS_', 'Mois ')}</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#64748b' }}>Montant total</span>
+                  <strong>{fmt(mensuDebtTarget.montant)} F</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#64748b' }}>Déjà payé</span>
+                  <strong style={{ color: '#16a34a' }}>{fmt(mensuDebtTarget.montant - Math.round(Number(mensuDebtTarget._dette ?? 0)))} F</strong>
+                </div>
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 5 }}>Mode de paiement</label>
+                <select value={mensuDebtMode} onChange={(e) => setMensuDebtMode(e.target.value)} style={{ width: '100%', height: 38, border: '1px solid #e2e8f0', padding: '0 12px', fontSize: 13, fontFamily: 'inherit', background: '#fff' }}>
+                  <option value="ESPECES">Espèces</option>
+                  <option value="MOBILE_MONEY">Mobile Money (Wave, OM)</option>
+                  <option value="VIREMENT">Virement bancaire</option>
+                  <option value="CHEQUE">Chèque</option>
+                </select>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', padding: '12px 20px', borderTop: '1px solid #e6ebf1' }}>
+              <button onClick={() => setMensuDebtTarget(null)} disabled={mensuDebtSaving} style={{ height: 36, padding: '0 14px', border: '1px solid #d9e0e8', background: '#fff', color: '#334155', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' }}>Annuler</button>
+              <button onClick={() => void handleConfirmMensuDebt()} disabled={mensuDebtSaving} style={{ height: 36, padding: '0 18px', border: 'none', background: '#c2410c', color: '#fff', fontSize: 13, fontWeight: 700, fontFamily: 'inherit', cursor: mensuDebtSaving ? 'wait' : 'pointer', opacity: mensuDebtSaving ? 0.75 : 1 }}>{mensuDebtSaving ? 'Paiement...' : 'Confirmer'}</button>
             </div>
           </div>
         </div>
@@ -1667,7 +1757,7 @@ export default function ScolaritePage() {
               </div>
               <div style={{ background: '#fff', border: '1px solid #e6ebf1', padding: 12 }}>
                 <label style={lbl()}>Montant reçu</label>
-                <input type="number" min="1" max={paiTotalSelection || undefined} value={paiAmountReceived} onChange={e => setPaiAmountReceived(e.target.value)} placeholder={paiTotalSelection ? fmt(paiTotalSelection) : '0'} style={inp()} />
+                <input type="number" min="1" max={paiTotalSelection || undefined} value={paiAmountReceived} onChange={e => setPaiAmountReceived(e.target.value)} onWheel={e => (e.target as HTMLInputElement).blur()} placeholder={paiTotalSelection ? fmt(paiTotalSelection) : '0'} style={inp()} />
                 {paiTotalSelection > 0 && (() => {
                   const received = Math.round(Number(paiAmountReceived || paiTotalSelection));
                   const debt = Math.max(0, paiTotalSelection - (Number.isFinite(received) ? received : 0));

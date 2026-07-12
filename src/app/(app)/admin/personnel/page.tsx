@@ -8,7 +8,6 @@ import {
   useAdminPersonnel,
   useCreatePersonnel,
   useUpdatePersonnel,
-  useDeletePersonnel,
   useResetPersonnelCredentials,
   useAdminAbsencesPersonnel,
   useCreateAbsencePersonnel,
@@ -182,7 +181,6 @@ export default function PersonnelPage() {
 
   const createPersonnel = useCreatePersonnel();
   const updatePersonnel = useUpdatePersonnel();
-  const deletePersonnel = useDeletePersonnel();
   const resetCredentials = useResetPersonnelCredentials();
   const createAbsencePersonnel = useCreateAbsencePersonnel();
   const validerAbsencePersonnel = useValiderAbsencePersonnel();
@@ -198,7 +196,6 @@ export default function PersonnelPage() {
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState<PersonnelItem | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [showAbsenceModal, setShowAbsenceModal] = useState(false);
   const [absenceForm, setAbsenceForm] = useState(EMPTY_ABSENCE_FORM);
   const [rejectAbsenceId, setRejectAbsenceId] = useState<string | null>(null);
@@ -354,16 +351,6 @@ export default function PersonnelPage() {
     }
   }
 
-  async function handleDelete(id: string) {
-    try {
-      await deletePersonnel.mutateAsync(id);
-      setConfirmDeleteId(null);
-      if (selected?.id === id) setSelected(null);
-    } catch {
-      toast.error('Erreur lors de la suppression');
-    }
-  }
-
   async function handleResetCredentials(p: PersonnelItem) {
     await resetCredentials.mutateAsync(p.id);
   }
@@ -394,8 +381,6 @@ export default function PersonnelPage() {
   }
 
   const isSaving = createPersonnel.isPending || updatePersonnel.isPending;
-  const isDeleting = deletePersonnel.isPending;
-
   return (
     <div style={{ display: 'flex', height: '100%', background: '#f5f7fa', overflow: 'hidden' }}>
 
@@ -465,9 +450,6 @@ export default function PersonnelPage() {
                     <button onClick={() => openEdit(p)} title="Modifier" style={{ width: 26, height: 26, border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>
                     </button>
-                    <button onClick={() => setConfirmDeleteId(p.id)} title="Supprimer" style={{ width: 26, height: 26, border: '1px solid #fee2e2', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
-                    </button>
                   </div>
                 </div>
               );
@@ -513,7 +495,20 @@ export default function PersonnelPage() {
               <button onClick={() => handleResetCredentials(selected)} disabled={resetCredentials.isPending} style={{ height: 30, padding: '0 12px', border: '1px solid #d97706', background: '#fff', color: '#d97706', fontSize: 12, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer', opacity: resetCredentials.isPending ? 0.7 : 1 }}>
                 {resetCredentials.isPending ? 'Envoi…' : 'Réinitialiser MDP'}
               </button>
-              <button onClick={() => setConfirmDeleteId(selected.id)} style={{ height: 30, padding: '0 12px', border: '1px solid #fee2e2', background: '#fff', color: '#ef4444', fontSize: 12, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' }}>Supprimer</button>
+              <button
+                onClick={async () => {
+                  const isActif = selected.utilisateur?.actif !== false;
+                  const msg = isActif ? `Désactiver ${selected.utilisateur?.firstName ?? ''} ?` : `Réactiver ${selected.utilisateur?.firstName ?? ''} ?`;
+                  if (!confirm(msg)) return;
+                  try {
+                    await updatePersonnel.mutateAsync({ id: selected.id, data: { actif: !isActif } });
+                    toast.success(isActif ? 'Compte désactivé' : 'Compte réactivé');
+                  } catch { toast.error('Erreur'); }
+                }}
+                style={{ height: 30, padding: '0 12px', border: `1px solid ${selected.utilisateur?.actif !== false ? '#dc2626' : '#16a34a'}`, background: '#fff', color: selected.utilisateur?.actif !== false ? '#dc2626' : '#16a34a', fontSize: 12, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' }}
+              >
+                {selected.utilisateur?.actif !== false ? 'Désactiver' : 'Réactiver'}
+              </button>
             </div>
           </div>
 
@@ -745,7 +740,7 @@ export default function PersonnelPage() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
               {([
                 { label: 'Prénom *', key: 'prenom', placeholder: 'Mamadou' },
-                { label: 'Nom *', key: 'nom', placeholder: 'Diallo' },
+                { label: 'Nom *', key: 'nom', placeholder: 'DIALLO' },
                 { label: 'Téléphone', key: 'telephone', placeholder: '77 000 00 00' },
                 { label: 'Email', key: 'email', placeholder: 'email@school.sn', type: 'email' },
                 { label: 'Adresse', key: 'adresse', placeholder: 'Dakar' },
@@ -753,7 +748,12 @@ export default function PersonnelPage() {
                 <div key={key} style={key === 'adresse' ? { gridColumn: '1 / -1' } : {}}>
                   <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 5 }}>{label}</label>
                   <input type={type ?? 'text'} value={(form as Record<string, unknown>)[key] as string}
-                    onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))} placeholder={placeholder}
+                    onChange={(e) => {
+                      let v = e.target.value;
+                      if (key === 'nom' || key === 'adresse') v = v.toUpperCase();
+                      else if (key === 'prenom') v = v.replace(/\b\w/g, (c) => c.toUpperCase());
+                      setForm((f) => ({ ...f, [key]: v }));
+                    }} placeholder={placeholder}
                     style={{ width: '100%', height: 38, border: '1px solid #d9e0e8', padding: '0 12px', fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
                 </div>
               ))}
@@ -795,21 +795,6 @@ export default function PersonnelPage() {
         </div>
       )}
 
-      {/* Confirm delete */}
-      {confirmDeleteId && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }}>
-          <div style={{ background: '#fff', padding: 28, width: 380, boxShadow: '0 8px 32px rgba(0,0,0,.18)' }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', marginBottom: 10 }}>Supprimer ce membre ?</div>
-            <div style={{ fontSize: 13, color: '#64748b', marginBottom: 24 }}>Cette action supprimera le membre du personnel et son compte utilisateur.</div>
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-              <button onClick={() => setConfirmDeleteId(null)} style={{ height: 36, padding: '0 16px', border: '1px solid #d9e0e8', background: '#fff', color: '#334155', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' }}>Annuler</button>
-              <button onClick={() => handleDelete(confirmDeleteId)} disabled={isDeleting} style={{ height: 36, padding: '0 16px', border: 'none', background: '#ef4444', color: '#fff', fontSize: 13, fontWeight: 700, fontFamily: 'inherit', cursor: isDeleting ? 'not-allowed' : 'pointer', opacity: isDeleting ? 0.7 : 1 }}>
-                {isDeleting ? 'Suppression…' : 'Supprimer'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

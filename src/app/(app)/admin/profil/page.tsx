@@ -1,27 +1,26 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/stores/auth-store';
 import { useUpdateProfile, useChangePassword } from '@/hooks/use-query-api';
+import { apiClient } from '@/lib/api/client';
 
-type TabKey = 'profil' | 'securite' | 'activite';
+type TabKey = 'profil' | 'securite';
 
-const STATIC_ACTIVITES = [
-  { id: 'a1', action: 'Connexion', detail: 'Connexion depuis Dakar, Sénégal', date: '29/06/2026 08:14', type: 'connexion' },
-  { id: 'a2', action: 'Modification profil', detail: 'Téléphone mis à jour', date: '28/06/2026 15:32', type: 'modification' },
-  { id: 'a3', action: 'Connexion', detail: 'Connexion depuis Dakar, Sénégal', date: '27/06/2026 09:01', type: 'connexion' },
-  { id: 'a4', action: 'Changement mot de passe', detail: 'Mot de passe modifié avec succès', date: '25/06/2026 11:20', type: 'securite' },
-  { id: 'a5', action: 'Connexion', detail: 'Connexion depuis Thiès, Sénégal', date: '24/06/2026 08:45', type: 'connexion' },
-  { id: 'a6', action: 'Création élève', detail: 'Élève Awa Ndiaye (NS-2026-0412) créé', date: '23/06/2026 14:12', type: 'action' },
-  { id: 'a7', action: 'Génération bulletins', detail: 'Bulletins 3ème B — T2 générés (42 élèves)', date: '20/06/2026 10:55', type: 'action' },
-];
-
-const ACTIVITE_ICONS: Record<string, { bg: string; color: string; icon: string }> = {
-  connexion: { bg: '#eff6ff', color: '#2563eb', icon: '🔑' },
-  modification: { bg: '#fef3c7', color: '#d97706', icon: '✏️' },
-  securite: { bg: '#fee2e2', color: '#dc2626', icon: '🔒' },
-  action: { bg: '#f0fdf4', color: '#16a34a', icon: '⚡' },
+type UserInfo = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  telephone: string | null;
+  matricule: string | null;
+  photoUrl: string | null;
+  role: string;
+  username: string | null;
+  genre: string | null;
+  dateNaissance: string | null;
+  adresse: string | null;
 };
 
 export default function AdminProfilPage() {
@@ -30,14 +29,32 @@ export default function AdminProfilPage() {
   const changePassword = useChangePassword();
 
   const [activeTab, setActiveTab] = useState<TabKey>('profil');
-  const [twoFAEnabled, setTwoFAEnabled] = useState(false);
-  const [profileForm, setProfileForm] = useState({
-    firstName: user?.prenom ?? '',
-    lastName: user?.nom ?? '',
-    email: user?.email ?? '',
-    telephone: '',
-  });
+  const [loading, setLoading] = useState(true);
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [profileForm, setProfileForm] = useState({ firstName: '', lastName: '', email: '', telephone: '' });
   const [pwForm, setPwForm] = useState({ currentPassword: '', newPassword: '', confirm: '' });
+  const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
+
+  const fetchMe = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await apiClient.get('/v1/auth/me');
+      const d = res.data as UserInfo;
+      setUserInfo(d);
+      setPhotoUrl(d.photoUrl);
+      setProfileForm({
+        firstName: d.firstName ?? '',
+        lastName: d.lastName ?? '',
+        email: d.email ?? '',
+        telephone: d.telephone ?? '',
+      });
+    } catch { /* fallback to store */ }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { void fetchMe(); }, [fetchMe]);
 
   const handleSaveProfil = async () => {
     try {
@@ -51,7 +68,7 @@ export default function AdminProfilPage() {
   const handleChangePw = async () => {
     if (!pwForm.currentPassword || !pwForm.newPassword) { toast.error('Remplissez tous les champs'); return; }
     if (pwForm.newPassword !== pwForm.confirm) { toast.error('Les mots de passe ne correspondent pas'); return; }
-    if (pwForm.newPassword.length < 6) { toast.error('Mot de passe trop court (min. 6 caractères)'); return; }
+    if (pwForm.newPassword.length < 8) { toast.error('Mot de passe trop court (min. 8 caractères)'); return; }
     try {
       await changePassword.mutateAsync({ currentPassword: pwForm.currentPassword, newPassword: pwForm.newPassword });
       toast.success('Mot de passe modifié');
@@ -61,13 +78,26 @@ export default function AdminProfilPage() {
     }
   };
 
-  const handleToggle2FA = () => {
-    setTwoFAEnabled((v) => !v);
-    toast.success(twoFAEnabled ? '2FA désactivé' : '2FA activé — configurez votre application d\'authentification');
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { toast.error('Fichier trop volumineux (max 5 Mo)'); return; }
+    if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type)) { toast.error('Format non supporté'); return; }
+    setUploadingPhoto(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await apiClient.post('/v1/auth/me/photo', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const url = (res.data as Record<string, string>)?.photoUrl;
+      if (url) setPhotoUrl(url);
+      toast.success('Photo mise à jour');
+    } catch { toast.error('Erreur lors de l\'upload'); }
+    setUploadingPhoto(false);
   };
 
-  const initials = `${user?.prenom?.[0] ?? ''}${user?.nom?.[0] ?? ''}`.toUpperCase() || 'AD';
-  const fullName = user ? `${user.prenom} ${user.nom}` : 'Administrateur';
+  const initials = `${(userInfo?.firstName ?? user?.prenom)?.[0] ?? ''}${(userInfo?.lastName ?? user?.nom)?.[0] ?? ''}`.toUpperCase() || 'U';
+  const fullName = userInfo ? `${userInfo.firstName} ${userInfo.lastName}` : user ? `${user.prenom} ${user.nom}` : 'Utilisateur';
+  const role = userInfo?.role ?? user?.role ?? '';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#f5f7fa' }}>
@@ -80,7 +110,6 @@ export default function AdminProfilPage() {
           {([
             { key: 'profil', label: 'Informations' },
             { key: 'securite', label: 'Sécurité' },
-            { key: 'activite', label: 'Activité' },
           ] as { key: TabKey; label: string }[]).map((t) => (
             <button key={t.key} onClick={() => setActiveTab(t.key)} style={{ height: 42, padding: '0 18px', border: 'none', background: 'transparent', fontSize: 13, fontWeight: activeTab === t.key ? 700 : 400, color: activeTab === t.key ? '#2563eb' : '#64748b', borderBottom: activeTab === t.key ? '2px solid #2563eb' : '2px solid transparent', cursor: 'pointer', fontFamily: 'inherit' }}>
               {t.label}
@@ -92,18 +121,37 @@ export default function AdminProfilPage() {
       <div style={{ flex: 1, overflowY: 'auto', padding: '28px' }}>
         <div style={{ maxWidth: 620 }}>
 
+          {loading && <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>Chargement...</div>}
+
           {/* ── PROFIL ── */}
-          {activeTab === 'profil' && (
+          {!loading && activeTab === 'profil' && (
             <div>
               {/* Avatar card */}
               <div style={{ background: '#fff', border: '1px solid #e6ebf1', padding: '24px', display: 'flex', alignItems: 'center', gap: 20, marginBottom: 20 }}>
-                <div style={{ width: 64, height: 64, background: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 22, fontWeight: 800, flexShrink: 0 }}>
-                  {initials}
+                <div style={{ position: 'relative', flexShrink: 0 }}>
+                  {photoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={photoUrl} alt="Photo" style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: '50%' }} />
+                  ) : (
+                    <div style={{ width: 64, height: 64, background: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 22, fontWeight: 800, borderRadius: '50%' }}>
+                      {initials}
+                    </div>
+                  )}
+                  <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={handlePhotoUpload} style={{ display: 'none' }} />
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingPhoto}
+                    style={{ position: 'absolute', bottom: -2, right: -2, width: 24, height: 24, borderRadius: '50%', border: '2px solid #fff', background: '#2563eb', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+                    title="Changer la photo"
+                  >
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                  </button>
                 </div>
                 <div>
                   <div style={{ fontSize: 17, fontWeight: 700, color: '#0f172a' }}>{fullName}</div>
-                  <div style={{ fontSize: 13, color: '#64748b', marginTop: 3 }}>{user?.role ?? 'ADMIN'}</div>
-                  {user?.tenantId && <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>Tenant: {user.tenantId}</div>}
+                  <div style={{ fontSize: 13, color: '#64748b', marginTop: 3 }}>{role}</div>
+                  {userInfo?.matricule && <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>Matricule : {userInfo.matricule}</div>}
+                  {userInfo?.username && <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 1 }}>@{userInfo.username}</div>}
                 </div>
               </div>
 
@@ -136,9 +184,8 @@ export default function AdminProfilPage() {
           )}
 
           {/* ── SÉCURITÉ ── */}
-          {activeTab === 'securite' && (
+          {!loading && activeTab === 'securite' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-              {/* Mot de passe */}
               <div style={{ background: '#fff', border: '1px solid #e6ebf1', padding: '24px' }}>
                 <div style={{ fontSize: 14, fontWeight: 700, color: '#0f172a', marginBottom: 18 }}>Changer le mot de passe</div>
                 <div style={{ marginBottom: 14 }}>
@@ -154,66 +201,11 @@ export default function AdminProfilPage() {
                   <input type="password" value={pwForm.confirm} onChange={(e) => setPwForm((f) => ({ ...f, confirm: e.target.value }))} style={{ width: '100%', height: 38, border: '1px solid #d9e0e8', padding: '0 12px', fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
                 </div>
                 <div style={{ background: '#f8fafc', border: '1px solid #e6ebf1', padding: '12px 14px', marginBottom: 20 }}>
-                  <div style={{ fontSize: 12, color: '#475569', lineHeight: 1.6 }}>Le mot de passe doit contenir au moins 6 caractères.</div>
+                  <div style={{ fontSize: 12, color: '#475569', lineHeight: 1.6 }}>Le mot de passe doit contenir au moins 8 caractères.</div>
                 </div>
                 <button onClick={handleChangePw} disabled={changePassword.isPending} style={{ height: 40, padding: '0 24px', border: 'none', background: '#2563eb', color: '#fff', fontSize: 13, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer', opacity: changePassword.isPending ? 0.7 : 1 }}>
                   {changePassword.isPending ? 'Modification…' : 'Changer le mot de passe'}
                 </button>
-              </div>
-
-              {/* 2FA */}
-              <div style={{ background: '#fff', border: '1px solid #e6ebf1', padding: '24px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                  <div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: '#0f172a', marginBottom: 4 }}>Authentification à deux facteurs (2FA)</div>
-                    <div style={{ fontSize: 13, color: '#64748b' }}>
-                      {twoFAEnabled ? '✅ 2FA activé — votre compte est sécurisé' : 'Ajoutez une couche de sécurité supplémentaire à votre compte.'}
-                    </div>
-                  </div>
-                  <div style={{ width: 48, height: 26, background: twoFAEnabled ? '#2563eb' : '#d9e0e8', borderRadius: 13, cursor: 'pointer', position: 'relative', flexShrink: 0, transition: 'background .2s' }} onClick={handleToggle2FA}>
-                    <div style={{ position: 'absolute', top: 3, left: twoFAEnabled ? 25 : 3, width: 20, height: 20, background: '#fff', borderRadius: '50%', transition: 'left .2s', boxShadow: '0 1px 4px rgba(0,0,0,.2)' }} />
-                  </div>
-                </div>
-                {twoFAEnabled && (
-                  <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', padding: '12px 14px', marginTop: 12 }}>
-                    <div style={{ fontSize: 12, color: '#1d4ed8' }}>
-                      🔑 Configurez votre application d'authentification (Google Authenticator, Authy) avec le QR code fourni par email.
-                    </div>
-                  </div>
-                )}
-                <button
-                  onClick={handleToggle2FA}
-                  style={{ marginTop: 16, height: 38, padding: '0 20px', border: `1px solid ${twoFAEnabled ? '#fecaca' : '#2563eb'}`, background: twoFAEnabled ? '#fff' : '#2563eb', color: twoFAEnabled ? '#dc2626' : '#fff', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' }}
-                >
-                  {twoFAEnabled ? 'Désactiver la 2FA' : 'Activer la 2FA'}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* ── ACTIVITÉ ── */}
-          {activeTab === 'activite' && (
-            <div style={{ background: '#fff', border: '1px solid #e6ebf1' }}>
-              <div style={{ padding: '18px 20px', borderBottom: '1px solid #e6ebf1', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>Historique d'activité</div>
-                <div style={{ fontSize: 12, color: '#94a3b8' }}>7 dernières actions</div>
-              </div>
-              <div>
-                {STATIC_ACTIVITES.map((a, idx) => {
-                  const style = ACTIVITE_ICONS[a.type] ?? ACTIVITE_ICONS.action;
-                  return (
-                    <div key={a.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 14, padding: '14px 20px', borderBottom: idx < STATIC_ACTIVITES.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
-                      <div style={{ width: 36, height: 36, background: style.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 16 }}>
-                        {style.icon}
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a', marginBottom: 2 }}>{a.action}</div>
-                        <div style={{ fontSize: 12, color: '#64748b' }}>{a.detail}</div>
-                      </div>
-                      <div style={{ fontSize: 11, color: '#94a3b8', whiteSpace: 'nowrap', flexShrink: 0 }}>{a.date}</div>
-                    </div>
-                  );
-                })}
               </div>
             </div>
           )}

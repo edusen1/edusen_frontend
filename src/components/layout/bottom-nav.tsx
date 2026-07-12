@@ -74,7 +74,7 @@ const parentNav = [
   },
   {
     label: 'Réclamations',
-    href: '/eleve/reclamations',
+    href: '/parent/reclamations',
     icon: (active: boolean) => (
       <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke={active ? '#2563eb' : '#94a3b8'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
@@ -83,7 +83,7 @@ const parentNav = [
   },
   {
     label: 'Planning',
-    href: '/eleve/emploi-du-temps',
+    href: '/parent/emploi-du-temps',
     icon: (active: boolean) => (
       <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke={active ? '#2563eb' : '#94a3b8'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <rect x="3" y="4" width="18" height="18" rx="1"/><path d="M16 2v4M8 2v4M3 10h18"/>
@@ -92,7 +92,7 @@ const parentNav = [
   },
   {
     label: 'Profil',
-    href: '/eleve/profil',
+    href: '/parent/profil',
     icon: (active: boolean) => (
       <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke={active ? '#2563eb' : '#94a3b8'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>

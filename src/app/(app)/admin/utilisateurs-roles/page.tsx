@@ -21,8 +21,8 @@ interface Utilisateur {
 
 // ─── Données statiques ────────────────────────────────────────────────────────
 const PERMISSIONS_PAR_ROLE: Record<Role, string[]> = {
-  DIRECTEUR: ['dashboard', 'eleves', 'inscriptions', 'classes', 'professeurs', 'personnel', 'notes', 'bulletins', 'examens', 'devoirs', 'absences', 'discipline', 'paiements', 'emplois-du-temps', 'communication', 'documents', 'rapports', 'utilisateurs', 'audit', 'parametres', 'bibliotheque', 'sante', 'archives', 'reclamations'],
-  ADMIN: ['dashboard', 'eleves', 'inscriptions', 'classes', 'professeurs', 'personnel', 'notes', 'bulletins', 'examens', 'devoirs', 'absences', 'discipline', 'paiements', 'emplois-du-temps', 'communication', 'documents', 'rapports', 'parametres'],
+  DIRECTEUR: ['dashboard', 'eleves', 'inscriptions', 'classes', 'professeurs', 'personnel', 'notes', 'bulletins', 'examens', 'devoirs', 'absences', 'discipline', 'paiements', 'emplois-du-temps', 'communication', 'rapports', 'utilisateurs', 'audit', 'parametres', 'bibliotheque', 'sante', 'archives', 'reclamations'],
+  ADMIN: ['dashboard', 'eleves', 'inscriptions', 'classes', 'professeurs', 'personnel', 'notes', 'bulletins', 'examens', 'devoirs', 'absences', 'discipline', 'paiements', 'emplois-du-temps', 'communication', 'rapports', 'parametres'],
   ENSEIGNANT: ['dashboard', 'notes', 'devoirs', 'absences-eleves', 'emplois-du-temps'],
   CAISSE: ['dashboard', 'paiements', 'rapports-financiers'],
   SURVEILLANT: ['dashboard', 'absences-eleves', 'discipline', 'emplois-du-temps'],

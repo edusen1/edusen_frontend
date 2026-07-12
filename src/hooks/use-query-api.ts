@@ -193,6 +193,10 @@ export const useAbsencesTopAbsents = (params?: Record<string, unknown>) =>
   useQuery({ queryKey: ['admin', 'absences-eleves', 'top-absents', params], queryFn: () => adminApi.absencesTopAbsents(params).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
 export const useAdminAnnonces = (params?: Record<string, unknown>) =>
   useQuery({ queryKey: ['admin', 'annonces', params], queryFn: () => adminApi.annonces(params).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
+export const useAdminAnneesAcademiques = () =>
+  useQuery({ queryKey: ['admin', 'annees-academiques'], queryFn: () => adminApi.anneesAcademiques().then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d ?? []); }) });
+export const useAdminCommunications = (params?: Record<string, unknown>) =>
+  useQuery({ queryKey: ['admin', 'communications', params], queryFn: () => adminApi.communications(params).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
 export const useAdminReclamations = (params?: Record<string, unknown>) =>
   useQuery({ queryKey: ['admin', 'reclamations', params], queryFn: () => adminApi.reclamations(params).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
 export const useAdminEmploisDuTemps = (params?: Record<string, unknown>) =>
@@ -233,10 +237,6 @@ export const useAdminDevoirs = (params?: Record<string, unknown>) =>
 // Discipline
 export const useAdminDiscipline = (params?: Record<string, unknown>) =>
   useQuery({ queryKey: ['admin', 'discipline', params], queryFn: () => adminApi.discipline(params).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
-
-// Documents
-export const useAdminDocuments = (params?: Record<string, unknown>) =>
-  useQuery({ queryKey: ['admin', 'documents', params], queryFn: () => adminApi.documents(params).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
 
 // Bibliothèque
 export const useAdminOuvrages = (params?: Record<string, unknown>) =>
@@ -421,6 +421,40 @@ export const useDeleteAnnonce = () => {
     mutationFn: adminApi.deleteAnnonce,
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'annonces'] }); toast.success('Annonce supprimée'); },
     onError: () => toast.error('Erreur'),
+  });
+};
+export const useCreateCommunication = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: adminApi.createCommunication,
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'communications'] }); toast.success('Communication enregistrée'); },
+    onError: () => toast.error('Erreur lors de l\'enregistrement'),
+  });
+};
+export const usePreviewCommunicationDestinataires = () =>
+  useMutation({ mutationFn: adminApi.previewCommunicationDestinataires });
+export const useEnvoyerCommunication = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => adminApi.envoyerCommunication(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'communications'] }); toast.success('Communication envoyée'); },
+    onError: () => toast.error('Erreur lors de l\'envoi'),
+  });
+};
+export const useUpdateCommunication = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: unknown }) => adminApi.updateCommunication(id, data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'communications'] }); toast.success('Communication modifiée'); },
+    onError: () => toast.error('Erreur lors de la modification'),
+  });
+};
+export const useDeleteCommunication = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => adminApi.deleteCommunication(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'communications'] }); toast.success('Communication supprimée'); },
+    onError: () => toast.error('Erreur lors de la suppression'),
   });
 };
 export const useUpdateReclamation = () => {
@@ -673,40 +707,6 @@ export const useCloturerDiscipline = () => {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: unknown }) => adminApi.cloturerDiscipline(id, data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'discipline'] }); toast.success('Dossier clôturé'); },
-    onError: () => toast.error('Erreur'),
-  });
-};
-
-// Mutations documents
-export const useCreateDocument = () => {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: adminApi.createDocument,
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'documents'] }); toast.success('Document créé'); },
-    onError: () => toast.error('Erreur'),
-  });
-};
-export const useDeleteDocument = () => {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (id: string) => adminApi.deleteDocument(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'documents'] }); toast.success('Document supprimé'); },
-    onError: () => toast.error('Erreur'),
-  });
-};
-export const usePublierDocument = () => {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (id: string) => adminApi.publierDocument(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'documents'] }); toast.success('Document publié'); },
-    onError: () => toast.error('Erreur'),
-  });
-};
-export const useArchiverDocument = () => {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (id: string) => adminApi.archiverDocument(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'documents'] }); toast.success('Document archivé'); },
     onError: () => toast.error('Erreur'),
   });
 };

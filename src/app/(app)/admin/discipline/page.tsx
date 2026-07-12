@@ -138,7 +138,9 @@ export default function DisciplinePage() {
     const e = validateCreate();
     if (Object.keys(e).length) { setErrors(e); return; }
     createDiscipline.mutate({
+      eleveId: form.eleveId || undefined,
       eleveNom: form.eleveNom,
+      classeId: form.classeId || undefined,
       eleveClasse: form.classeNom,
       type: form.type,
       motif: form.motif,
@@ -280,10 +282,11 @@ export default function DisciplinePage() {
                   <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Élève *</label>
                   <select value={form.eleveId} onChange={e => {
                     const el = (elevesByClasse[form.classeId] ?? []).find(x => x.id === e.target.value);
-                    setForm(f => ({ ...f, eleveId: e.target.value, eleveNom: el ? personLabel(el) : '' }));
+                    const mat = el?.matricule ? ` (${el.matricule})` : '';
+                    setForm(f => ({ ...f, eleveId: e.target.value, eleveNom: el ? personLabel(el) + mat : '' }));
                   }} disabled={!form.classeId} style={{ width: '100%', border: `1px solid ${errors.eleveNom ? '#dc2626' : '#e2e8f0'}`, borderRadius: 6, padding: '8px 10px', fontSize: 13, background: !form.classeId ? '#f8fafc' : '#fff' }}>
                     <option value="">Sélectionner…</option>
-                    {(elevesByClasse[form.classeId] ?? []).map(el => <option key={el.id} value={el.id}>{personLabel(el)}</option>)}
+                    {(elevesByClasse[form.classeId] ?? []).map(el => <option key={el.id} value={el.id}>{personLabel(el)}{el.matricule ? ` (${el.matricule})` : ''}</option>)}
                   </select>
                   {errors.eleveNom && <div style={{ color: '#dc2626', fontSize: 11, marginTop: 3 }}>{errors.eleveNom}</div>}
                 </div>

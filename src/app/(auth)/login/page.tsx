@@ -15,7 +15,7 @@ import { decodeJwt } from '@/lib/auth/decode';
 import type { UserRole } from '@/types/auth';
 
 const loginSchema = z.object({
-  login: z.string().min(1, 'Identifiant requis'),
+  login: z.string().min(1, 'Matricule ou nom d\'utilisateur requis'),
   password: z.string().min(1, 'Mot de passe requis'),
 });
 
@@ -35,7 +35,8 @@ export default function LoginPage() {
     setIsLoading(true);
     try {
       const res = await authApi.login(data);
-      const { accessToken, refreshToken } = res.data?.data ?? res.data;
+      const resData = res.data?.data ?? res.data;
+      const { accessToken, refreshToken, passwordChangeRequired } = resData;
       const payload = decodeJwt(accessToken);
       setSession({
         accessToken,
@@ -47,16 +48,27 @@ export default function LoginPage() {
           prenom: (payload.prenom as string) ?? '',
           email: (payload.email as string) ?? '',
           role: (payload.role as UserRole) ?? 'ADMIN',
+          allRoles: (payload.allRoles as UserRole[]) ?? [(payload.role as UserRole) ?? 'ADMIN'],
           tenantId: (payload.tenantId as string) ?? '',
         },
       });
-      toast.success('Connexion réussie');
       const role = payload.role as string;
+
+      // Force password change on first login (except ADMIN for now)
+      if (passwordChangeRequired && role !== 'ADMIN') {
+        router.push('/change-password');
+        return;
+      }
+
+      toast.success('Connexion réussie');
       if (role === 'ELEVE') router.push('/eleve/accueil');
       else if (role === 'PARENT') router.push('/parent/enfants');
-      else if (role === 'ENSEIGNANT') router.push('/professeur/mes-classes');
+      else if (role === 'ENSEIGNANT') router.push('/professeur/dashboard');
+      else if (role === 'CAISSIER' || role === 'COMPTABLE') router.push('/caisse/dashboard');
+      else if (role === 'SURVEILLANT') router.push('/surveillant/dashboard');
+      else if (role === 'RH') router.push('/rh/dashboard');
       else if (role === 'SUPER_ADMIN' || role === 'GESTIONNAIRE') router.push('/platform/stats');
-      else router.push('/dashboard');
+      else router.push('/admin/dashboard');
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Identifiants incorrects';
       toast.error(msg);
@@ -103,15 +115,15 @@ export default function LoginPage() {
           {/* Email */}
           <div style={{ marginTop: 34 }}>
             <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#334155', marginBottom: 7 }}>
-              Adresse e-mail ou téléphone
+              Matricule ou nom d&apos;utilisateur
             </label>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, border: `1px solid ${errors.login ? '#dc2626' : '#d9e0e8'}`, padding: '0 13px', height: 46, background: '#fff' }}>
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="2" y="4" width="20" height="16" rx="1"/><path d="m22 7-10 5L2 7"/>
+                <rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h10M7 12h6"/>
               </svg>
               <input
                 {...register('login')}
-                placeholder="prof.diallo@noura.sn"
+                placeholder="ELV-2026-XXXX ou prenom.nom"
                 style={{ flex: 1, border: 'none', outline: 'none', fontSize: 14, color: '#0f172a', background: 'transparent' }}
               />
             </div>

@@ -6,6 +6,7 @@ import { apiClient } from '@/lib/api/client';
 
 const JOURS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
 const HEURES = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00'];
+const TRANCHES = HEURES.slice(0, -1).map((h, i) => ({ label: `${h.slice(0, 2)}h-${HEURES[i + 1].slice(0, 2)}h`, debut: h, fin: HEURES[i + 1] }));
 const COULEURS = ['#dbeafe', '#dcfce7', '#fef3c7', '#fce7f3', '#ede9fe', '#ffedd5', '#e0f2fe', '#fae8ff'];
 const COULEURS_TXT = ['#1d4ed8', '#15803d', '#b45309', '#be185d', '#7c3aed', '#c2410c', '#0369a1', '#a21caf'];
 
@@ -14,7 +15,7 @@ type CycleItem = { id: string; nom: string; typePeriode?: string };
 type NiveauItem = { id: string; nom: string; sectionId: string; section: string };
 type ClasseItem = { id: string; nom: string; cycleId?: string; niveauId?: string; cycle?: { id: string; nom?: string; libelle?: string }; niveau?: { id: string; nom?: string; libelle?: string; cycleId?: string } };
 type MatiereItem = { id: string; code?: string; libelle?: string };
-type ProfItem = { id: string; firstName?: string; lastName?: string };
+type ProfItem = { id: string; firstName?: string; lastName?: string; matieresEnseignees?: { id: string; matiereId?: string; matiere?: { id: string } }[] };
 type SalleItem = { id: string; nom: string; capacite?: number };
 type CoursItem = { id: string; matiereId: string; classeId: string; enseignantId: string; matiere?: MatiereItem; classe?: { id: string; nom: string }; volumeHoraireHebdo?: number };
 type EdtItem = { id: string; classeId: string; coursId?: string; salleId?: string; enseignantId?: string; matiereId?: string; jourSemaine: string; heureDebut: string; heureFin: string; publie?: boolean };
@@ -59,6 +60,7 @@ export default function CoursPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
+  const [extraSlots, setExtraSlots] = useState<{ jourSemaine: string; heureDebut: string; heureFin: string }[]>([]);
   const [publishing, setPublishing] = useState(false);
 
   // Charger référentiels
@@ -200,12 +202,14 @@ export default function CoursPage() {
     setEditId(null);
     const nextHeure = heure ? `${String(Math.min(Number(heure.split(':')[0]) + 1, 19)).padStart(2, '0')}:00` : '09:00';
     setForm({ ...EMPTY_FORM, classeId: filterClasseId || (filteredClasses[0]?.id ?? ''), ...(jour ? { jourSemaine: jour } : {}), ...(heure ? { heureDebut: heure, heureFin: nextHeure } : {}) });
+    setExtraSlots([]);
     setShowModal(true);
   };
 
   const openEdit = (edt: EdtItem) => {
     setEditId(edt.id);
     setForm({ classeId: edt.classeId, matiereId: edt.matiereId ?? '', enseignantId: edt.enseignantId ?? '', salleId: edt.salleId ?? '', jourSemaine: edt.jourSemaine, heureDebut: edt.heureDebut, heureFin: edt.heureFin });
+    setExtraSlots([]);
     setShowModal(true);
   };
 
@@ -269,11 +273,25 @@ export default function CoursPage() {
       jourSemaine: form.jourSemaine, heureDebut: form.heureDebut, heureFin: form.heureFin,
     };
     try {
-      if (editId) await apiClient.put(`/admin/emplois-du-temps/${editId}`, payload);
-      else await apiClient.post('/admin/emplois-du-temps', payload);
+      if (editId) {
+        await apiClient.put(`/admin/emplois-du-temps/${editId}`, payload);
+      } else {
+        await apiClient.post('/admin/emplois-du-temps', payload);
+        // Create extra slots for the same cours
+        for (const slot of extraSlots) {
+          await apiClient.post('/admin/emplois-du-temps', {
+            ...payload,
+            jourSemaine: slot.jourSemaine,
+            heureDebut: slot.heureDebut,
+            heureFin: slot.heureFin,
+          });
+        }
+      }
       setShowModal(false);
+      setExtraSlots([]);
       fetchData(selectedAnneeId);
-      toast.success(editId ? 'Créneau modifié' : 'Créneau ajouté');
+      const nbTotal = 1 + (editId ? 0 : extraSlots.length);
+      toast.success(editId ? 'Créneau modifié' : `${nbTotal} créneau(x) ajouté(s)`);
     } catch { toast.error('Erreur lors de l\'enregistrement'); }
     finally { setSaving(false); }
   };
@@ -354,18 +372,18 @@ export default function CoursPage() {
           <table style={{ width: '100%', borderCollapse: 'collapse', background: '#fff', border: '1px solid #e6ebf1', tableLayout: 'fixed' }}>
             <thead>
               <tr>
-                <th style={{ width: 70, padding: '11px 10px', background: '#f8fafc', borderBottom: '1px solid #e6ebf1' }} />
+                <th style={{ width: 70, padding: '11px 4px', background: '#f8fafc', borderBottom: '1px solid #e6ebf1', fontSize: 10, color: '#94a3b8' }}>Heure</th>
                 {JOURS.map((j) => (
                   <th key={j} style={{ padding: '11px 10px', background: '#f8fafc', textAlign: 'center', fontSize: 12, fontWeight: 700, color: '#475569', borderLeft: '1px solid #e6ebf1', borderBottom: '1px solid #e6ebf1' }}>{j}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {HEURES.map((heure, hi) => {
-                // Tracker les colonnes déjà couvertes par un rowSpan
+              {TRANCHES.map((tranche, hi) => {
+                const heure = tranche.debut;
                 return (
-                  <tr key={heure} style={{ borderBottom: hi < HEURES.length - 1 ? '1px solid #eef2f6' : 'none' }}>
-                    <td style={{ padding: '8px 10px', fontSize: 11, color: '#94a3b8', fontWeight: 600, borderRight: '1px solid #eef2f6', verticalAlign: 'top', paddingTop: 10 }}>{heure}</td>
+                  <tr key={heure} style={{ height: 44, borderBottom: hi < TRANCHES.length - 1 ? '1px solid #eef2f6' : 'none' }}>
+                    <td style={{ padding: '4px 6px', fontSize: 10, color: '#94a3b8', fontWeight: 600, borderRight: '1px solid #eef2f6', verticalAlign: 'middle', textAlign: 'center' }}>{tranche.label}</td>
                     {JOURS.map((jour) => {
                       // Si cette cellule est couverte par un créneau qui a démarré plus tôt, skip
                       if (isHeureCovered(jour, heure)) return null;
@@ -444,7 +462,7 @@ export default function CoursPage() {
 
                 <div style={{ marginBottom: 14 }}>
                   <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 5 }}>Matière *</label>
-                  <select value={form.matiereId} onChange={(e) => setForm((f) => ({ ...f, matiereId: e.target.value }))}
+                  <select value={form.matiereId} onChange={(e) => setForm((f) => ({ ...f, matiereId: e.target.value, enseignantId: '' }))}
                     style={{ width: '100%', height: 38, border: '1px solid #d9e0e8', padding: '0 12px', fontSize: 13, fontFamily: 'inherit' }}>
                     <option value="">Sélectionner…</option>
                     {modalMatieres.map((m) => <option key={m.id} value={m.id}>{m.libelle ?? m.code ?? '—'} (coef. {m.coefficient})</option>)}
@@ -460,8 +478,22 @@ export default function CoursPage() {
                   <select value={form.enseignantId} onChange={(e) => setForm((f) => ({ ...f, enseignantId: e.target.value }))}
                     style={{ width: '100%', height: 38, border: '1px solid #d9e0e8', padding: '0 12px', fontSize: 13, fontFamily: 'inherit' }}>
                     <option value="">Sélectionner…</option>
-                    {professeurs.map((p) => <option key={p.id} value={p.id}>{profName(p)}</option>)}
+                    {(() => {
+                      // Filtrer les profs par matiere selectionnee
+                      const filtered = form.matiereId
+                        ? professeurs.filter((p) => {
+                            if (!p.matieresEnseignees?.length) return true; // Pas d'affectation → afficher quand meme
+                            return p.matieresEnseignees.some((me) => (me.matiereId ?? me.matiere?.id) === form.matiereId);
+                          })
+                        : professeurs;
+                      return filtered.map((p) => <option key={p.id} value={p.id}>{profName(p)}</option>);
+                    })()}
                   </select>
+                  {form.matiereId && !form.enseignantId && (
+                    <div style={{ fontSize: 10, color: '#64748b', marginTop: 3 }}>
+                      {professeurs.filter((p) => p.matieresEnseignees?.some((me) => (me.matiereId ?? me.matiere?.id) === form.matiereId)).length} prof(s) pour cette matière
+                    </div>
+                  )}
                 </div>
 
                 <div style={{ marginBottom: 14 }}>
@@ -498,6 +530,27 @@ export default function CoursPage() {
                 </select>
               </div>
             </div>
+
+            {/* Extra slots (creation only) */}
+            {!editId && extraSlots.map((slot, i) => (
+              <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto', gap: 8, marginBottom: 8, padding: '8px 10px', background: '#f8fafc', border: '1px solid #e6ebf1' }}>
+                <select value={slot.jourSemaine} onChange={(e) => setExtraSlots((s) => s.map((sl, j) => j === i ? { ...sl, jourSemaine: e.target.value } : sl))} style={{ height: 34, border: '1px solid #d9e0e8', padding: '0 8px', fontSize: 12, fontFamily: 'inherit' }}>
+                  {JOURS.map((j) => <option key={j} value={j}>{j}</option>)}
+                </select>
+                <select value={slot.heureDebut} onChange={(e) => setExtraSlots((s) => s.map((sl, j) => j === i ? { ...sl, heureDebut: e.target.value } : sl))} style={{ height: 34, border: '1px solid #d9e0e8', padding: '0 8px', fontSize: 12, fontFamily: 'inherit' }}>
+                  {HEURES.map((h) => <option key={h} value={h}>{h}</option>)}
+                </select>
+                <select value={slot.heureFin} onChange={(e) => setExtraSlots((s) => s.map((sl, j) => j === i ? { ...sl, heureFin: e.target.value } : sl))} style={{ height: 34, border: '1px solid #d9e0e8', padding: '0 8px', fontSize: 12, fontFamily: 'inherit' }}>
+                  {HEURES.map((h) => <option key={h} value={h}>{h}</option>)}
+                </select>
+                <button onClick={() => setExtraSlots((s) => s.filter((_, j) => j !== i))} style={{ width: 34, height: 34, border: '1px solid #fee2e2', background: '#fff', color: '#dc2626', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>×</button>
+              </div>
+            ))}
+            {!editId && (
+              <button onClick={() => setExtraSlots((s) => [...s, { jourSemaine: 'Mardi', heureDebut: '08:00', heureFin: '10:00' }])} style={{ width: '100%', height: 34, border: '1px dashed #bfdbfe', background: '#f8fafc', color: '#2563eb', fontSize: 12, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer', marginBottom: 16 }}>
+                + Ajouter un créneau
+              </button>
+            )}
 
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
               <button onClick={() => setShowModal(false)} style={{ height: 38, padding: '0 16px', border: '1px solid #d9e0e8', background: '#fff', color: '#334155', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' }}>Annuler</button>

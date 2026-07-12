@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { apiClient } from '@/lib/api/client';
-import { useAdminProfesseurs, useAdminMatieres, useCreateProfesseur, useUpdateProfesseur, useDeleteProfesseur } from '@/hooks/use-query-api';
+import { useAdminProfesseurs, useAdminMatieres, useCreateProfesseur, useUpdateProfesseur } from '@/hooks/use-query-api';
 
 type ProfItem = Record<string, unknown>;
 type MatiereItem = { id: string; libelle?: string; code?: string; nom?: string };
@@ -87,7 +87,6 @@ export default function ProfesseursPage() {
   const { data: matieresData } = useAdminMatieres();
   const createProfesseur = useCreateProfesseur();
   const updateProfesseur = useUpdateProfesseur();
-  const deleteProfesseur = useDeleteProfesseur();
 
   // ── Liste ─────────────────────────────────────────────────────────
   const rawList = (Array.isArray(data) ? data : ((data as Record<string, unknown> | undefined)?.professeurs ?? (data as Record<string, unknown> | undefined)?.enseignants ?? (data as Record<string, unknown> | undefined)?.content ?? (data as Record<string, unknown> | undefined)?.data ?? [])) as ProfItem[];
@@ -284,19 +283,12 @@ export default function ProfesseursPage() {
     }
   };
 
-  const handleDelete = async (p: ProfItem) => {
-    if (!confirm(`Supprimer ${profName(p)} ?`)) return;
-    try {
-      await deleteProfesseur.mutateAsync(String(p.id));
-    } catch { toast.error('Erreur lors de la suppression'); }
-  };
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#f5f7fa' }}>
       {/* Header */}
       <div style={{ background: '#fff', borderBottom: '1px solid #e6ebf1', height: 62, flexShrink: 0, display: 'flex', alignItems: 'center', padding: '0 28px', gap: 14 }}>
         <div style={{ fontSize: 17, fontWeight: 700, color: '#0f172a' }}>
-          Professeurs <span style={{ fontSize: 13, fontWeight: 500, color: '#94a3b8' }}>· {filtered.length}</span>
+          Enseignants <span style={{ fontSize: 13, fontWeight: 500, color: '#94a3b8' }}>· {filtered.length}</span>
         </div>
         <button onClick={openCreate} style={{ marginLeft: 'auto', height: 40, padding: '0 18px', border: 'none', background: '#2563eb', color: '#fff', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer' }}>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
@@ -316,7 +308,7 @@ export default function ProfesseursPage() {
                   : <span style={{ color: '#fff', fontSize: 15, fontWeight: 700 }}>{(credentials.name ?? '').split(' ').map(n => n[0] ?? '').join('').toUpperCase().slice(0, 2)}</span>}
               </div>
               <div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: '#15803d', marginBottom: 5 }}>{credentials.name || 'Professeur'} — Compte créé</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#15803d', marginBottom: 5 }}>{credentials.name || 'Enseignant'} — Compte créé</div>
                 <div style={{ fontSize: 13, color: '#166534', display: 'flex', gap: 20 }}>
                   <span>Identifiant : <strong style={{ background: '#dcfce7', padding: '1px 8px' }}>{credentials.username}</strong></span>
                   {credentials.password && <span>Matricule : <strong style={{ background: '#dcfce7', padding: '1px 8px' }}>{credentials.password}</strong></span>}
@@ -405,8 +397,18 @@ export default function ProfesseursPage() {
                     <button onClick={() => openEdit(p)} style={{ flex: 1, height: 30, border: '1px solid #e2e8f0', background: '#fff', color: '#334155', fontSize: 12, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' }}>
                       Modifier
                     </button>
-                    <button onClick={() => handleDelete(p)} style={{ width: 30, height: 30, border: '1px solid #fee2e2', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
+                    <button
+                      onClick={async () => {
+                        const act = isActif(p);
+                        if (!confirm(act ? `Désactiver ${profName(p)} ?` : `Réactiver ${profName(p)} ?`)) return;
+                        try {
+                          await updateProfesseur.mutateAsync({ id: String(p.id), data: { actif: !act } });
+                          toast.success(act ? 'Compte désactivé' : 'Compte réactivé');
+                        } catch { toast.error('Erreur'); }
+                      }}
+                      style={{ height: 30, padding: '0 10px', border: `1px solid ${isActif(p) ? '#dc2626' : '#16a34a'}`, background: '#fff', color: isActif(p) ? '#dc2626' : '#16a34a', fontSize: 11, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' }}
+                    >
+                      {isActif(p) ? 'Désactiver' : 'Réactiver'}
                     </button>
                   </div>
                 </div>
@@ -660,7 +662,7 @@ export default function ProfesseursPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
                 {[
                   { label: 'Prénom *', key: 'prenom', placeholder: 'Abdoulaye' },
-                  { label: 'Nom *', key: 'nom', placeholder: 'Sall' },
+                  { label: 'Nom *', key: 'nom', placeholder: 'SALL' },
                   { label: 'Email *', key: 'email', placeholder: 'a.sall@ecole.sn' },
                   { label: 'Téléphone', key: 'telephone', placeholder: '+221 77 000 00 00' },
                   { label: 'Adresse', key: 'adresse', placeholder: 'Dakar' },
@@ -669,7 +671,12 @@ export default function ProfesseursPage() {
                     <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#334155', marginBottom: 5 }}>{label}</label>
                     <input
                       value={form[key as keyof typeof form]}
-                      onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
+                      onChange={(e) => {
+                        let v = e.target.value;
+                        if (key === 'nom' || key === 'adresse') v = v.toUpperCase();
+                        else if (key === 'prenom') v = v.replace(/\b\w/g, (c) => c.toUpperCase());
+                        setForm((f) => ({ ...f, [key]: v }));
+                      }}
                       placeholder={placeholder}
                       style={{ height: 38, width: '100%', border: '1px solid #d9e0e8', padding: '0 12px', fontSize: 13, color: '#0f172a', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box', background: '#fff' }}
                     />

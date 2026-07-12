@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/auth-store';
 import type { UserRole } from '@/types/auth';
 import { useEffect, useState } from 'react';
@@ -28,11 +28,12 @@ interface NavItem { label: string; href: string; icon: React.ReactNode; badge?: 
 const adminSections: NavSection[] = [
   {
     items: [
-      { label: 'Tableau de bord', href: '/dashboard', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg> },
+      { label: 'Tableau de bord', href: '/admin/dashboard', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg> },
+      { label: 'Alertes', href: '/admin/alertes', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> },
     ],
   },
   {
-    label: 'GESTION SCOLAIRE',
+    label: 'SCOLARITÉ',
     items: [
       { label: 'Élèves', href: '/admin/eleves', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg> },
       { label: 'Scolarité', href: '/admin/inscriptions', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M12 18v-6M9 15h6"/></svg> },
@@ -43,56 +44,42 @@ const adminSections: NavSection[] = [
   {
     label: 'PÉDAGOGIE',
     items: [
-      { label: 'Professeurs', href: '/admin/professeurs', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg> },
+      { label: 'Enseignants', href: '/admin/professeurs', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg> },
       { label: 'Matières', href: '/admin/matieres', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg> },
       { label: 'Bulletins', href: '/admin/bulletins', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> },
       { label: 'Emploi du temps', href: '/admin/emplois-du-temps', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="1"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> },
+      { label: 'Programmes', href: '/admin/programmes', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg> },
+      { label: 'Calendrier scolaire', href: '/admin/calendrier-scolaire', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="1"/><path d="M16 2v4M8 2v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg> },
     ],
   },
   {
     label: 'VIE SCOLAIRE',
     items: [
-      { label: 'Absences élèves', href: '/admin/absences-eleves', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg> },
+      { label: 'Absences', href: '/admin/absences', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg> },
       { label: 'Discipline', href: '/admin/discipline', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> },
+      { label: 'Convocations', href: '/admin/convocations', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg> },
       { label: 'Réclamations', href: '/admin/reclamations', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> },
     ],
   },
   {
-    label: 'PERSONNEL & RH',
+    label: 'ABONNEMENT',
     items: [
-      { label: 'Personnel', href: '/admin/personnel', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> },
+      { label: 'Mon abonnement', href: '/admin/paiements', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg> },
     ],
   },
   {
-    label: 'COMMUNICATION & DOCS',
+    label: 'COMMUNICATION',
     items: [
       { label: 'Communication', href: '/admin/communication', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg> },
-      { label: 'Documents', href: '/admin/documents', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg> },
     ],
   },
   {
     label: 'ADMINISTRATION',
     items: [
+      { label: 'Personnel', href: '/admin/personnel', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> },
       { label: 'Rapports', href: '/admin/rapports', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg> },
-      { label: 'Calendrier scolaire', href: '/admin/calendrier-scolaire', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="1"/><path d="M16 2v4M8 2v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg> },
-      { label: 'Bibliothèque', href: '/admin/bibliotheque', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg> },
-      { label: 'Santé scolaire', href: '/admin/sante', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg> },
-      { label: 'Utilisateurs & Rôles', href: '/admin/utilisateurs-roles', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="23" y1="11" x2="17" y2="11"/><line x1="20" y1="8" x2="20" y2="14"/></svg> },
       { label: 'Journal d\'audit', href: '/admin/audit', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/><circle cx="18" cy="18" r="4"/><path d="m20.5 20.5-1.5-1.5"/></svg> },
-      { label: 'Archives', href: '/admin/archives', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg> },
-    ],
-  },
-  {
-    label: 'PARAMÈTRES',
-    items: [
-      { label: 'Paramètres', href: '/admin/parametres', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9"/></svg> },
-      { label: 'Configuration', href: '/admin/configuration', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> },
-    ],
-  },
-  {
-    label: 'COMPTE',
-    items: [
-      { label: 'Mon profil', href: '/admin/profil', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg> },
+      { label: 'Configuration', href: '/admin/configuration', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9"/></svg> },
     ],
   },
 ];
@@ -100,16 +87,15 @@ const adminSections: NavSection[] = [
 // ─── ENSEIGNANT ─────────────────────────────────────────────────────────────
 const enseignantSections: NavSection[] = [
   { items: [
-    { label: 'Tableau de bord', href: '/dashboard', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg> },
+    { label: 'Tableau de bord', href: '/professeur/dashboard', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg> },
     { label: 'Mes classes', href: '/professeur/mes-classes', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg> },
     { label: 'Emploi du temps', href: '/professeur/emploi-du-temps', icon: <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="1"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> },
-    { label: "Faire l'appel", href: '/professeur/appel', icon: <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg> },
-    { label: 'Saisir les notes', href: '/professeur/saisir-notes', icon: <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg> },
-    { label: 'Cahier de textes', href: '/professeur/cahier-de-textes', icon: <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg> },
-    { label: 'Absences', href: '/professeur/absences', icon: <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg> },
-    { label: 'Discipline', href: '/professeur/discipline', icon: <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> },
-    { label: 'Mes paiements', href: '/professeur/paiements', icon: <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="1" y="4" width="22" height="16" rx="1"/><path d="M1 10h22"/></svg> },
-    { label: 'Mon profil', href: '/professeur/profil', icon: <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg> },
+    { label: 'Communication', href: '/professeur/communication', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg> },
+  ]},
+  { label: 'PERSONNEL', items: [
+    { label: 'Mon profil', href: '/professeur/profil', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg> },
+    { label: 'Mes absences', href: '/professeur/absences', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg> },
+    { label: 'Configuration', href: '/professeur/configuration', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg> },
   ]},
 ];
 
@@ -146,14 +132,12 @@ const surveillantSections: NavSection[] = [
 
 // ─── CAISSE ─────────────────────────────────────────────────────────────────
 const caisseSections: NavSection[] = [
-  { label: 'CAISSE', items: [
-    { label: 'Encaissement', href: '/caisse/encaissement', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg> },
-    { label: 'Paiements en attente', href: '/caisse/paiements', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="1" y="4" width="22" height="16" rx="1"/><path d="M1 10h22"/></svg> },
-    { label: 'Historique', href: '/caisse/historique', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 3h18v18H3z"/><path d="M3 9h18M9 21V9"/></svg> },
+  { items: [
+    { label: 'Tableau de bord', href: '/caisse/dashboard', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg> },
   ]},
   { label: 'SCOLARITÉ', items: [
+    { label: 'Élèves', href: '/admin/eleves', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg> },
     { label: 'Scolarité', href: '/admin/inscriptions', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M12 11v6M9 14h6"/></svg> },
-    { label: 'Salaires profs', href: '/caisse/salaires-professeurs', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> },
   ]},
 ];
 
@@ -228,22 +212,59 @@ const sectionsByRole: Record<UserRole, NavSection[]> = {
 
 export function AppSidebar({ onClose }: { onClose?: () => void }) {
   const pathname = usePathname();
-  const { user } = useAuthStore();
+  const router = useRouter();
+  const { user, clearSession } = useAuthStore();
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => { setHydrated(true); }, []);
   const role = (user?.role ?? 'ADMIN') as UserRole;
   const sections = sectionsByRole[role] ?? adminSections;
 
   const initials = `${user?.prenom?.[0] ?? ''}${user?.nom?.[0] ?? ''}` || 'NS';
   const fullName = user ? `${user.prenom} ${user.nom}` : 'Utilisateur';
   const roleLabel = user?.role ?? '';
+  const profilHrefMap: Record<string, string> = { ADMIN: '/admin/profil', ENSEIGNANT: '/professeur/profil', SURVEILLANT: '/surveillant/profil', ELEVE: '/eleve/profil', PARENT: '/parent/profil', CAISSIER: '/caisse/profil', RH: '/rh/profil' };
+  const profilHref = profilHrefMap[user?.role ?? ''] ?? '/professeur/profil';
 
   const [ecoleNom, setEcoleNom] = useState('');
   const [ecoleLogo, setEcoleLogo] = useState('');
+  const [badges, setBadges] = useState<Record<string, number>>({});
+
+  // Mark feature as seen when user visits a page with a badge
+  const featureByPath: Record<string, string> = {
+    '/admin/alertes': 'alertes',
+    '/admin/reductions': 'reductions',
+    '/admin/paiements': 'paiements',
+    '/admin/reclamations': 'reclamations',
+    '/admin/convocations': 'convocations',
+  };
+  useEffect(() => {
+    const feature = featureByPath[pathname];
+    if (feature && badges[pathname]) {
+      apiClient.post('/v1/auth/mark-seen', { feature }).catch(() => {});
+      setBadges((prev) => { const n = { ...prev }; delete n[pathname]; return n; });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
 
   useEffect(() => {
     apiClient.get('/configuration/ecole-identite')
       .then((res) => {
         setEcoleNom(res.data?.nom ?? '');
         setEcoleLogo(res.data?.logoUrl ?? '');
+      })
+      .catch(() => {});
+
+    // Fetch badge counts from backend (persistent)
+    apiClient.get('/v1/auth/badges')
+      .then((res) => {
+        const d = res.data as Record<string, number>;
+        const map: Record<string, number> = {};
+        if (d.alertes) map['/admin/alertes'] = d.alertes;
+        if (d.reductions) map['/admin/reductions'] = d.reductions;
+        if (d.paiements) map['/admin/paiements'] = d.paiements;
+        if (d.reclamations) map['/admin/reclamations'] = d.reclamations;
+        if (d.convocations) map['/admin/convocations'] = d.convocations;
+        setBadges(map);
       })
       .catch(() => {});
 
@@ -257,6 +278,9 @@ export function AppSidebar({ onClose }: { onClose?: () => void }) {
   }, []);
 
   const displayLabel = ecoleNom ? schoolLabel(ecoleNom) : 'NS';
+
+  // Don't render until store is hydrated or if user is not set (logging out)
+  if (!hydrated || !user) return <aside style={{ width: SIDEBAR_W, flexShrink: 0, background: '#0f172a', height: '100%' }} />;
 
   return (
     <aside style={{ width: SIDEBAR_W, flexShrink: 0, background: '#0f172a', display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -291,6 +315,35 @@ export function AppSidebar({ onClose }: { onClose?: () => void }) {
         </span>
       </div>
 
+      {/* Role switcher */}
+      {(user?.allRoles?.length ?? 0) > 1 && (
+        <div style={{ padding: '8px 10px', borderBottom: '1px solid #1e293b' }}>
+          <select
+            value={role}
+            onChange={async (e) => {
+              try {
+                const res = await apiClient.post('/v1/auth/switch-role', { role: e.target.value });
+                const newToken = (res.data as { accessToken?: string })?.accessToken;
+                if (newToken) {
+                  const payload = JSON.parse(atob(newToken.split('.')[1]));
+                  const { setSession } = useAuthStore.getState();
+                  const session = useAuthStore.getState().session;
+                  if (session) {
+                    setSession({ ...session, accessToken: newToken, user: { ...session.user, role: payload.role, allRoles: payload.allRoles } });
+                    window.location.reload();
+                  }
+                }
+              } catch { /* ignore */ }
+            }}
+            style={{ width: '100%', height: 30, background: '#1e293b', border: '1px solid #334155', color: '#f1f5f9', fontSize: 11, fontWeight: 600, fontFamily: 'inherit', padding: '0 8px', cursor: 'pointer' }}
+          >
+            {user!.allRoles!.map((r) => (
+              <option key={r} value={r}>{r}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
       {/* Nav */}
       <nav style={{ flex: 1, overflowY: 'auto', padding: '8px 6px', scrollbarWidth: 'none' }}>
         {sections.map((section, si) => (
@@ -302,7 +355,9 @@ export function AppSidebar({ onClose }: { onClose?: () => void }) {
             )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
               {section.items.map((item) => {
-                const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
+                const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))
+                  || (item.href === '/professeur/mes-classes' && pathname.startsWith('/professeur/classe/'))
+                  || (item.href === '/admin/absences' && (pathname.startsWith('/admin/absences-eleves') || pathname.startsWith('/admin/absences-personnel')));
                 return (
                   <Link
                     key={item.href}
@@ -320,7 +375,7 @@ export function AppSidebar({ onClose }: { onClose?: () => void }) {
                   >
                     <span style={{ color: isActive ? '#fff' : '#64748b', lineHeight: 0, flexShrink: 0 }}>{item.icon}</span>
                     <span style={{ flex: 1 }}>{item.label}</span>
-                    {item.badge ? <span style={{ background: '#dc2626', color: '#fff', fontSize: 10, fontWeight: 700, padding: '1px 5px', borderRadius: 8 }}>{item.badge}</span> : null}
+                    {badges[item.href] ? <span style={{ background: '#dc2626', color: '#fff', fontSize: 10, fontWeight: 700, padding: '1px 5px', borderRadius: 8, minWidth: 16, textAlign: 'center' }}>{badges[item.href]}</span> : null}
                   </Link>
                 );
               })}
@@ -331,13 +386,22 @@ export function AppSidebar({ onClose }: { onClose?: () => void }) {
 
       {/* User footer */}
       <div style={{ padding: '12px', borderTop: '1px solid #1e293b', display: 'flex', alignItems: 'center', gap: 10 }}>
-        <div style={{ width: 32, height: 32, background: '#1e293b', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
-          {initials}
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{fullName}</div>
-          <div style={{ fontSize: 10, color: '#64748b' }}>{roleLabel}</div>
-        </div>
+        <Link href={profilHref} style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0, textDecoration: 'none' }}>
+          <div style={{ width: 32, height: 32, background: '#1e293b', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
+            {initials}
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{fullName}</div>
+            <div style={{ fontSize: 10, color: '#64748b' }}>{roleLabel}</div>
+          </div>
+        </Link>
+        <button
+          onClick={() => { clearSession(); router.push('/login'); }}
+          title="Déconnexion"
+          style={{ width: 32, height: 32, background: 'transparent', border: '1px solid #334155', borderRadius: 6, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </button>
       </div>
     </aside>
   );

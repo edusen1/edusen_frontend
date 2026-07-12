@@ -123,7 +123,9 @@ export default function ProfesseurDisciplinePage() {
     if (!form.eleveNom.trim()) { toast.error('Élève requis'); return; }
     if (!form.motif.trim()) { toast.error('Description requise'); return; }
     createDiscipline.mutate({
+      eleveId: form.eleveId || undefined,
       eleveNom: form.eleveNom,
+      classeId: form.classeId || undefined,
       eleveClasse: form.classeNom || undefined,
       type: form.type,
       motif: form.motif,
@@ -244,7 +246,8 @@ export default function ProfesseurDisciplinePage() {
                   <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 5 }}>Élève *</label>
                   <select value={form.eleveId} onChange={e => {
                     const el = (elevesByClasse[form.classeId] ?? []).find(x => x.id === e.target.value);
-                    setForm(f => ({ ...f, eleveId: e.target.value, eleveNom: el ? personLabel(el) : '' }));
+                    const mat = el?.matricule ? ` (${el.matricule})` : '';
+                    setForm(f => ({ ...f, eleveId: e.target.value, eleveNom: el ? personLabel(el) + mat : '' }));
                   }} disabled={!form.classeId} style={{ width: '100%', height: 38, border: '1px solid #d9e0e8', padding: '0 10px', fontSize: 13, fontFamily: 'inherit', outline: 'none', background: !form.classeId ? '#f8fafc' : '#fff' }}>
                     <option value="">Sélectionner…</option>
                     {(elevesByClasse[form.classeId] ?? []).map(el => <option key={el.id} value={el.id}>{personLabel(el)}</option>)}

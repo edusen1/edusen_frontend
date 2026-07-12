@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { AppSidebar } from '@/components/layout/app-sidebar';
 import { BottomNav } from '@/components/layout/bottom-nav';
@@ -8,9 +9,27 @@ import { useAuthStore } from '@/stores/auth-store';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { user } = useAuthStore();
+  const { session, user } = useAuthStore();
+  const router = useRouter();
+  const [ready, setReady] = useState(false);
 
-  const isMobileOnly = user?.role === 'ELEVE' || user?.role === 'PARENT';
+  // Auth guard: redirect to login if no session
+  useEffect(() => {
+    // Wait one tick for Zustand hydration
+    const t = setTimeout(() => {
+      if (!useAuthStore.getState().session) {
+        router.replace('/login');
+      } else {
+        setReady(true);
+      }
+    }, 50);
+    return () => clearTimeout(t);
+  }, [session, router]);
+
+  // Show nothing until auth is verified
+  if (!ready || !session) {
+    return <div style={{ height: '100vh', background: '#0f172a' }} />;
+  }
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#f5f7fa' }}>
@@ -19,30 +38,26 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <AppSidebar />
       </div>
 
-      {/* Mobile sidebar via Sheet — admin/prof roles only */}
-      {!isMobileOnly && (
-        <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-          <SheetContent side="left" style={{ padding: 0, width: 264, background: '#0f172a', border: 'none' }}>
-            <AppSidebar onClose={() => setSidebarOpen(false)} />
-          </SheetContent>
-        </Sheet>
-      )}
+      {/* Mobile sidebar via Sheet */}
+      <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+        <SheetContent side="left" style={{ padding: 0, width: 264, background: '#0f172a', border: 'none' }}>
+          <AppSidebar onClose={() => setSidebarOpen(false)} />
+        </SheetContent>
+      </Sheet>
 
       {/* Main content */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
-        <main
-          style={{
-            flex: 1,
-            overflowY: 'auto',
-            paddingBottom: isMobileOnly ? 64 : 0,
-          }}
-        >
+        {/* Mobile header with hamburger */}
+        <div className="lg:hidden" style={{ background: '#0f172a', height: 48, flexShrink: 0, display: 'flex', alignItems: 'center', padding: '0 16px', gap: 12 }}>
+          <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, display: 'flex' }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+          </button>
+          <span style={{ fontSize: 14, fontWeight: 600, color: '#fff' }}>Medaaris</span>
+        </div>
+        <main style={{ flex: 1, overflowY: 'auto' }}>
           {children}
         </main>
       </div>
-
-      {/* Bottom nav for ELEVE/PARENT — mobile only */}
-      {isMobileOnly && <BottomNav />}
     </div>
   );
 }

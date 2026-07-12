@@ -17,6 +17,7 @@ export interface SessionUser {
   prenom: string;
   email: string;
   role: UserRole;
+  allRoles?: UserRole[];
   tenantId: string;
   avatar?: string;
 }

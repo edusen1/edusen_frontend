@@ -290,7 +290,8 @@ export default function ConvocationsPage() {
                   value={form.eleveId}
                   onChange={(e) => {
                     const el = rawEleves.find((x: Record<string, unknown>) => String(x.id) === e.target.value);
-                    setForm((f) => ({ ...f, eleveId: e.target.value, eleveNom: el ? `${el.prenom ?? ''} ${el.nom ?? ''}`.trim() : '' }));
+                    const mat = el?.matricule ? ` (${el.matricule})` : '';
+                    setForm((f) => ({ ...f, eleveId: e.target.value, eleveNom: el ? `${el.prenom ?? ''} ${el.nom ?? ''}`.trim() + mat : '' }));
                   }}
                   style={{ ...inp() }}
                 >

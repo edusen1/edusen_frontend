@@ -1,231 +1,201 @@
 'use client';
 
-import Link from 'next/link';
+import { useCallback, useEffect, useState } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
+import { apiClient } from '@/lib/api/client';
 import { useAuthStore } from '@/stores/auth-store';
-import { useEleveNotes, useEleveAbsences, useEleveEmploiDuTemps, useEleveNotifications, useEleveProfil } from '@/hooks/use-query-api';
+import { resolveStorageUrl } from '@/lib/resolve-url';
 
-const JOURS = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
-const JOURS_COURT = ['dim', 'lun', 'mar', 'mer', 'jeu', 'ven', 'sam'];
+type R = Record<string, unknown>;
+const B = '#e6ebf1';
 
-function getNoteColor(val: number) {
-  if (val >= 14) return '#16a34a';
-  if (val >= 10) return '#0f172a';
-  return '#dc2626';
-}
+const JOURS_MAP: Record<number, string> = { 1: 'Lundi', 2: 'Mardi', 3: 'Mercredi', 4: 'Jeudi', 5: 'Vendredi', 6: 'Samedi' };
 
 export default function EleveAccueilPage() {
   const { session } = useAuthStore();
   const user = session?.user;
-  const nomComplet = ((user?.prenom ?? '') + ' ' + (user?.nom ?? '')).trim() || 'Élève';
-  const initials = ((user?.prenom?.[0] ?? '') + (user?.nom?.[0] ?? '')).toUpperCase() || 'E';
+  const [profil, setProfil] = useState<R>({});
+  const [edt, setEdt] = useState<R[]>([]);
+  const [comms, setComms] = useState<R[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showQR, setShowQR] = useState(false);
 
-  const { data: profilData } = useEleveProfil();
-  const { data: notesData } = useEleveNotes();
-  const { data: absencesData } = useEleveAbsences();
-  const { data: emploiData } = useEleveEmploiDuTemps();
-  const { data: notifsData } = useEleveNotifications();
+  const fetchAll = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [pRes, eRes, cRes] = await Promise.all([
+        apiClient.get('/eleve/profil').catch(() => ({ data: {} })),
+        apiClient.get('/eleve/emploi-du-temps').catch(() => ({ data: [] })),
+        apiClient.get('/eleve/communications').catch(() => ({ data: [] })),
+      ]);
+      setProfil((pRes.data ?? {}) as R);
+      const ed = eRes.data;
+      setEdt(Array.isArray(ed) ? ed : Array.isArray((ed as R)?.cours) ? (ed as R).cours as R[] : []);
+      const cd = cRes.data;
+      setComms(Array.isArray(cd) ? cd : []);
+    } catch { /* ignore */ }
+    setLoading(false);
+  }, []);
 
-  const profil = (profilData ?? {}) as Record<string, unknown>;
-  const classeObj = profil.classe as Record<string, unknown> | undefined;
-  const classeNom = (classeObj?.nom ?? '3ᵉ B') as string;
+  useEffect(() => { void fetchAll(); }, [fetchAll]);
 
-  // Stats
-  const notesObj = (Array.isArray(notesData) ? {} : (notesData ?? {})) as Record<string, unknown>;
-  const moyenne = notesObj.moyenneGenerale as number | undefined;
-  const rang = notesObj.rang as number | undefined;
-  const moyenneStr = moyenne != null ? String(moyenne).replace('.', ',') : '—';
-  const rangStr = rang != null ? `${rang}ᵉ` : '—';
+  const firstName = String(profil.firstName ?? user?.prenom ?? '');
+  const lastName = String(profil.lastName ?? user?.nom ?? '');
+  const fullName = `${firstName} ${lastName}`.trim() || 'Élève';
+  const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || 'E';
+  const photoUrl = resolveStorageUrl(profil.photoUrl as string);
+  const classeNom = String((profil.classe as R)?.nom ?? '');
+  const niveauNom = String(((profil.classe as R)?.niveau as R)?.libelle ?? '');
+  const matricule = String(profil.matricule ?? '');
+  const ecoleNom = String(profil.ecoleNom ?? '');
+  const anneeScolaire = String(profil.anneeAcademique ?? (profil.classe as R)?.anneeAcademique?.libelle ?? '');
+  const dateNaissance = profil.dateNaissance ? new Date(String(profil.dateNaissance)).toLocaleDateString('fr-FR') : '';
+  const lieuNaissance = String(profil.lieuNaissance ?? '');
+  const qrData = JSON.stringify({ id: String(profil.id ?? user?.id ?? ''), m: matricule, t: user?.tenantId ?? '' });
 
-  const absencesRaw = Array.isArray(absencesData) ? absencesData : ((absencesData as Record<string, unknown> | null)?.absences ?? []);
-  const absencesCount = (absencesRaw as unknown[]).length;
-
-  // Last 2 notes
-  const allNotes = (notesObj.notes as Record<string, unknown>[] | undefined) ?? [];
-  const lastNotes = allNotes.slice(0, 2);
-
-  // Next cours from emploi du temps
-  const today = new Date();
-  const nowMin = today.getHours() * 60 + today.getMinutes();
-  const coursRaw = Array.isArray(emploiData) ? emploiData : ((emploiData as Record<string, unknown> | null)?.cours ?? []);
-  const sortedCours = (coursRaw as Record<string, unknown>[]).filter((c) => {
-    const jour = c.jour as string | undefined;
-    if (!jour) return false;
-    const jourIdx = JOURS.findIndex((j) => j.toLowerCase() === jour.toLowerCase())
-      || JOURS_COURT.findIndex((j) => j.toLowerCase() === jour.toLowerCase());
-    const todayIdx = today.getDay();
-    if (jourIdx < 0) return false;
-    if (jourIdx > todayIdx) return true;
-    if (jourIdx === todayIdx) {
-      const hd = c.heureDebut as string | undefined;
-      if (!hd) return false;
-      const [h, m] = hd.split(':').map(Number);
-      return (h * 60 + (m || 0)) > nowMin;
-    }
-    return false;
+  // Prochain cours
+  const now = new Date();
+  const todayJour = JOURS_MAP[now.getDay()] ?? '';
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const todayCours = edt.filter((c) => String(c.jourSemaine ?? c.jour ?? '') === todayJour)
+    .sort((a, b) => String(a.heureDebut ?? '').localeCompare(String(b.heureDebut ?? '')));
+  const prochainCours = todayCours.find((c) => {
+    const [h, m] = String(c.heureFin ?? '').split(':').map(Number);
+    return (h * 60 + (m || 0)) > nowMin;
   });
-  const prochainCours = sortedCours[0] as Record<string, unknown> | undefined;
-  const pcMatiere = prochainCours?.matiere as Record<string, unknown> | string | undefined;
-  const pcMatiereNom = (typeof pcMatiere === 'string' ? pcMatiere : (pcMatiere as Record<string, unknown>)?.nom as string) ?? 'Français';
-  const pcHeure = (prochainCours?.heureDebut as string | undefined) ?? '10:00';
-  const pcSalle = (prochainCours?.salle as Record<string, unknown> | undefined)?.nom as string
-    ?? (prochainCours?.salleNom as string | undefined) ?? 'Salle A04';
-  const pcEnseignant = (prochainCours?.enseignant as Record<string, unknown> | undefined)
-    ? `${((prochainCours?.enseignant as Record<string, unknown>)?.prenom as string ?? '')} ${((prochainCours?.enseignant as Record<string, unknown>)?.nom as string ?? '')}`.trim()
-    : 'Enseignant';
 
-  // Notifications (unread count + first annonce)
-  const notifsRaw = Array.isArray(notifsData) ? notifsData : ((notifsData as Record<string, unknown> | null)?.notifications ?? []);
-  const unreadCount = (notifsRaw as Record<string, unknown>[]).filter((n) => !n.lu).length;
-  const firstNotif = (notifsRaw as Record<string, unknown>[])[0];
+  const f = (v: string) => { try { return new Date(v).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }); } catch { return ''; } };
+
+  if (loading) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#94a3b8' }}>Chargement...</div>;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#f5f7fa' }}>
-      {/* Blue header */}
-      <div style={{ background: '#2563eb', padding: '18px 20px 22px', flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ width: 44, height: 44, background: 'rgba(255,255,255,.25)', border: '2px solid rgba(255,255,255,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 16, flexShrink: 0 }}>
-            {initials}
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 12, color: '#bfdbfe' }}>Bonjour,</div>
-            <div style={{ fontSize: 17, fontWeight: 700, color: '#fff' }}>{nomComplet}</div>
-            <div style={{ fontSize: 11, color: '#bfdbfe', marginTop: 1 }}>{classeNom} · Année 2025–2026</div>
-          </div>
-          <Link href="/eleve/notifications" style={{ width: 38, height: 38, background: 'rgba(255,255,255,.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', textDecoration: 'none' }}>
-            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/>
-              <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
-            </svg>
-            {unreadCount > 0 && <span style={{ position: 'absolute', top: 8, right: 9, width: 7, height: 7, background: '#f87171', border: '1.5px solid #2563eb', borderRadius: '50%' }} />}
-          </Link>
-        </div>
-        {/* Stats */}
-        <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
-          <div style={{ flex: 1, background: 'rgba(255,255,255,.12)', padding: '11px 12px' }}>
-            <div style={{ fontSize: 21, fontWeight: 800, color: '#fff' }}>{moyenneStr}</div>
-            <div style={{ fontSize: 11, color: '#bfdbfe' }}>Moyenne</div>
-          </div>
-          <div style={{ flex: 1, background: 'rgba(255,255,255,.12)', padding: '11px 12px' }}>
-            <div style={{ fontSize: 21, fontWeight: 800, color: '#fff' }}>{rangStr}</div>
-            <div style={{ fontSize: 11, color: '#bfdbfe' }}>Rang</div>
-          </div>
-          <div style={{ flex: 1, background: 'rgba(255,255,255,.12)', padding: '11px 12px' }}>
-            <div style={{ fontSize: 21, fontWeight: 800, color: '#fff' }}>{absencesCount}</div>
-            <div style={{ fontSize: 11, color: '#bfdbfe' }}>Absences</div>
-          </div>
-        </div>
-      </div>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
+        <div style={{ maxWidth: 700, margin: '0 auto' }}>
 
-      {/* Scrollable content */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '18px 20px' }}>
-        {/* Prochain cours */}
-        <div style={{ fontSize: 12, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 9 }}>Prochain cours</div>
-        <div style={{ background: '#fff', border: '1px solid #e6ebf1', borderLeft: '3px solid #2563eb', padding: '13px 14px', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ textAlign: 'center', flexShrink: 0 }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a' }}>{pcHeure}</div>
+          {/* Bonjour */}
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 12, color: '#94a3b8' }}>Bonjour,</div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: '#0f172a' }}>{firstName} 👋</div>
           </div>
-          <div style={{ width: 1, height: 34, background: '#e6ebf1' }} />
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 15, fontWeight: 600, color: '#0f172a' }}>{pcMatiereNom}</div>
-            <div style={{ fontSize: 12, color: '#64748b' }}>{pcEnseignant} · {pcSalle}</div>
-          </div>
-          <Link href="/eleve/emploi-du-temps" style={{ fontSize: 11, fontWeight: 600, color: '#2563eb', background: '#eff6ff', padding: '4px 8px', textDecoration: 'none' }}>Voir EDT</Link>
-        </div>
 
-        {/* Dernières notes */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '20px 0 9px' }}>
-          <span style={{ fontSize: 12, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.05em' }}>Dernières notes</span>
-          <Link href="/eleve/notes" style={{ fontSize: 12, color: '#2563eb', fontWeight: 600, textDecoration: 'none' }}>Tout voir</Link>
-        </div>
-        <div style={{ background: '#fff', border: '1px solid #e6ebf1' }}>
-          {lastNotes.length > 0 ? lastNotes.map((n, idx) => {
-            const mat = n.matiere as Record<string, unknown> | string | undefined;
-            const matNom = (typeof mat === 'string' ? mat : (mat as Record<string, unknown>)?.nom as string) ?? 'Matière';
-            const valeur = n.valeur as number | undefined;
-            const type = n.typeEvaluation as string | undefined;
-            const dateStr = n.date as string | undefined;
-            let dateLabel = '';
-            try { if (dateStr) dateLabel = new Date(dateStr).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' }); } catch { /* skip */ }
-            return (
-              <div key={String(n.id ?? idx)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderBottom: idx < lastNotes.length - 1 ? '1px solid #eef2f6' : 'none' }}>
-                <span style={{ width: 34, height: 34, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
-                  </svg>
-                </span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: '#0f172a' }}>{matNom}</div>
-                  {(type || dateLabel) && <div style={{ fontSize: 11, color: '#94a3b8' }}>{[type, dateLabel].filter(Boolean).join(' · ')}</div>}
+          {/* Carte élève — compact */}
+          <div style={{ background: '#fff', border: `1px solid ${B}`, marginBottom: '14px', overflow: 'hidden' }}>
+            <div style={{ background: 'linear-gradient(90deg, #2563eb, #3b82f6)', padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>{fullName}</div>
+            </div>
+            <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 14 }}>
+              {/* Photo */}
+              {photoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={photoUrl} alt="" style={{ width: 64, height: 64, borderRadius: 8, objectFit: 'cover', border: `2px solid ${B}`, flexShrink: 0 }} />
+              ) : (
+                <div style={{ width: 64, height: 64, borderRadius: 8, background: '#0f172a', border: `2px solid ${B}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 20, fontWeight: 700, flexShrink: 0 }}>{initials}</div>
+              )}
+              {/* Infos compactes */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 4 }}>
+                  {classeNom && <span style={{ fontSize: 10, fontWeight: 600, color: '#2563eb', border: '1px solid #bfdbfe', padding: '1px 8px', background: '#eff6ff' }}>{classeNom}</span>}
+                  {anneeScolaire && <span style={{ fontSize: 10, color: '#475569', border: `1px solid ${B}`, padding: '1px 8px' }}>{anneeScolaire}</span>}
                 </div>
-                {valeur != null && <div style={{ fontSize: 16, fontWeight: 700, color: getNoteColor(valeur) }}>{String(valeur).replace('.', ',')}</div>}
+                {matricule && <div style={{ fontSize: 11, color: '#475569', fontFamily: 'monospace' }}>{matricule}</div>}
+                {dateNaissance && <div style={{ fontSize: 10, color: '#94a3b8' }}>Né(e) le {dateNaissance}{lieuNaissance ? ` à ${lieuNaissance}` : ''}</div>}
+              </div>
+              {/* QR */}
+              <div onClick={() => setShowQR(true)} style={{ flexShrink: 0, cursor: 'pointer', textAlign: 'center' }}>
+                <QRCodeSVG value={qrData} size={64} level="H" />
+                <div style={{ fontSize: 8, color: '#94a3b8', marginTop: 2 }}>Scanner</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Infos détaillées */}
+          <div style={{ background: '#fff', border: `1px solid ${B}`, marginBottom: 14, padding: '10px 16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 6 }}>
+              {[
+                { label: 'Matricule', value: matricule },
+                { label: 'Classe', value: classeNom },
+                { label: 'Niveau', value: niveauNom },
+                { label: 'Date de naissance', value: dateNaissance },
+                { label: 'Lieu de naissance', value: lieuNaissance },
+                { label: 'École', value: ecoleNom },
+              ].filter((i) => i.value).map((i) => (
+                <div key={i.label} style={{ padding: '4px 0' }}>
+                  <div style={{ fontSize: 9, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.04em' }}>{i.label}</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: '#0f172a', marginTop: 1 }}>{i.value}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Prochain cours */}
+          {prochainCours && (() => {
+            const pcDebut = String(prochainCours.heureDebut ?? '');
+            const pcFin = String(prochainCours.heureFin ?? '');
+            const pcMat = String((prochainCours.matiere as R)?.libelle ?? prochainCours.matiereLibelle ?? '');
+            const pcProf = String(prochainCours.enseignantNom ?? '');
+            const pcSalle = String(prochainCours.salleNom ?? '');
+            const [dh, dm] = pcDebut.split(':').map(Number);
+            const diff = (dh * 60 + (dm || 0)) - nowMin;
+            const badge = diff <= 0 ? 'En cours' : diff <= 60 ? `Dans ${diff} min` : '';
+            return (
+              <div style={{ background: '#fff', border: `1px solid ${B}`, padding: '14px 16px', marginBottom: 16 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 10 }}>Prochain cours</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                  <div style={{ textAlign: 'center', minWidth: 50, flexShrink: 0 }}>
+                    <div style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', lineHeight: 1 }}>{pcDebut}</div>
+                    <div style={{ fontSize: 9, color: '#94a3b8' }}>{pcFin}</div>
+                  </div>
+                  <div style={{ width: 1, height: 28, background: B, flexShrink: 0 }} />
+                  <div style={{ flex: '1 1 100px', minWidth: 0 }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a' }}>{pcMat}</div>
+                    <div style={{ fontSize: 11, color: '#64748b' }}>{pcProf}{pcSalle ? ` · ${pcSalle}` : ''}</div>
+                  </div>
+                  {badge && <span style={{ fontSize: 11, fontWeight: 600, color: badge === 'En cours' ? '#16a34a' : '#2563eb', border: `1px solid ${badge === 'En cours' ? '#bbf7d0' : '#bfdbfe'}`, background: badge === 'En cours' ? '#f0fdf4' : '#eff6ff', padding: '3px 10px', flexShrink: 0 }}>{badge}</span>}
+                </div>
               </div>
             );
-          }) : (
-            <>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderBottom: '1px solid #eef2f6' }}>
-                <span style={{ width: 34, height: 34, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
-                  </svg>
-                </span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: '#0f172a' }}>Mathématiques</div>
-                  <div style={{ fontSize: 11, color: '#94a3b8' }}>Devoir · 18 mars</div>
-                </div>
-                <div style={{ fontSize: 16, fontWeight: 700, color: '#16a34a' }}>16,5</div>
+          })()}
+
+          {/* Communications */}
+          {comms.length > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>Communications</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {comms.map((c) => (
+                  <div key={String(c.id)} style={{ background: '#fff', border: `1px solid ${B}`, borderLeft: '3px solid #2563eb', padding: '12px 14px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{String(c.titre ?? '')}</div>
+                      <span style={{ fontSize: 9, color: '#94a3b8', flexShrink: 0 }}>{f(String(c.envoyeLe ?? c.createdAt ?? ''))}</span>
+                    </div>
+                    {c.contenu && <div style={{ fontSize: 12, color: '#64748b', marginTop: 4, lineHeight: 1.5 }}>{String(c.contenu)}</div>}
+                  </div>
+                ))}
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px' }}>
-                <span style={{ width: 34, height: 34, background: '#f5f3ff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
-                  </svg>
-                </span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: '#0f172a' }}>Français</div>
-                  <div style={{ fontSize: 11, color: '#94a3b8' }}>Composition · 14 mars</div>
-                </div>
-                <div style={{ fontSize: 16, fontWeight: 700, color: '#0f172a' }}>13,0</div>
-              </div>
-            </>
+            </div>
           )}
-        </div>
 
-        {/* Annonce / dernière notification */}
-        <div style={{ fontSize: 12, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.05em', margin: '20px 0 9px' }}>Dernière notification</div>
-        {firstNotif ? (
-          <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderLeft: '3px solid #d97706', padding: '12px 13px' }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: '#92400e' }}>{firstNotif.titre as string}</div>
-            {firstNotif.contenu && <div style={{ fontSize: 12, color: '#a16207', marginTop: 3, lineHeight: 1.45 }}>{firstNotif.contenu as string}</div>}
-          </div>
-        ) : (
-          <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderLeft: '3px solid #d97706', padding: '12px 13px' }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: '#92400e' }}>Conseil de classe — Trimestre 2</div>
-            <div style={{ fontSize: 12, color: '#a16207', marginTop: 3, lineHeight: 1.45 }}>Les bulletins seront disponibles à partir du 28 mars.</div>
-          </div>
-        )}
 
-        {/* Shortcuts */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 20 }}>
-          <Link href="/eleve/bulletins" style={{ background: '#fff', border: '1px solid #e6ebf1', padding: '14px', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 10 }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h6"/>
-            </svg>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>Bulletins</div>
-              <div style={{ fontSize: 11, color: '#94a3b8' }}>Mes résultats</div>
-            </div>
-          </Link>
-          <Link href="/eleve/reclamations" style={{ background: '#fff', border: '1px solid #e6ebf1', padding: '14px', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 10 }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-            </svg>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>Réclamations</div>
-              <div style={{ fontSize: 11, color: '#94a3b8' }}>Mes demandes</div>
-            </div>
-          </Link>
         </div>
       </div>
+
+      {/* QR plein écran */}
+      {showQR && (
+        <div onClick={() => setShowQR(false)} style={{ position: 'fixed', inset: 0, background: '#fff', zIndex: 1000, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+          <div style={{ fontSize: 10, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: 14 }}>{ecoleNom || 'Carte élève'}</div>
+          {photoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={photoUrl} alt="" style={{ width: 80, height: 80, borderRadius: '50%', objectFit: 'cover', border: `3px solid ${B}`, marginBottom: 12 }} />
+          ) : (
+            <div style={{ width: 80, height: 80, borderRadius: '50%', background: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 24, fontWeight: 700, marginBottom: 12 }}>{initials}</div>
+          )}
+          <div style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', marginBottom: 2 }}>{fullName}</div>
+          {classeNom && <div style={{ fontSize: 14, color: '#2563eb', fontWeight: 600, marginBottom: 2 }}>{classeNom}</div>}
+          {matricule && <div style={{ fontSize: 12, color: '#64748b', fontFamily: 'monospace', marginBottom: 20 }}>{matricule}</div>}
+          <QRCodeSVG value={qrData} size={220} level="H" />
+          <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 20 }}>Toucher pour fermer</div>
+        </div>
+      )}
     </div>
   );
 }

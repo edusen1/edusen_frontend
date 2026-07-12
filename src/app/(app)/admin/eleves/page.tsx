@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { apiClient } from '@/lib/api/client';
-import { useCreateEleve, useUpdateEleve, useDeleteEleve } from '@/hooks/use-query-api';
+import { useCreateEleve, useUpdateEleve } from '@/hooks/use-query-api';
 
 type EleveItem = Record<string, unknown>;
 type ClasseItem = { id: string; nom: string };
@@ -351,7 +351,6 @@ export default function ElevesAdminPage() {
 
   const createEleve = useCreateEleve();
   const updateEleve = useUpdateEleve();
-  const deleteEleve = useDeleteEleve();
 
   // ── Fetch helpers ─────────────────────────────────────────────────
   const fetchEleves = useCallback(() => {
@@ -608,14 +607,6 @@ export default function ElevesAdminPage() {
     }
   };
 
-  const handleDelete = async (e: EleveItem) => {
-    if (!confirm(`Supprimer ${e.prenom ?? e.firstName} ${e.nom ?? e.lastName} ?`)) return;
-    try {
-      await deleteEleve.mutateAsync(String(e.id ?? e.eleveId));
-      fetchEleves();
-    } catch { toast.error('Erreur lors de la suppression'); }
-  };
-
   const openStudentCard = async (e: EleveItem) => {
     const id = String(e.id ?? e.eleveId ?? '');
     if (!id) { toast.error('Élève introuvable'); return; }
@@ -741,7 +732,6 @@ export default function ElevesAdminPage() {
                         <button onMouseDown={() => { setOpenActionMenu(null); openStudentCard(e); }} style={{ width: '100%', height: 30, border: 'none', background: '#fff', color: '#7c3aed', textAlign: 'left', padding: '0 10px', fontSize: 12, fontFamily: 'inherit', cursor: 'pointer' }}>Carte scolaire</button>
                         <button onMouseDown={() => { setOpenActionMenu(null); handleDesactiverEleve(e); }} style={{ width: '100%', height: 30, border: 'none', background: '#fff', color: '#d97706', textAlign: 'left', padding: '0 10px', fontSize: 12, fontFamily: 'inherit', cursor: 'pointer' }}>Désactiver</button>
                         <button onMouseDown={() => { setOpenActionMenu(null); handleExclureEleve(e); }} style={{ width: '100%', height: 30, border: 'none', background: '#fff5f5', color: '#991b1b', textAlign: 'left', padding: '0 10px', fontSize: 12, fontFamily: 'inherit', cursor: 'pointer' }}>Exclure</button>
-                        <button onMouseDown={() => { setOpenActionMenu(null); handleDelete(e); }} style={{ width: '100%', height: 30, border: 'none', background: '#fff5f5', color: '#dc2626', textAlign: 'left', padding: '0 10px', fontSize: 12, fontFamily: 'inherit', cursor: 'pointer' }}>Supprimer</button>
                       </div>
                     )}
                   </div>
@@ -797,14 +787,14 @@ export default function ElevesAdminPage() {
                 {/* Prénom */}
                 <div>
                   <label style={lbl()}>Prénom <span style={{ color: '#dc2626' }}>*</span></label>
-                  <input value={form.prenom} onChange={(e) => { setField('prenom', e.target.value); setErrors((er) => ({ ...er, prenom: undefined })); }} placeholder="Awa" style={inp(errors.prenom ? { borderColor: '#dc2626' } : {})} />
+                  <input value={form.prenom} onChange={(e) => { setField('prenom', e.target.value.replace(/\b\w/g, (c) => c.toUpperCase())); setErrors((er) => ({ ...er, prenom: undefined })); }} placeholder="Awa" style={inp(errors.prenom ? { borderColor: '#dc2626' } : {})} />
                   {errors.prenom && <div style={{ fontSize: 11, color: '#dc2626', marginTop: 3 }}>{errors.prenom}</div>}
                 </div>
 
                 {/* Nom */}
                 <div>
                   <label style={lbl()}>Nom <span style={{ color: '#dc2626' }}>*</span></label>
-                  <input value={form.nom} onChange={(e) => { setField('nom', e.target.value); setErrors((er) => ({ ...er, nom: undefined })); }} placeholder="Ndiaye" style={inp(errors.nom ? { borderColor: '#dc2626' } : {})} />
+                  <input value={form.nom} onChange={(e) => { setField('nom', e.target.value.toUpperCase()); setErrors((er) => ({ ...er, nom: undefined })); }} placeholder="NDIAYE" style={inp(errors.nom ? { borderColor: '#dc2626' } : {})} />
                   {errors.nom && <div style={{ fontSize: 11, color: '#dc2626', marginTop: 3 }}>{errors.nom}</div>}
                 </div>
 
@@ -818,7 +808,7 @@ export default function ElevesAdminPage() {
                 {/* Lieu de naissance */}
                 <div>
                   <label style={lbl()}>Lieu de naissance</label>
-                  <input value={form.lieuNaissance} onChange={(e) => setField('lieuNaissance', e.target.value)} placeholder="Dakar" style={inp()} />
+                  <input value={form.lieuNaissance} onChange={(e) => setField('lieuNaissance', e.target.value.toUpperCase())} placeholder="DAKAR" style={inp()} />
                 </div>
 
                 {/* Genre */}
@@ -840,13 +830,13 @@ export default function ElevesAdminPage() {
                   { label: 'Téléphone',     key: 'telephone'     as keyof EleveForm, placeholder: '+221 77 000 00 00' },
                   { label: 'N° d\'urgence', key: 'numeroUrgence' as keyof EleveForm, placeholder: '+221 77 000 00 00' },
                   { label: 'Email',         key: 'email'         as keyof EleveForm, placeholder: 'eleve@ecole.sn' },
-                  { label: 'Adresse',       key: 'adresse'       as keyof EleveForm, placeholder: 'Dakar' },
+                  { label: 'Adresse',       key: 'adresse'       as keyof EleveForm, placeholder: 'DAKAR' },
                 ].map(({ label, key, placeholder }) => (
                   <div key={key}>
                     <label style={lbl()}>{label}</label>
                     <input
                       value={form[key] as string}
-                      onChange={(e) => { setField(key, e.target.value); setErrors((er) => ({ ...er, [key]: undefined })); }}
+                      onChange={(e) => { const v = key === 'adresse' ? e.target.value.toUpperCase() : e.target.value; setField(key, v); setErrors((er) => ({ ...er, [key]: undefined })); }}
                       placeholder={placeholder}
                       style={inp(errors[key] ? { borderColor: '#dc2626' } : {})}
                     />

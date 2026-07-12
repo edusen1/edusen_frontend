@@ -15,7 +15,7 @@ export const authApi = {
   resetPassword: (data: { token: string; newPassword: string }) =>
     apiClient.post('/v1/auth/reset-password', data),
   updateProfile: (data: Partial<{ firstName: string; lastName: string; email: string; telephone: string }>) =>
-    apiClient.patch('/v1/utilisateurs/me', data),
+    apiClient.patch('/v1/auth/me', data),
 };
 
 // ELEVE — /api/eleve/*
@@ -138,6 +138,13 @@ export const adminApi = {
   createAnnonce: (data: unknown) => apiClient.post('/admin/annonces', data),
   updateAnnonce: (id: string, data: unknown) => apiClient.put(`/admin/annonces/${id}`, data),
   deleteAnnonce: (id: string) => apiClient.delete(`/admin/annonces/${id}`),
+  anneesAcademiques: (params?: Record<string, unknown>) => apiClient.get('/v1/annees-academiques', { params }),
+  communications: (params?: Record<string, unknown>) => apiClient.get('/admin/communications', { params }),
+  createCommunication: (data: unknown) => apiClient.post('/admin/communications', data),
+  previewCommunicationDestinataires: (data: unknown) => apiClient.post('/admin/communications/preview-destinataires', data),
+  envoyerCommunication: (id: string) => apiClient.post(`/admin/communications/${id}/envoyer`, {}),
+  updateCommunication: (id: string, data: unknown) => apiClient.patch(`/admin/communications/${id}`, data),
+  deleteCommunication: (id: string) => apiClient.delete(`/admin/communications/${id}`),
 
   // Réclamations
   reclamations: (params?: Record<string, unknown>) => apiClient.get('/admin/reclamations', { params }),
@@ -215,14 +222,6 @@ export const adminApi = {
   updateDiscipline: (id: string, data: unknown) => apiClient.put(`/admin/discipline/${id}`, data),
   cloturerDiscipline: (id: string, data: unknown) =>
     apiClient.post(`/admin/discipline/${id}/cloturer`, data),
-
-  // Documents officiels
-  documents: (params?: Record<string, unknown>) => apiClient.get('/admin/documents', { params }),
-  createDocument: (data: unknown) => apiClient.post('/admin/documents', data),
-  updateDocument: (id: string, data: unknown) => apiClient.put(`/admin/documents/${id}`, data),
-  deleteDocument: (id: string) => apiClient.delete(`/admin/documents/${id}`),
-  publierDocument: (id: string) => apiClient.post(`/admin/documents/${id}/publier`),
-  archiverDocument: (id: string) => apiClient.post(`/admin/documents/${id}/archiver`),
 
   // Bibliothèque
   ouvrages: (params?: Record<string, unknown>) => apiClient.get('/admin/bibliotheque/ouvrages', { params }),

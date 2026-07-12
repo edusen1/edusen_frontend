@@ -29,6 +29,11 @@ function eleveName(e?: { firstName?: string; lastName?: string }): string {
   return `${e.firstName ?? ''} ${e.lastName ?? ''}`.trim() || '—';
 }
 
+function fmtRang(r: number): string {
+  if (r === 1) return '1er';
+  return `${r}ème`;
+}
+
 function getNoteColor(n: number): string {
   if (n >= 16) return '#16a34a';
   if (n >= 12) return '#2563eb';
@@ -204,6 +209,16 @@ export default function BulletinsAdminPage() {
     else toast.error(`${ok} générés, ${fail} en erreur`);
   };
 
+  const handlePublierTous = async () => {
+    setGenerating('PUBLISH');
+    try {
+      await apiClient.post('/admin/bulletins/publier', { portee: 'TOUS', trimestre: selectedPeriode, anneeScolaire: selectedAnneeLibelle });
+      toast.success('Bulletins publiés — visibles par les élèves');
+      fetchData(selectedAnneeId);
+    } catch { toast.error('Erreur lors de la publication'); }
+    setGenerating(null);
+  };
+
   // Ouvrir détails d'une classe — charger élèves, matières, notes, bulletins
   const openDetail = async (c: ClasseItem) => {
     setDetailClasse(c);
@@ -225,31 +240,64 @@ export default function BulletinsAdminPage() {
         const d = r.data as Record<string, unknown>;
         return Array.isArray(d) ? d : ((d?.data ?? d?.content ?? []) as Record<string, unknown>[]);
       };
-      const [elevesRes, mcRes, notesRes, bulRes] = await Promise.all([
+      // Resolve niveauId for this class
+      const niveauId = String((c as Record<string, unknown>).niveauId ?? ((c as Record<string, unknown>).niveau as Record<string, unknown> | undefined)?.id ?? '');
+      const [elevesRes, mcRes, mnRes, notesRes, bulRes] = await Promise.all([
         apiClient.get(`/admin/classes/${c.id}/eleves`),
         apiClient.get('/admin/matieres-classes', { params: { classeId: c.id, size: 500 } }),
+        niveauId ? apiClient.get('/admin/matieres-niveaux', { params: { niveauId, size: 500 } }).catch(() => ({ data: [] })) : Promise.resolve({ data: [] }),
         apiClient.get('/admin/notes', { params: { classeId: c.id, size: 2000 } }),
         apiClient.get('/admin/bulletins', { params: { classeId: c.id, size: 500 } }),
       ]);
       const rawEleves = extract(elevesRes);
-      // L'API retourne {inscriptionId, eleve: {...}} — extraire l'élève
       const eleves = rawEleves.map((item) => {
         const e = (item as Record<string, unknown>).eleve as EleveItem | undefined;
         return e ?? item as unknown as EleveItem;
       }).filter((e) => e?.id);
       const sorted = eleves.sort((a, b) => eleveName(a).localeCompare(eleveName(b), 'fr'));
       setDetailEleves(sorted);
-      // Ouvrir le premier élève par défaut
       setExpandedEleves(sorted.length > 0 ? new Set([sorted[0].id]) : new Set());
-      // Matières uniques depuis matieres-classes avec coefficient
+
+      // Coefficients depuis matieres-niveaux (source de vérité)
+      const mnList = extract(mnRes) as Record<string, unknown>[];
+      const coefMap = new Map<string, { coefficient: number; noteMaximum: number }>();
+      for (const mn of mnList) {
+        const mId = String(mn.matiereId ?? (mn.matiere as Record<string, unknown> | undefined)?.id ?? '');
+        if (mId) coefMap.set(mId, { coefficient: Number(mn.coefficient ?? 1), noteMaximum: Number(mn.noteMaximum ?? 20) });
+      }
+
+      // Matières depuis matieres-classes + coefficients depuis matieres-niveaux
       const mcList = extract(mcRes) as MatiereClasseItem[];
       const matMap = new Map<string, MatiereItem & { coefficient: number; noteMaximum: number }>();
       for (const mc of mcList) {
         const m = mc.matiere as MatiereItem | undefined;
-        if (m?.id && !matMap.has(m.id)) matMap.set(m.id, { ...m, coefficient: mc.coefficient ?? 1, noteMaximum: mc.noteMaximum ?? 20 });
+        if (m?.id && !matMap.has(m.id)) {
+          const cn = coefMap.get(m.id);
+          matMap.set(m.id, { ...m, coefficient: cn?.coefficient ?? mc.coefficient ?? 1, noteMaximum: cn?.noteMaximum ?? mc.noteMaximum ?? 20 });
+        }
+      }
+      const notesList = extract(notesRes) as NoteItem[];
+      // Fallback : extraire les matières depuis les notes si matieres-classes est vide
+      if (matMap.size === 0) {
+        for (const n of notesList) {
+          const m = n.matiere as MatiereItem | undefined;
+          const mId = n.matiereId ?? m?.id;
+          if (mId && !matMap.has(mId)) {
+            const cn = coefMap.get(mId);
+            matMap.set(mId, { id: mId, libelle: m?.libelle ?? m?.code ?? '—', code: m?.code ?? '', coefficient: cn?.coefficient ?? 1, noteMaximum: cn?.noteMaximum ?? 20 });
+          }
+        }
+      }
+      // Si matieres-niveaux a des matières pas dans matieres-classes, les ajouter aussi
+      for (const mn of mnList) {
+        const m = (mn.matiere as Record<string, unknown> | undefined);
+        const mId = String(mn.matiereId ?? m?.id ?? '');
+        if (mId && !matMap.has(mId) && m) {
+          matMap.set(mId, { id: mId, libelle: String(m.libelle ?? m.code ?? ''), code: String(m.code ?? ''), coefficient: Number(mn.coefficient ?? 1), noteMaximum: Number(mn.noteMaximum ?? 20) });
+        }
       }
       setDetailMatieres(Array.from(matMap.values()).sort((a, b) => (a.libelle ?? a.code ?? '').localeCompare(b.libelle ?? b.code ?? '', 'fr')));
-      setDetailNotes(extract(notesRes) as NoteItem[]);
+      setDetailNotes(notesList);
       setDetailBulletins(extract(bulRes) as BulletinItem[]);
     } catch { /* silent */ }
     finally { setDetailLoading(false); }
@@ -279,8 +327,10 @@ export default function BulletinsAdminPage() {
     const t = (n.typeEvaluation ?? n.type ?? '').toUpperCase();
     return t === 'COMPOSITION' || t === 'EXAMEN';
   };
-  const avg = (nums: number[]): number | null => nums.length === 0 ? null : nums.reduce((a, b) => a + b, 0) / nums.length;
-  const fmt = (n: number | null): string => n === null ? '—' : n % 1 === 0 ? String(n) : n.toFixed(2);
+  // Formats : moyenne par matière = 1 décimale, moy×coef et totaux = 2 décimales
+  const fmt1 = (n: number): string => n % 1 === 0 ? String(n) : n.toFixed(1);
+  const fmt2 = (n: number): string => n % 1 === 0 ? String(n) : n.toFixed(2);
+  const fmt = (n: number | null): string => n === null ? '—' : fmt2(n);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#f5f7fa' }}>
@@ -288,13 +338,22 @@ export default function BulletinsAdminPage() {
       <div style={{ background: '#fff', borderBottom: '1px solid #e6ebf1', height: 62, flexShrink: 0, display: 'flex', alignItems: 'center', padding: '0 28px', gap: 14 }}>
         <div style={{ fontSize: 17, fontWeight: 700, color: '#0f172a' }}>Bulletins</div>
         <div style={{ fontSize: 13, color: '#64748b' }}>{visibleClasses.length} classes</div>
-        {!loading && visibleClasses.length > 0 && !allDone && (
-          <button onClick={handleGenererTous} disabled={generating === 'ALL'}
-            style={{ marginLeft: 'auto', height: 38, padding: '0 18px', border: 'none', background: '#2563eb', color: '#fff', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flexShrink: 0 }}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-            {generating === 'ALL' ? 'Génération…' : `Générer tout ${periodeShort(selectedPeriode)}`}
-          </button>
-        )}
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+          {!loading && visibleClasses.length > 0 && !allDone && (
+            <button onClick={handleGenererTous} disabled={generating === 'ALL'}
+              style={{ height: 38, padding: '0 16px', border: 'none', background: '#2563eb', color: '#fff', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flexShrink: 0 }}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              {generating === 'ALL' ? 'Génération…' : `Générer ${periodeShort(selectedPeriode)}`}
+            </button>
+          )}
+          {!loading && totalGeneres > 0 && (
+            <button onClick={handlePublierTous} disabled={generating === 'PUBLISH'}
+              style={{ height: 38, padding: '0 16px', border: 'none', background: '#16a34a', color: '#fff', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flexShrink: 0 }}><path d="M22 2 11 13"/><path d="m22 2-7 20-4-9-9-4z"/></svg>
+              {generating === 'PUBLISH' ? 'Publication…' : 'Publier'}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Stats */}
@@ -474,17 +533,14 @@ export default function BulletinsAdminPage() {
                     } else {
                       const ligs = detailMatieres.map((m) => {
                         const notes = getNotesForEleve(eleveId, m.id, p);
-                        const md = avg(notes.filter(isDevoir).map((n) => n.note));
-                        const nc = avg(notes.filter(isComposition).map((n) => n.note));
-                        let mp: number | null = null;
-                        if (md !== null && nc !== null) mp = (md + nc) / 2;
-                        else if (md !== null) mp = md;
-                        else if (nc !== null) mp = nc;
-                        const mr = isPrimaire && mp !== null ? (mp / m.noteMaximum) * detailMoyMax : mp;
-                        return mr !== null ? mr * m.coefficient : null;
+                        const devs = notes.filter(isDevoir);
+                        const comps = notes.filter(isComposition);
+                        const md = devs.length > 0 ? devs.reduce((s, n) => s + n.note, 0) / devs.length : 0;
+                        const nc = comps.length > 0 ? comps.reduce((s, n) => s + n.note, 0) / comps.length : 0;
+                        return ((md + nc) / 2) * m.coefficient;
                       });
-                      const totalC = detailMatieres.reduce((s, m, i) => s + (ligs[i] !== null ? m.coefficient : 0), 0);
-                      const tp = ligs.reduce((s, v) => s + (v ?? 0), 0);
+                      const totalC = detailMatieres.reduce((s, m) => s + m.coefficient, 0);
+                      const tp = ligs.reduce((s, v) => s + v, 0);
                       if (totalC > 0) moysPeriodes.push(tp / totalC);
                     }
                   }
@@ -499,22 +555,23 @@ export default function BulletinsAdminPage() {
                         const notes = getNotesForEleve(eleve.id, m.id, detailTab);
                         const devoirs = notes.filter(isDevoir);
                         const compositions = notes.filter(isComposition);
-                        const moyDevoirs = avg(devoirs.map((n) => n.note));
-                        const noteCompo = avg(compositions.map((n) => n.note));
+                        // Note absente = 0 (toutes les matières comptent)
+                        const moyDevoirs = devoirs.length > 0 ? devoirs.reduce((s, n) => s + n.note, 0) / devoirs.length : 0;
+                        const noteCompo = compositions.length > 0 ? compositions.reduce((s, n) => s + n.note, 0) / compositions.length : 0;
                         const noteMax = m.noteMaximum;
-                        let moyPeriode: number | null = null;
-                        if (moyDevoirs !== null && noteCompo !== null) moyPeriode = (moyDevoirs + noteCompo) / 2;
-                        else if (moyDevoirs !== null) moyPeriode = moyDevoirs;
-                        else if (noteCompo !== null) moyPeriode = noteCompo;
-                        const moyRamenee = isPrimaire && moyPeriode !== null ? (moyPeriode / noteMax) * detailMoyMax : moyPeriode;
                         const coef = m.coefficient;
-                        const periodeXCoef = moyRamenee !== null ? moyRamenee * coef : null;
-                        return { matiere: m, moyDevoirs, noteCompo, moyPeriode, moyRamenee, noteMax, coef, periodeXCoef };
+                        // Moyenne semestrielle = (devoirs + composition) / 2
+                        const moyPeriode = (moyDevoirs + noteCompo) / 2;
+                        const periodeXCoef = moyPeriode * coef;
+                        return { matiere: m, moyDevoirs, noteCompo, moyPeriode, noteMax, coef, periodeXCoef };
                       });
-                      const totalCoef = lignes.reduce((s, l) => s + (l.periodeXCoef !== null ? l.coef : 0), 0);
-                      const totalPoints = lignes.reduce((s, l) => s + (l.periodeXCoef ?? 0), 0);
+                      // TOUTES les matières comptent dans le total (sans notes = 0)
+                      const totalCoef = lignes.reduce((s, l) => s + l.coef, 0);
+                      const totalPoints = lignes.reduce((s, l) => s + l.periodeXCoef, 0);
+                      const totalSur = lignes.reduce((s, l) => s + (l.noteMax * l.coef), 0);
                       const moyGenerale = totalCoef > 0 ? totalPoints / totalCoef : null;
-                      const moyAffichee = bul?.moyenne ?? moyGenerale;
+                      // Toujours utiliser le calcul frontend (le backend peut avoir une ancienne valeur)
+                      const moyAffichee = moyGenerale;
 
                       const isExpanded = expandedEleves.has(eleve.id);
                       const toggleEleve = () => setExpandedEleves((prev) => {
@@ -531,7 +588,7 @@ export default function BulletinsAdminPage() {
                               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" style={{ transition: 'transform .2s', transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)' }}><path d="m9 18 6-6-6-6"/></svg>
                               <span style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>{eleveName(eleve)}</span>
                               {moyAffichee !== null && <span style={{ fontSize: 12, fontWeight: 700, color: getNoteColor(moyAffichee) }}>{fmt(moyAffichee)}/{detailMoyMax}</span>}
-                              {bul?.rang && <span style={{ fontSize: 11, color: '#94a3b8' }}>{bul.rang}ème</span>}
+                              {bul?.rang && <span style={{ fontSize: 11, color: '#94a3b8' }}>{fmtRang(bul.rang)}</span>}
                             </div>
                             <span style={{ fontSize: 11, color: '#94a3b8' }}>{eleve.matricule ?? ''}</span>
                           </div>
@@ -543,76 +600,75 @@ export default function BulletinsAdminPage() {
                             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                               <thead>
                                 <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e6ebf1' }}>
-                                  <th style={{ ...th, textAlign: 'left', paddingLeft: 16, width: isPrimaire ? '22%' : '28%' }}>Disciplines</th>
-                                  <th style={{ ...th, textAlign: 'center', width: '11%' }}>Moy. Dev.</th>
-                                  <th style={{ ...th, textAlign: 'center', width: '11%' }}>Note Comp.</th>
-                                  <th style={{ ...th, textAlign: 'center', width: '11%' }}>Moy. Période</th>
-                                  {isPrimaire && <th style={{ ...th, textAlign: 'center', width: '9%' }}>/{detailMoyMax}</th>}
-                                  <th style={{ ...th, textAlign: 'center', width: '7%' }}>Coef.</th>
-                                  <th style={{ ...th, textAlign: 'center', width: '10%' }}>Total</th>
-                                  <th style={{ ...th, textAlign: 'left', paddingLeft: 8, width: isPrimaire ? '12%' : '16%' }}>Appréciation</th>
+                                  <th style={{ ...th, textAlign: 'left', paddingLeft: 16 }}>Disciplines</th>
+                                  <th style={{ ...th, textAlign: 'center' }}>Devoirs<br /><span style={{ fontSize: 9, fontWeight: 500, color: '#94a3b8' }}>sur {detailMoyMax}</span></th>
+                                  <th style={{ ...th, textAlign: 'center' }}>Composition<br /><span style={{ fontSize: 9, fontWeight: 500, color: '#94a3b8' }}>sur {detailMoyMax}</span></th>
+                                  <th style={{ ...th, textAlign: 'center' }}>{periodeLabelStr.charAt(0).toUpperCase() + periodeLabelStr.slice(1)}<br /><span style={{ fontSize: 9, fontWeight: 500, color: '#94a3b8' }}>sur {detailMoyMax}</span></th>
+                                  <th style={{ ...th, textAlign: 'center' }}>Coef.</th>
+                                  <th style={{ ...th, textAlign: 'center' }}>{periodeLabelStr.charAt(0).toUpperCase() + periodeLabelStr.slice(1)}<br /><span style={{ fontSize: 9, fontWeight: 500, color: '#94a3b8' }}>× Coef</span></th>
+                                  <th style={{ ...th, textAlign: 'left', paddingLeft: 8 }}>Appréciations</th>
                                 </tr>
                               </thead>
                               <tbody>
                                 {lignes.map((l, li) => {
-                                  const appreciation = (isPrimaire ? l.moyRamenee : l.moyPeriode) !== null ? getMention(isPrimaire ? l.moyRamenee! : l.moyPeriode!) : '';
+                                  const appreciation = getMention(l.moyPeriode);
                                   return (
                                     <tr key={l.matiere.id} style={{ borderBottom: li < lignes.length - 1 ? '1px solid #f1f5f9' : '1px solid #e6ebf1' }}>
                                       <td style={{ padding: '7px 16px', fontWeight: 600, color: '#0f172a' }}>
                                         {l.matiere.libelle ?? l.matiere.code ?? '—'}
-                                        {isPrimaire && l.noteMax !== 20 && <span style={{ fontSize: 9, color: '#94a3b8', marginLeft: 4 }}>/{l.noteMax}</span>}
                                       </td>
-                                      <td style={{ padding: '7px 4px', textAlign: 'center', fontWeight: 700, color: l.moyDevoirs !== null ? getNoteColor(l.moyDevoirs) : '#d1d5db' }}>{fmt(l.moyDevoirs)}</td>
-                                      <td style={{ padding: '7px 4px', textAlign: 'center', fontWeight: 700, color: l.noteCompo !== null ? getNoteColor(l.noteCompo) : '#d1d5db' }}>{fmt(l.noteCompo)}</td>
-                                      <td style={{ padding: '7px 4px', textAlign: 'center', fontWeight: 800, color: l.moyPeriode !== null ? getNoteColor(l.moyPeriode) : '#d1d5db' }}>{fmt(l.moyPeriode)}</td>
-                                      {isPrimaire && <td style={{ padding: '7px 4px', textAlign: 'center', fontWeight: 800, color: l.moyRamenee !== null ? getNoteColor(l.moyRamenee) : '#d1d5db' }}>{fmt(l.moyRamenee)}</td>}
+                                      <td style={{ padding: '7px 4px', textAlign: 'center', fontWeight: 700, color: getNoteColor(l.moyDevoirs) }}>{fmt1(l.moyDevoirs)}</td>
+                                      <td style={{ padding: '7px 4px', textAlign: 'center', fontWeight: 700, color: getNoteColor(l.noteCompo) }}>{fmt1(l.noteCompo)}</td>
+                                      <td style={{ padding: '7px 4px', textAlign: 'center', fontWeight: 800, color: getNoteColor(l.moyPeriode) }}>{fmt1(l.moyPeriode)}</td>
                                       <td style={{ padding: '7px 4px', textAlign: 'center', color: '#64748b' }}>{l.coef}</td>
-                                      <td style={{ padding: '7px 4px', textAlign: 'center', fontWeight: 700, color: l.periodeXCoef !== null ? '#0f172a' : '#d1d5db' }}>{fmt(l.periodeXCoef)}</td>
+                                      <td style={{ padding: '7px 4px', textAlign: 'center', fontWeight: 700, color: '#0f172a' }}>{fmt2(l.periodeXCoef)}</td>
                                       <td style={{ padding: '7px 8px', fontSize: 11, color: '#475569' }}>{appreciation}</td>
                                     </tr>
                                   );
                                 })}
                                 {detailMatieres.length === 0 && (
-                                  <tr><td colSpan={isPrimaire ? 8 : 7} style={{ padding: '16px', textAlign: 'center', color: '#94a3b8' }}>Aucune matière affectée</td></tr>
+                                  <tr><td colSpan={7} style={{ padding: '16px', textAlign: 'center', color: '#94a3b8' }}>Aucune matière affectée</td></tr>
                                 )}
                               </tbody>
                             </table>
                           </div>
 
-                          {/* Footer bulletin */}
-                          <div style={{ display: 'grid', gridTemplateColumns: isLastPeriode ? '1fr 1fr 1fr' : '1fr 1fr', borderTop: '2px solid #e6ebf1', background: '#f8fafc' }}>
-                            <div style={{ padding: '10px 16px', borderRight: '1px solid #e6ebf1' }}>
-                              <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>Total général</div>
-                              <div style={{ fontSize: 15, fontWeight: 800, color: '#0f172a' }}>{fmt(totalPoints)} <span style={{ fontSize: 11, fontWeight: 400, color: '#94a3b8' }}>sur {totalCoef * detailMoyMax}</span></div>
-                            </div>
-                            <div style={{ padding: '10px 16px', borderRight: isLastPeriode ? '1px solid #e6ebf1' : undefined }}>
-                              <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>Moyenne {periodeLabelStr}</div>
-                              <div style={{ fontSize: 15, fontWeight: 800, color: moyAffichee !== null ? getNoteColor(moyAffichee) : '#64748b' }}>
-                                {fmt(moyAffichee)} <span style={{ fontSize: 11, fontWeight: 400, color: '#94a3b8' }}>sur {detailMoyMax}</span>
+                          {/* Footer bulletin — style bulletin sénégalais */}
+                          <div style={{ borderTop: '2px solid #0f172a', background: '#f8fafc' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', borderBottom: '1px solid #e6ebf1' }}>
+                              <div style={{ padding: '10px 16px', borderRight: '1px solid #e6ebf1' }}>
+                                <div style={{ fontSize: 10, color: '#64748b', fontWeight: 600 }}>Total général</div>
+                                <div style={{ fontSize: 16, fontWeight: 800, color: '#0f172a' }}>{fmt2(totalPoints)} <span style={{ fontSize: 10, fontWeight: 400, color: '#94a3b8' }}>sur {fmt2(totalSur)}</span></div>
+                              </div>
+                              <div style={{ padding: '10px 16px', borderRight: '1px solid #e6ebf1' }}>
+                                <div style={{ fontSize: 10, color: '#64748b', fontWeight: 600 }}>Moyenne {periodeLabelStr}</div>
+                                <div style={{ fontSize: 16, fontWeight: 800, color: moyAffichee !== null ? getNoteColor(moyAffichee) : '#64748b' }}>
+                                  {fmt(moyAffichee)} <span style={{ fontSize: 10, fontWeight: 400, color: '#94a3b8' }}>sur {detailMoyMax}</span>
+                                </div>
+                              </div>
+                              <div style={{ padding: '10px 16px', borderRight: '1px solid #e6ebf1' }}>
+                                <div style={{ fontSize: 10, color: '#64748b', fontWeight: 600 }}>Rang</div>
+                                <div style={{ fontSize: 16, fontWeight: 800, color: '#0f172a' }}>{bul?.rang ? fmtRang(bul.rang) : '—'}</div>
+                              </div>
+                              <div style={{ padding: '10px 16px', display: 'flex', gap: 16 }}>
+                                <div>
+                                  <div style={{ fontSize: 10, color: '#64748b', fontWeight: 600 }}>Absences</div>
+                                  <div style={{ fontSize: 14, fontWeight: 700, color: (bul?.nombreAbsences ?? 0) > 0 ? '#dc2626' : '#0f172a' }}>{bul?.nombreAbsences ?? 0}</div>
+                                </div>
+                                <div>
+                                  <div style={{ fontSize: 10, color: '#64748b', fontWeight: 600 }}>Retards</div>
+                                  <div style={{ fontSize: 14, fontWeight: 700, color: (bul?.nombreRetards ?? 0) > 0 ? '#d97706' : '#0f172a' }}>{bul?.nombreRetards ?? 0}</div>
+                                </div>
                               </div>
                             </div>
                             {isLastPeriode && (
-                              <div style={{ padding: '10px 16px', background: '#fefce8' }}>
-                                <div style={{ fontSize: 11, color: '#92400e', marginBottom: 2, fontWeight: 600 }}>Moyenne générale annuelle</div>
-                                <div style={{ fontSize: 15, fontWeight: 800, color: calcMoyAnnuelle(eleve.id) !== null ? getNoteColor(calcMoyAnnuelle(eleve.id)!) : '#64748b' }}>
-                                  {fmt(calcMoyAnnuelle(eleve.id))} <span style={{ fontSize: 11, fontWeight: 400, color: '#94a3b8' }}>sur {detailMoyMax}</span>
+                              <div style={{ padding: '10px 16px', background: '#fefce8', borderBottom: '1px solid #e6ebf1' }}>
+                                <div style={{ fontSize: 10, color: '#92400e', fontWeight: 600 }}>Moyenne générale annuelle</div>
+                                <div style={{ fontSize: 16, fontWeight: 800, color: calcMoyAnnuelle(eleve.id) !== null ? getNoteColor(calcMoyAnnuelle(eleve.id)!) : '#64748b' }}>
+                                  {fmt(calcMoyAnnuelle(eleve.id))} <span style={{ fontSize: 10, fontWeight: 400, color: '#94a3b8' }}>sur {detailMoyMax}</span>
                                 </div>
                               </div>
                             )}
-                          </div>
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', borderTop: '1px solid #e6ebf1', background: '#f8fafc' }}>
-                            <div style={{ padding: '8px 16px' }}>
-                              <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>Rang</div>
-                              <div style={{ fontSize: 14, fontWeight: 800, color: '#0f172a' }}>{bul?.rang ? `${bul.rang}ème` : '—'}</div>
-                            </div>
-                            <div style={{ padding: '8px 16px', borderLeft: '1px solid #e6ebf1' }}>
-                              <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>Absences</div>
-                              <div style={{ fontSize: 13, fontWeight: 700, color: (bul?.nombreAbsences ?? 0) > 0 ? '#dc2626' : '#0f172a' }}>{bul?.nombreAbsences ?? 0}</div>
-                            </div>
-                            <div style={{ padding: '8px 16px', borderLeft: '1px solid #e6ebf1' }}>
-                              <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>Retards</div>
-                              <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{bul?.nombreRetards ?? 0}</div>
-                            </div>
                           </div>
 
                           {bul?.appreciation && (
