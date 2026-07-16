@@ -65,7 +65,7 @@ const RAPPORTEUR_URLS: Record<RapporteurType, string> = {
   PARENT: '/admin/parents',
 };
 
-type PersonItem = { id: string; firstName?: string; lastName?: string; nom?: string; prenom?: string };
+type PersonItem = { id: string; firstName?: string; lastName?: string; nom?: string; prenom?: string; matricule?: string };
 
 const EMPTY_FORM = {
   classeId: '', classeNom: '', eleveId: '', eleveNom: '',

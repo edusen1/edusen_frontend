@@ -19,7 +19,7 @@ type InscItem = {
   _reduction?: { pourcentage: number; statut: string } | null;
 };
 type EleveResult = { id: string; firstName: string; lastName: string; matricule?: string; photoUrl?: string | null };
-type ClasseItem  = { id: string; nom: string; effectifMax?: number; niveau?: { nom: string; cycle?: { nom: string } } };
+type ClasseItem  = { id: string; nom: string; effectifMax?: number; effectifActuel?: number; nbEleves?: number; placesRestantes?: number; niveau?: { nom: string; cycle?: { nom: string } } };
 type FraisConfig = { section: string; niveau: string; inscription: number; mensualite: number; nbMois: number };
 type AnneeItem   = { id: string; libelle: string };
 type Suggestion  = {
@@ -36,7 +36,7 @@ type FormErrors = {
 type Paiement = {
   id: string; eleveId: string; inscriptionId?: string | null; montant: number; typePaiement: string; modePaiement: string;
   statut: string; anneeScolaire: string; trimestre?: string | null; description?: string | null;
-  reference?: string; transactionId?: string | null; datePaiement?: string | null; createdAt: string;
+  reference?: string; transactionId?: string | null; datePaiement?: string | null; createdAt: string; updatedAt?: string;
   eleve?: { id: string; firstName: string; lastName: string; matricule?: string; classeId?: string; photoUrl?: string | null };
   _montantDu?: number;
   _totalPayeMois?: number;

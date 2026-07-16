@@ -35,7 +35,9 @@ type Affectation = {
 
 export default function MatieresPage() {
   const { data, isLoading } = useAdminMatieres();
-  const matieres: MatiereItem[] = Array.isArray(data) ? data : ((data as Record<string, unknown>)?.content ?? (data as Record<string, unknown>)?.data ?? []);
+  const response = data as Record<string, unknown> | undefined;
+  const rawMatieres = Array.isArray(data) ? data : (response?.content ?? response?.data);
+  const matieres: MatiereItem[] = Array.isArray(rawMatieres) ? rawMatieres : [];
 
   const createMatiere = useCreateMatiere();
   const updateMatiere = useUpdateMatiere();

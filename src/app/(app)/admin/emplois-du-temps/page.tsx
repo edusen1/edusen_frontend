@@ -264,7 +264,9 @@ export default function CoursPage() {
       try {
         const coef = getMatieresWithCoefForClasse(form.classeId).find((m) => m.id === form.matiereId)?.coefficient ?? 1;
         const res = await apiClient.post('/admin/cours', { classeId: form.classeId, matiereId: form.matiereId, enseignantId: form.enseignantId, coefficient: coef });
-        coursId = (res.data?.id ?? (res.data as Record<string, unknown>)?.data?.id) as string | undefined;
+        const responseData = res.data as Record<string, unknown>;
+        const nestedData = responseData.data as Record<string, unknown> | undefined;
+        coursId = (responseData.id ?? nestedData?.id) as string | undefined;
       } catch { /* le cours existe peut-être déjà */ }
     }
     const payload = {

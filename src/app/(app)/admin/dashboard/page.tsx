@@ -47,17 +47,18 @@ function Donut({ segments, size = 80 }: { segments: { value: number; color: stri
   if (total === 0) return <div style={{ width: size, height: size, borderRadius: '50%', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#94a3b8' }}>0</div>;
   const r = size / 2 - 6;
   const c = 2 * Math.PI * r;
-  let offset = 0;
+  const visibleSegments = segments.filter((segment) => segment.value > 0);
   return (
     <div style={{ position: 'relative', width: size, height: size }}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-        {segments.filter((s) => s.value > 0).map((seg, i) => {
+        {visibleSegments.map((seg, i) => {
           const pctVal = seg.value / total;
           const dash = c * pctVal;
           const gap = c - dash;
-          const o = offset;
-          offset += dash;
-          return <circle key={i} cx={size / 2} cy={size / 2} r={r} fill="none" stroke={seg.color} strokeWidth={10} strokeDasharray={`${dash} ${gap}`} strokeDashoffset={-o} transform={`rotate(-90 ${size / 2} ${size / 2})`} />;
+          const offset = visibleSegments
+            .slice(0, i)
+            .reduce((sum, previous) => sum + c * (previous.value / total), 0);
+          return <circle key={i} cx={size / 2} cy={size / 2} r={r} fill="none" stroke={seg.color} strokeWidth={10} strokeDasharray={`${dash} ${gap}`} strokeDashoffset={-offset} transform={`rotate(-90 ${size / 2} ${size / 2})`} />;
         })}
       </svg>
       <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800, color: '#0f172a' }}>{total}</div>

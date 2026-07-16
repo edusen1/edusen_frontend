@@ -8,7 +8,8 @@ type R = Record<string, unknown>;
 type Programme = R & { id: string; titre: string; niveauNom: string; matiereNom: string; statut: string; nbChapitres: number; anneeAcademique?: { libelle: string } };
 type Chapitre = R & { id: string; numero: number; titre: string; dateLimite: string; periode: string; volumeHoraire?: number; evaluationPrevue?: boolean; typeEvaluation?: string };
 type ProgDetail = Programme & { chapitres: Chapitre[] };
-type ChapAvancement = { id: string; numero: number; titre: string; dateLimite: string; periode: string; traite: boolean; enRetard: boolean; joursRetard: number; nbSeances: number };
+type CahierTexte = { id: string; dateCours: string; enseignantNom?: string; classeNom?: string; contenuTraite: string; observations?: string };
+type ChapAvancement = { id: string; numero: number; titre: string; dateLimite: string; periode: string; traite: boolean; enRetard: boolean; joursRetard: number; nbSeances: number; statut?: string; cahiersTexte?: CahierTexte[] };
 type ProgAvancement = { programmeId: string; niveauNom: string; matiereNom: string; annee: string; totalChapitres: number; chapitresTraites: number; pourcentage: number; chapitresEnRetard: number; chapitres: ChapAvancement[] };
 
 type TabKey = 'programmes' | 'avancement';
@@ -409,7 +410,7 @@ export default function ProgrammesPage() {
                             </div>
                             {expanded && (
                               <div style={{ background: '#f8fafc', border: `1px solid ${B}`, borderTop: 'none', padding: '8px 16px' }}>
-                                {item.chapitres.map((ch: any) => {
+                                {item.chapitres.map((ch) => {
                                   const chExpanded = expandedChId === ch.id;
                                   const cahiers = ch.cahiersTexte ?? [];
                                   return (
@@ -430,7 +431,7 @@ export default function ProgrammesPage() {
                                       <div style={{ marginLeft: 32, padding: '6px 0' }}>
                                         {cahiers.length === 0 ? (
                                           <div style={{ fontSize: 11, color: '#94a3b8', padding: '4px 0' }}>Aucun enregistrement de cahier de texte</div>
-                                        ) : cahiers.map((ct: any) => (
+                                        ) : cahiers.map((ct) => (
                                           <div key={ct.id} style={{ padding: '6px 10px', marginBottom: 4, background: '#fff', border: `1px solid ${B}` }}>
                                             <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4 }}>
                                               <span style={{ fontSize: 11, fontWeight: 600, color: '#0f172a' }}>{fmtD(ct.dateCours)}</span>

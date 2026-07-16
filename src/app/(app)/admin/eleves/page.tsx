@@ -576,7 +576,8 @@ export default function ElevesAdminPage() {
         fetchEleves();
       } else {
         const result = await createEleve.mutateAsync(payload);
-        const res = (result as Record<string, unknown>)?.data ?? result as Record<string, unknown>;
+        const resultRecord = result as unknown as Record<string, unknown>;
+        const res = (resultRecord.data ?? resultRecord) as Record<string, unknown>;
         const newId = String((res as Record<string, unknown>)?.id ?? (res as Record<string, unknown>)?.eleveId ?? '');
         let cardUrl = String((res as Record<string, unknown>)?.cardUrl ?? (res as Record<string, unknown>)?.cardImageUrl ?? '');
         if (newId) {
