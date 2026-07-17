@@ -809,7 +809,7 @@ export default function ConfigurationPage() {
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
                     {cycles.map((s) => (
-                      <div key={s.id} style={{ padding: '12px 14px', background: s.actif ? '#f8fafc' : '#f1f5f9', border: '1px solid #e6ebf1' }}>
+                      <div key={s.id} style={{ minHeight: 128, padding: '14px 16px', background: s.actif ? '#f8fafc' : '#f1f5f9', border: '1px solid #e6ebf1', borderRadius: 8, display: 'flex', flexDirection: 'column' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                             {s.seeded && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>}
@@ -825,16 +825,13 @@ export default function ConfigurationPage() {
                             Moyenne /{s.moyenneMaximale ?? 20}
                           </span>
                         </div>
-                        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'flex-end', marginTop: 'auto', paddingTop: 10, borderTop: '1px solid #e6ebf1' }}>
                           {!s.seeded && (
-                            <>
-                              <button onClick={() => { setEditCycleId(s.id); setCycleForm({ nom: s.nom, typePeriode: s.typePeriode ?? 'TRIMESTRE' }); setShowCycleModal(true); }} style={{ fontSize: 11, color: '#2563eb', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}>
-                                Modifier
-                              </button>
-                              <span style={{ color: '#e2e8f0' }}>|</span>
-                            </>
+                            <button onClick={() => { setEditCycleId(s.id); setCycleForm({ nom: s.nom, typePeriode: s.typePeriode ?? 'TRIMESTRE' }); setShowCycleModal(true); }} style={{ height: 28, padding: '0 10px', fontSize: 11, fontWeight: 600, color: '#2563eb', border: '1px solid #bfdbfe', borderRadius: 6, background: '#eff6ff', cursor: 'pointer', fontFamily: 'inherit' }}>
+                              Modifier
+                            </button>
                           )}
-                          <button onClick={() => handleToggleCycle(s)} style={{ fontSize: 11, color: s.actif ? '#dc2626' : '#16a34a', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}>
+                          <button onClick={() => handleToggleCycle(s)} style={{ height: 28, padding: '0 10px', fontSize: 11, fontWeight: 600, color: s.actif ? '#dc2626' : '#16a34a', border: `1px solid ${s.actif ? '#fecaca' : '#bbf7d0'}`, borderRadius: 6, background: s.actif ? '#fff1f2' : '#f0fdf4', cursor: 'pointer', fontFamily: 'inherit' }}>
                             {s.actif ? 'Désactiver' : 'Activer'}
                           </button>
                         </div>
@@ -859,7 +856,7 @@ export default function ConfigurationPage() {
                     </div>
                   </div>
                   <div style={{ overflowX: 'auto', maxWidth: '100%', WebkitOverflowScrolling: 'touch' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '110px 110px 120px 120px 75px 95px', minWidth: 630, padding: '10px 14px', background: '#f8fafc', borderBottom: '1px solid #e6ebf1' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(120px, 1.1fr) minmax(110px, 1fr) minmax(130px, 1fr) minmax(130px, 1fr) minmax(80px, .65fr) minmax(120px, 1fr)', minWidth: 760, padding: '10px 14px', background: '#f8fafc', borderBottom: '1px solid #e6ebf1' }}>
                       {['Cycle', 'Niveau', 'Inscription', 'Mensualité', 'Nb Mois', 'Total/an'].map((h) => (
                         <span key={h} style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.04em' }}>{h}</span>
                       ))}
@@ -867,7 +864,7 @@ export default function ConfigurationPage() {
                     {fraisList.map((f, idx) => {
                       const key = `${f.section}::${f.niveau}`;
                       return (
-                      <div key={key} style={{ display: 'grid', gridTemplateColumns: '110px 110px 120px 120px 75px 95px', minWidth: 630, padding: '11px 14px', borderBottom: idx < fraisList.length - 1 ? '1px solid #eef2f6' : 'none', alignItems: 'center' }}>
+                      <div key={key} style={{ display: 'grid', gridTemplateColumns: 'minmax(120px, 1.1fr) minmax(110px, 1fr) minmax(130px, 1fr) minmax(130px, 1fr) minmax(80px, .65fr) minmax(120px, 1fr)', minWidth: 760, padding: '11px 14px', borderBottom: idx < fraisList.length - 1 ? '1px solid #eef2f6' : 'none', alignItems: 'center' }}>
                         <span style={{ fontSize: 12, fontWeight: 600, color: '#475569' }}>{f.section}</span>
                         <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{f.niveau}</span>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -876,7 +873,7 @@ export default function ConfigurationPage() {
                             value={f.inscription}
                             onChange={(e) => setFraisList((prev) => prev.map((x) => `${x.section}::${x.niveau}` === key ? { ...x, inscription: Number(e.target.value) } : x))}
                             onFocus={(e) => e.target.select()}
-                            style={{ width: 90, height: 30, border: '1px solid #d9e0e8', padding: '0 8px', fontSize: 12, fontFamily: 'inherit', outline: 'none' }}
+                            style={{ width: '100%', maxWidth: 140, boxSizing: 'border-box', height: 30, border: '1px solid #d9e0e8', padding: '0 8px', fontSize: 12, fontFamily: 'inherit', outline: 'none' }}
                           />
                         </div>
                         <div>
@@ -885,7 +882,7 @@ export default function ConfigurationPage() {
                             value={f.mensualite}
                             onChange={(e) => setFraisList((prev) => prev.map((x) => `${x.section}::${x.niveau}` === key ? { ...x, mensualite: Number(e.target.value) } : x))}
                             onFocus={(e) => e.target.select()}
-                            style={{ width: 90, height: 30, border: '1px solid #d9e0e8', padding: '0 8px', fontSize: 12, fontFamily: 'inherit', outline: 'none' }}
+                            style={{ width: '100%', maxWidth: 140, boxSizing: 'border-box', height: 30, border: '1px solid #d9e0e8', padding: '0 8px', fontSize: 12, fontFamily: 'inherit', outline: 'none' }}
                           />
                         </div>
                         <div>
@@ -893,7 +890,7 @@ export default function ConfigurationPage() {
                             type="number"
                             value={f.nbMois}
                             onChange={(e) => setFraisList((prev) => prev.map((x) => `${x.section}::${x.niveau}` === key ? { ...x, nbMois: Number(e.target.value) } : x))}
-                            style={{ width: 55, height: 30, border: '1px solid #d9e0e8', padding: '0 8px', fontSize: 12, fontFamily: 'inherit', outline: 'none' }}
+                            style={{ width: '100%', maxWidth: 70, boxSizing: 'border-box', height: 30, border: '1px solid #d9e0e8', padding: '0 8px', fontSize: 12, fontFamily: 'inherit', outline: 'none' }}
                             min={1} max={12}
                           />
                         </div>
@@ -911,7 +908,7 @@ export default function ConfigurationPage() {
 
             {/* Niveaux — moyenne de passage */}
             {!loadingCycles && (
-              <div style={{ background: '#fff', border: '1px solid #e6ebf1', marginTop: 20 }}>
+              <div style={{ background: '#fff', border: '1px solid #e6ebf1', margin: '20px auto 0', width: '100%', maxWidth: 960, overflowX: 'auto' }}>
                 <div style={{ padding: '14px 20px', borderBottom: '1px solid #e6ebf1', fontSize: 13, fontWeight: 700, color: '#0f172a' }}>
                   Moyenne de passage par niveau
                 </div>
@@ -919,13 +916,13 @@ export default function ConfigurationPage() {
                   <div style={{ padding: '24px 20px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Aucun niveau configuré</div>
                 ) : (
                   <>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px 160px 90px', padding: '10px 20px', background: '#f8fafc', borderBottom: '1px solid #e6ebf1' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(180px, 1.4fr) minmax(130px, 1fr) 180px 120px', minWidth: 700, padding: '10px 20px', background: '#f8fafc', borderBottom: '1px solid #e6ebf1' }}>
                       {['Niveau', 'Cycle', 'Moy. passage (0–20)', 'Action'].map((h) => (
                         <span key={h} style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.04em' }}>{h}</span>
                       ))}
                     </div>
                     {niveauxConfig.map((n, idx) => (
-                      <div key={n.id} style={{ display: 'grid', gridTemplateColumns: '1fr 120px 160px 90px', padding: '11px 20px', borderBottom: idx < niveauxConfig.length - 1 ? '1px solid #f1f5f9' : 'none', alignItems: 'center' }}>
+                      <div key={n.id} style={{ display: 'grid', gridTemplateColumns: 'minmax(180px, 1.4fr) minmax(130px, 1fr) 180px 120px', minWidth: 700, padding: '11px 20px', borderBottom: idx < niveauxConfig.length - 1 ? '1px solid #f1f5f9' : 'none', alignItems: 'center' }}>
                         <span style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{n.nom}</span>
                         <span style={{ fontSize: 12, color: '#64748b' }}>{n.section}</span>
                         <input
