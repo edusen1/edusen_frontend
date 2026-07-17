@@ -230,7 +230,7 @@ export default function ConfigurationPage() {
         setFraisList(fraisRes.data ?? []);
         const d = nvRes.data as Record<string, unknown>;
         const niveaux = (Array.isArray(d) ? d : (d?.data ?? d?.content ?? [])) as NiveauConfigItem[];
-        niveaux.sort((a, b) => a.section.localeCompare(b.section) || a.nom.localeCompare(b.nom));
+
         setNiveauxConfig(niveaux);
       })
       .catch(() => {})
