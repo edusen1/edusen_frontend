@@ -4,24 +4,24 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { AppSidebar } from '@/components/layout/app-sidebar';
-import { BottomNav } from '@/components/layout/bottom-nav';
+
 import { useAuthStore } from '@/stores/auth-store';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sidebarHidden, setSidebarHidden] = useState(false);
-  const { session, user } = useAuthStore();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const { session } = useAuthStore();
   const router = useRouter();
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    setSidebarHidden(window.localStorage.getItem('sidebar-hidden') === 'true');
+    setSidebarCollapsed(window.localStorage.getItem('sidebar-collapsed') === 'true');
   }, []);
 
   const toggleDesktopSidebar = () => {
-    setSidebarHidden((hidden) => {
+    setSidebarCollapsed((hidden) => {
       const next = !hidden;
-      window.localStorage.setItem('sidebar-hidden', String(next));
+      window.localStorage.setItem('sidebar-collapsed', String(next));
       return next;
     });
   };
@@ -46,20 +46,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#f5f7fa' }}>
       {/* Desktop sidebar — all roles */}
-      {!sidebarHidden && (
-        <div className="hidden lg:flex" style={{ flexShrink: 0 }}>
-          <AppSidebar />
-        </div>
-      )}
+      <div className="hidden lg:flex" style={{ flexShrink: 0 }}>
+        <AppSidebar collapsed={sidebarCollapsed} />
+      </div>
 
       <button
         type="button"
         className="hidden lg:flex"
         onClick={toggleDesktopSidebar}
-        title={sidebarHidden ? 'Afficher la sidebar' : 'Masquer la sidebar'}
-        aria-label={sidebarHidden ? 'Afficher la sidebar' : 'Masquer la sidebar'}
+        title={sidebarCollapsed ? 'Développer la sidebar' : 'Réduire la sidebar'}
+        aria-label={sidebarCollapsed ? 'Développer la sidebar' : 'Réduire la sidebar'}
         style={{
-          position: 'fixed', top: 16, left: sidebarHidden ? 12 : 236, zIndex: 60,
+          position: 'fixed', top: 16, left: sidebarCollapsed ? 52 : 236, zIndex: 60,
           width: 32, height: 32, alignItems: 'center', justifyContent: 'center',
           border: '1px solid #334155', borderRadius: 8, background: '#0f172a',
           color: '#fff', cursor: 'pointer', boxShadow: '0 4px 12px rgba(15,23,42,.2)',
@@ -67,7 +65,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         }}
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          {sidebarHidden ? <path d="m9 18 6-6-6-6" /> : <path d="m15 18-6-6 6-6" />}
+          {sidebarCollapsed ? <path d="m9 18 6-6-6-6" /> : <path d="m15 18-6-6 6-6" />}
         </svg>
       </button>
 

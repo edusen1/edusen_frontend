@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react';
 import { apiClient } from '@/lib/api/client';
 
 const SIDEBAR_W = 264;
+const SIDEBAR_COLLAPSED_W = 72;
 
 function schoolInitials(nom: string): string {
   return nom
@@ -210,7 +211,7 @@ const sectionsByRole: Record<UserRole, NavSection[]> = {
   PARENT: parentSections,
 };
 
-export function AppSidebar({ onClose }: { onClose?: () => void }) {
+export function AppSidebar({ onClose, collapsed = false }: { onClose?: () => void; collapsed?: boolean }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, clearSession } = useAuthStore();
@@ -280,12 +281,12 @@ export function AppSidebar({ onClose }: { onClose?: () => void }) {
   const displayLabel = ecoleNom ? schoolLabel(ecoleNom) : 'NS';
 
   // Don't render until store is hydrated or if user is not set (logging out)
-  if (!hydrated || !user) return <aside style={{ width: SIDEBAR_W, flexShrink: 0, background: '#0f172a', height: '100%' }} />;
+  if (!hydrated || !user) return <aside style={{ width: collapsed ? SIDEBAR_COLLAPSED_W : SIDEBAR_W, flexShrink: 0, background: '#0f172a', height: '100%' }} />;
 
   return (
-    <aside style={{ width: SIDEBAR_W, flexShrink: 0, background: '#0f172a', display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <aside style={{ width: collapsed ? SIDEBAR_COLLAPSED_W : SIDEBAR_W, flexShrink: 0, background: '#0f172a', display: 'flex', flexDirection: 'column', height: '100%', transition: 'width 180ms ease', overflow: 'hidden' }}>
       {/* Logo école */}
-      <div style={{ padding: '16px 14px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid #1e293b', minHeight: 64 }}>
+      <div style={{ padding: collapsed ? '16px 18px' : '16px 14px', display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'flex-start', gap: 10, borderBottom: '1px solid #1e293b', minHeight: 64 }}>
         {/* Avatar : logo ou initiales */}
         <div style={{ width: 36, height: 36, flexShrink: 0, background: '#1e293b', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderRadius: 6, border: '1px solid #334155' }}>
           {ecoleLogo ? (
@@ -298,7 +299,7 @@ export function AppSidebar({ onClose }: { onClose?: () => void }) {
           )}
         </div>
         {/* Nom */}
-        <span
+        {!collapsed && <span
           title={ecoleNom || 'Noura School'}
           style={{
             color: '#f1f5f9',
@@ -312,11 +313,11 @@ export function AppSidebar({ onClose }: { onClose?: () => void }) {
           }}
         >
           {ecoleNom || 'Noura School'}
-        </span>
+        </span>}
       </div>
 
       {/* Role switcher */}
-      {(user?.allRoles?.length ?? 0) > 1 && (
+      {!collapsed && (user?.allRoles?.length ?? 0) > 1 && (
         <div style={{ padding: '8px 10px', borderBottom: '1px solid #1e293b' }}>
           <select
             value={role}
@@ -348,7 +349,7 @@ export function AppSidebar({ onClose }: { onClose?: () => void }) {
       <nav style={{ flex: 1, overflowY: 'auto', padding: '8px 6px', scrollbarWidth: 'none' }}>
         {sections.map((section, si) => (
           <div key={si}>
-            {section.label && (
+            {section.label && !collapsed && (
               <div style={{ fontSize: 10, color: '#475569', fontWeight: 700, letterSpacing: '.08em', padding: '10px 10px 4px' }}>
                 {section.label}
               </div>
@@ -385,15 +386,15 @@ export function AppSidebar({ onClose }: { onClose?: () => void }) {
       </nav>
 
       {/* User footer */}
-      <div style={{ padding: '12px', borderTop: '1px solid #1e293b', display: 'flex', alignItems: 'center', gap: 10 }}>
-        <Link href={profilHref} style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0, textDecoration: 'none' }}>
+      <div style={{ padding: collapsed ? '10px 8px' : '12px', borderTop: '1px solid #1e293b', display: 'flex', flexDirection: collapsed ? 'column' : 'row', alignItems: 'center', gap: collapsed ? 8 : 10 }}>
+        <Link href={profilHref} title={collapsed ? fullName : undefined} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: collapsed ? 0 : 10, flex: collapsed ? 'none' : 1, minWidth: 0, textDecoration: 'none' }}>
           <div style={{ width: 32, height: 32, background: '#1e293b', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
             {initials}
           </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
+          {!collapsed && <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 12, fontWeight: 600, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{fullName}</div>
             <div style={{ fontSize: 10, color: '#64748b' }}>{roleLabel}</div>
-          </div>
+          </div>}
         </Link>
         <button
           onClick={() => { clearSession(); router.push('/login'); }}
