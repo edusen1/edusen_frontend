@@ -51,6 +51,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Verify frontend API configuration
+        shell: bash
+        env:
+          NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL }}
+        run: |
+          echo "NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-<missing>}"
+          if [ -z "$NEXT_PUBLIC_API_URL" ]; then
+            echo "::error::NEXT_PUBLIC_API_URL is missing in Settings > Environments > preproduction > Variables."
+            exit 1
+          fi
+          echo "Checking backend readiness..."
+          curl --fail-with-body --silent --show-error "$NEXT_PUBLIC_API_URL/health/ready"
+          echo
+
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
 
