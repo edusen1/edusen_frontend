@@ -797,7 +797,7 @@ export default function ConfigurationPage() {
         {activeTab === 'cycles' && (
           <div>
             {loadingCycles && <div style={{ textAlign: 'center', padding: '40px 0', color: '#64748b', fontSize: 13 }}>Chargement…</div>}
-            {!loadingCycles && <div style={{ display: 'flex', gap: 20, marginBottom: 20 }}>
+            {!loadingCycles && <div style={{ display: 'grid', gridTemplateColumns: 'minmax(260px, 320px) minmax(0, 1fr)', gap: 20, marginBottom: 20, width: '100%', maxWidth: '100%' }}>
               {/* Cycles list */}
               <div style={{ width: 320, flexShrink: 0 }}>
                 <div style={{ background: '#fff', border: '1px solid #e6ebf1', padding: 20 }}>
@@ -845,8 +845,8 @@ export default function ConfigurationPage() {
               </div>
 
               {/* Frais table */}
-              <div style={{ flex: 1 }}>
-                <div style={{ background: '#fff', border: '1px solid #e6ebf1', padding: 20 }}>
+              <div style={{ minWidth: 0, maxWidth: '100%', overflow: 'hidden' }}>
+                <div style={{ background: '#fff', border: '1px solid #e6ebf1', padding: 20, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
                     <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>Frais par niveau</span>
                     <div style={{ display: 'flex', gap: 8 }}>
@@ -858,8 +858,8 @@ export default function ConfigurationPage() {
                       </button>
                     </div>
                   </div>
-                  <div style={{ overflowX: 'auto' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '120px 120px 130px 130px 80px 100px', padding: '10px 14px', background: '#f8fafc', borderBottom: '1px solid #e6ebf1' }}>
+                  <div style={{ overflowX: 'auto', maxWidth: '100%', WebkitOverflowScrolling: 'touch' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '110px 110px 120px 120px 75px 95px', minWidth: 630, padding: '10px 14px', background: '#f8fafc', borderBottom: '1px solid #e6ebf1' }}>
                       {['Cycle', 'Niveau', 'Inscription', 'Mensualité', 'Nb Mois', 'Total/an'].map((h) => (
                         <span key={h} style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.04em' }}>{h}</span>
                       ))}
@@ -867,7 +867,7 @@ export default function ConfigurationPage() {
                     {fraisList.map((f, idx) => {
                       const key = `${f.section}::${f.niveau}`;
                       return (
-                      <div key={key} style={{ display: 'grid', gridTemplateColumns: '120px 120px 130px 130px 80px 100px', padding: '11px 14px', borderBottom: idx < fraisList.length - 1 ? '1px solid #eef2f6' : 'none', alignItems: 'center' }}>
+                      <div key={key} style={{ display: 'grid', gridTemplateColumns: '110px 110px 120px 120px 75px 95px', minWidth: 630, padding: '11px 14px', borderBottom: idx < fraisList.length - 1 ? '1px solid #eef2f6' : 'none', alignItems: 'center' }}>
                         <span style={{ fontSize: 12, fontWeight: 600, color: '#475569' }}>{f.section}</span>
                         <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{f.niveau}</span>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
