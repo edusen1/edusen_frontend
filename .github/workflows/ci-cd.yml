@@ -62,8 +62,15 @@ jobs:
             exit 1
           fi
           echo "Checking backend readiness..."
-          curl --fail-with-body --silent --show-error "$NEXT_PUBLIC_API_URL/health/ready"
-          echo
+          if curl --fail-with-body --silent --show-error \
+            --retry 6 --retry-delay 10 --retry-all-errors \
+            "$NEXT_PUBLIC_API_URL/health/ready"; then
+            echo
+            echo "Backend is ready."
+          else
+            echo
+            echo "::warning::Backend is temporarily unavailable after retries. The frontend image will still be built and published."
+          fi
 
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
