@@ -846,7 +846,7 @@ export default function ConfigurationPage() {
                       <div key={s.id} style={{ minHeight: 128, padding: '14px 16px', background: s.actif ? '#f8fafc' : '#f1f5f9', border: '1px solid #e6ebf1', borderRadius: 8, display: 'flex', flexDirection: 'column' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            {s.seeded && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>}
+
                             <span style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>{s.nom}</span>
                           </div>
                           <span style={{ fontSize: 10, fontWeight: 700, color: s.actif ? '#16a34a' : '#dc2626', background: s.actif ? '#dcfce7' : '#fee2e2', padding: '2px 6px' }}>{s.actif ? 'Actif' : 'Inactif'}</span>
@@ -860,11 +860,9 @@ export default function ConfigurationPage() {
                           </span>
                         </div>
                         <div style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'flex-end', marginTop: 'auto', paddingTop: 10, borderTop: '1px solid #e6ebf1' }}>
-                          {!s.seeded && (
-                            <button onClick={() => { setEditCycleId(s.id); setCycleForm({ nom: s.nom, typePeriode: s.typePeriode ?? 'TRIMESTRE' }); setShowCycleModal(true); }} style={{ height: 28, padding: '0 10px', fontSize: 11, fontWeight: 600, color: '#2563eb', border: '1px solid #bfdbfe', borderRadius: 6, background: '#eff6ff', cursor: 'pointer', fontFamily: 'inherit' }}>
-                              Modifier
-                            </button>
-                          )}
+                          <button onClick={() => { setEditCycleId(s.id); setCycleForm({ nom: s.nom, typePeriode: s.typePeriode ?? 'TRIMESTRE' }); setShowCycleModal(true); }} style={{ height: 28, padding: '0 10px', fontSize: 11, fontWeight: 600, color: '#2563eb', border: '1px solid #bfdbfe', borderRadius: 6, background: '#eff6ff', cursor: 'pointer', fontFamily: 'inherit' }}>
+                            Modifier
+                          </button>
                           <button onClick={() => handleToggleCycle(s)} style={{ height: 28, padding: '0 10px', fontSize: 11, fontWeight: 600, color: s.actif ? '#dc2626' : '#16a34a', border: `1px solid ${s.actif ? '#fecaca' : '#bbf7d0'}`, borderRadius: 6, background: s.actif ? '#fff1f2' : '#f0fdf4', cursor: 'pointer', fontFamily: 'inherit' }}>
                             {s.actif ? 'Désactiver' : 'Activer'}
                           </button>
