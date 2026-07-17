@@ -797,9 +797,9 @@ export default function ConfigurationPage() {
         {activeTab === 'cycles' && (
           <div>
             {loadingCycles && <div style={{ textAlign: 'center', padding: '40px 0', color: '#64748b', fontSize: 13 }}>Chargement…</div>}
-            {!loadingCycles && <div style={{ display: 'grid', gridTemplateColumns: 'minmax(260px, 320px) minmax(0, 1fr)', gap: 20, marginBottom: 20, width: '100%', maxWidth: '100%' }}>
+            {!loadingCycles && <div style={{ marginBottom: 20, width: '100%', maxWidth: '100%' }}>
               {/* Cycles list */}
-              <div style={{ width: 320, flexShrink: 0 }}>
+              <div style={{ width: '100%' }}>
                 <div style={{ background: '#fff', border: '1px solid #e6ebf1', padding: 20 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
                     <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>Cycles</span>
@@ -807,7 +807,7 @@ export default function ConfigurationPage() {
                       + Ajouter
                     </button>
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
                     {cycles.map((s) => (
                       <div key={s.id} style={{ padding: '12px 14px', background: s.actif ? '#f8fafc' : '#f1f5f9', border: '1px solid #e6ebf1' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
@@ -845,7 +845,7 @@ export default function ConfigurationPage() {
               </div>
 
               {/* Frais table */}
-              <div style={{ minWidth: 0, maxWidth: '100%', overflow: 'hidden' }}>
+              <div style={{ minWidth: 0, maxWidth: '100%', overflow: 'hidden', marginTop: 20 }}>
                 <div style={{ background: '#fff', border: '1px solid #e6ebf1', padding: 20, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
                     <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>Frais par niveau</span>
