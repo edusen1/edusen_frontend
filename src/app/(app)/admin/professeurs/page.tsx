@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { apiClient } from '@/lib/api/client';
+import { formatFirstName, formatLastName } from '@/lib/person-name';
 import { useAdminProfesseurs, useAdminMatieres, useCreateProfesseur, useUpdateProfesseur } from '@/hooks/use-query-api';
 
 type ProfItem = Record<string, unknown>;
@@ -251,8 +252,8 @@ export default function ProfesseursPage() {
     setSaving(true);
     try {
       const payload: Record<string, unknown> = {
-        firstName:  form.prenom.trim(),
-        lastName:   form.nom.trim(),
+        firstName:  formatFirstName(form.prenom.trim()),
+        lastName:   formatLastName(form.nom.trim()),
         email:      form.email.trim(),
         telephone:  form.telephone.trim() || undefined,
         matricule:  form.matricule.trim() || undefined,
@@ -673,8 +674,9 @@ export default function ProfesseursPage() {
                       value={form[key as keyof typeof form]}
                       onChange={(e) => {
                         let v = e.target.value;
-                        if (key === 'nom' || key === 'adresse') v = v.toUpperCase();
-                        else if (key === 'prenom') v = v.replace(/\b\w/g, (c) => c.toUpperCase());
+                        if (key === 'nom') v = formatLastName(v);
+                        else if (key === 'adresse') v = v.toUpperCase();
+                        else if (key === 'prenom') v = formatFirstName(v);
                         setForm((f) => ({ ...f, [key]: v }));
                       }}
                       placeholder={placeholder}

@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useAdminParents, useCreateParent, useUpdateParent } from '@/hooks/use-query-api';
 import { apiClient } from '@/lib/api/client';
+import { formatFirstName, formatLastName } from '@/lib/person-name';
 
 const EMPTY_FORM = { prenom: '', nom: '', telephone: '', email: '' };
 
@@ -194,9 +195,10 @@ export default function ParentsPage() {
 
   const handleSubmit = () => {
     if (!form.prenom || !form.nom || !form.telephone) return;
+    const normalizedForm = { ...form, prenom: formatFirstName(form.prenom.trim()), nom: formatLastName(form.nom.trim()) };
     if (editId) {
       const currentEditId = editId;
-      updateParent.mutate({ id: currentEditId, data: form }, {
+      updateParent.mutate({ id: currentEditId, data: normalizedForm }, {
         onSuccess: async () => {
           if (photoChanged && photoFile) {
             try {
@@ -210,7 +212,7 @@ export default function ParentsPage() {
         },
       });
     } else {
-      createParent.mutate(form, { onSuccess: () => { setShowModal(false); } });
+      createParent.mutate(normalizedForm, { onSuccess: () => { setShowModal(false); } });
     }
   };
 
@@ -501,11 +503,11 @@ export default function ParentsPage() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
               <div>
                 <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 5 }}>Prénom *</label>
-                <input value={form.prenom} onChange={(event) => setForm((current) => ({ ...current, prenom: event.target.value }))} placeholder="Ibrahima" style={{ width: '100%', height: 38, border: '1px solid #d9e0e8', padding: '0 12px', fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
+                <input value={form.prenom} onChange={(event) => setForm((current) => ({ ...current, prenom: formatFirstName(event.target.value) }))} placeholder="Ibrahima" style={{ width: '100%', height: 38, border: '1px solid #d9e0e8', padding: '0 12px', fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
               </div>
               <div>
                 <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 5 }}>Nom *</label>
-                <input value={form.nom} onChange={(event) => setForm((current) => ({ ...current, nom: event.target.value }))} placeholder="Diallo" style={{ width: '100%', height: 38, border: '1px solid #d9e0e8', padding: '0 12px', fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
+                <input value={form.nom} onChange={(event) => setForm((current) => ({ ...current, nom: formatLastName(event.target.value) }))} placeholder="Diallo" style={{ width: '100%', height: 38, border: '1px solid #d9e0e8', padding: '0 12px', fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
               </div>
             </div>
             <div style={{ marginBottom: 14 }}>

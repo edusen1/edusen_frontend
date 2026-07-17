@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { apiClient } from '@/lib/api/client';
+import { formatFirstName, formatLastName } from '@/lib/person-name';
 import { useCreateEleve, useUpdateEleve } from '@/hooks/use-query-api';
 
 type EleveItem = Record<string, unknown>;
@@ -527,8 +528,8 @@ export default function ElevesAdminPage() {
     setCreatingParent(true);
     try {
       const r = await apiClient.post('/admin/parents', {
-        firstName: parentForm.prenom.trim(),
-        lastName:  parentForm.nom.trim(),
+        firstName: formatFirstName(parentForm.prenom.trim()),
+        lastName:  formatLastName(parentForm.nom.trim()),
         telephone: parentForm.telephone.trim() || undefined,
         email:     parentForm.email.trim()     || undefined,
       });
@@ -554,8 +555,8 @@ export default function ElevesAdminPage() {
     setSaving(true);
     try {
       const payload: Record<string, unknown> = {
-        firstName:     form.prenom.trim(),
-        lastName:      form.nom.trim(),
+        firstName:     formatFirstName(form.prenom.trim()),
+        lastName:      formatLastName(form.nom.trim()),
         dateNaissance: form.dateNaissance || undefined,
         lieuNaissance: form.lieuNaissance.trim() || undefined,
         genre:         form.genre,
@@ -788,14 +789,14 @@ export default function ElevesAdminPage() {
                 {/* Prénom */}
                 <div>
                   <label style={lbl()}>Prénom <span style={{ color: '#dc2626' }}>*</span></label>
-                  <input value={form.prenom} onChange={(e) => { setField('prenom', e.target.value.replace(/\b\w/g, (c) => c.toUpperCase())); setErrors((er) => ({ ...er, prenom: undefined })); }} placeholder="Awa" style={inp(errors.prenom ? { borderColor: '#dc2626' } : {})} />
+                  <input value={form.prenom} onChange={(e) => { setField('prenom', formatFirstName(e.target.value)); setErrors((er) => ({ ...er, prenom: undefined })); }} placeholder="Awa" style={inp(errors.prenom ? { borderColor: '#dc2626' } : {})} />
                   {errors.prenom && <div style={{ fontSize: 11, color: '#dc2626', marginTop: 3 }}>{errors.prenom}</div>}
                 </div>
 
                 {/* Nom */}
                 <div>
                   <label style={lbl()}>Nom <span style={{ color: '#dc2626' }}>*</span></label>
-                  <input value={form.nom} onChange={(e) => { setField('nom', e.target.value.toUpperCase()); setErrors((er) => ({ ...er, nom: undefined })); }} placeholder="NDIAYE" style={inp(errors.nom ? { borderColor: '#dc2626' } : {})} />
+                  <input value={form.nom} onChange={(e) => { setField('nom', formatLastName(e.target.value)); setErrors((er) => ({ ...er, nom: undefined })); }} placeholder="NDIAYE" style={inp(errors.nom ? { borderColor: '#dc2626' } : {})} />
                   {errors.nom && <div style={{ fontSize: 11, color: '#dc2626', marginTop: 3 }}>{errors.nom}</div>}
                 </div>
 
@@ -955,7 +956,10 @@ export default function ElevesAdminPage() {
                         <label style={lbl()}>{label}</label>
                         <input
                           value={parentForm[key as keyof typeof parentForm]}
-                          onChange={(e) => setParentForm((pf) => ({ ...pf, [key]: e.target.value }))}
+                          onChange={(e) => {
+                            const value = key === 'prenom' ? formatFirstName(e.target.value) : key === 'nom' ? formatLastName(e.target.value) : e.target.value;
+                            setParentForm((pf) => ({ ...pf, [key]: value }));
+                          }}
                           placeholder={placeholder}
                           style={inp()}
                         />

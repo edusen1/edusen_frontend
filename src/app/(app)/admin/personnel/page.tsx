@@ -4,6 +4,7 @@ import { useState, useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { apiClient } from '@/lib/api/client';
+import { formatFirstName, formatLastName } from '@/lib/person-name';
 import {
   useAdminPersonnel,
   useCreatePersonnel,
@@ -318,8 +319,8 @@ export default function PersonnelPage() {
     if (!form.prenom.trim() || !form.nom.trim()) { toast.error('Prénom et nom requis'); return; }
     if (needsSection && !form.sectionId) { toast.error('Section requise pour ce type'); return; }
     const payload: Record<string, unknown> = {
-      prenom: form.prenom.trim(),
-      nom: form.nom.trim(),
+      prenom: formatFirstName(form.prenom.trim()),
+      nom: formatLastName(form.nom.trim()),
       email: form.email.trim() || undefined,
       telephone: form.telephone.trim() || undefined,
       adresse: form.adresse.trim() || undefined,
@@ -750,8 +751,9 @@ export default function PersonnelPage() {
                   <input type={type ?? 'text'} value={(form as Record<string, unknown>)[key] as string}
                     onChange={(e) => {
                       let v = e.target.value;
-                      if (key === 'nom' || key === 'adresse') v = v.toUpperCase();
-                      else if (key === 'prenom') v = v.replace(/\b\w/g, (c) => c.toUpperCase());
+                      if (key === 'nom') v = formatLastName(v);
+                      else if (key === 'adresse') v = v.toUpperCase();
+                      else if (key === 'prenom') v = formatFirstName(v);
                       setForm((f) => ({ ...f, [key]: v }));
                     }} placeholder={placeholder}
                     style={{ width: '100%', height: 38, border: '1px solid #d9e0e8', padding: '0 12px', fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
