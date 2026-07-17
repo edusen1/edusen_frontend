@@ -211,7 +211,7 @@ const sectionsByRole: Record<UserRole, NavSection[]> = {
   PARENT: parentSections,
 };
 
-export function AppSidebar({ onClose, collapsed = false }: { onClose?: () => void; collapsed?: boolean }) {
+export function AppSidebar({ onClose, collapsed = false, onToggleCollapse }: { onClose?: () => void; collapsed?: boolean; onToggleCollapse?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, clearSession } = useAuthStore();
@@ -286,7 +286,13 @@ export function AppSidebar({ onClose, collapsed = false }: { onClose?: () => voi
   return (
     <aside style={{ width: collapsed ? SIDEBAR_COLLAPSED_W : SIDEBAR_W, flexShrink: 0, background: '#0f172a', display: 'flex', flexDirection: 'column', height: '100%', transition: 'width 180ms ease', overflow: 'hidden' }}>
       {/* Logo école */}
-      <div style={{ padding: collapsed ? '16px 18px' : '16px 14px', display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'flex-start', gap: 10, borderBottom: '1px solid #1e293b', minHeight: 64 }}>
+      <button
+        type="button"
+        onClick={onToggleCollapse}
+        title={onToggleCollapse ? (collapsed ? 'Développer la sidebar' : 'Réduire la sidebar') : undefined}
+        aria-label={onToggleCollapse ? (collapsed ? 'Développer la sidebar' : 'Réduire la sidebar') : undefined}
+        style={{ width: '100%', padding: collapsed ? '16px 18px' : '16px 14px', display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'flex-start', gap: 10, border: 'none', borderBottom: '1px solid #1e293b', background: 'transparent', minHeight: 64, cursor: onToggleCollapse ? 'pointer' : 'default', fontFamily: 'inherit', textAlign: 'left' }}
+      >
         {/* Avatar : logo ou initiales */}
         <div style={{ width: 36, height: 36, flexShrink: 0, background: '#1e293b', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderRadius: 6, border: '1px solid #334155' }}>
           {ecoleLogo ? (
@@ -314,7 +320,7 @@ export function AppSidebar({ onClose, collapsed = false }: { onClose?: () => voi
         >
           {ecoleNom || 'Noura School'}
         </span>}
-      </div>
+      </button>
 
       {/* Role switcher */}
       {!collapsed && (user?.allRoles?.length ?? 0) > 1 && (

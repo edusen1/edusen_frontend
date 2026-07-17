@@ -47,27 +47,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#f5f7fa' }}>
       {/* Desktop sidebar — all roles */}
       <div className="hidden lg:flex" style={{ flexShrink: 0 }}>
-        <AppSidebar collapsed={sidebarCollapsed} />
+        <AppSidebar collapsed={sidebarCollapsed} onToggleCollapse={toggleDesktopSidebar} />
       </div>
-
-      <button
-        type="button"
-        className="hidden lg:flex"
-        onClick={toggleDesktopSidebar}
-        title={sidebarCollapsed ? 'Développer la sidebar' : 'Réduire la sidebar'}
-        aria-label={sidebarCollapsed ? 'Développer la sidebar' : 'Réduire la sidebar'}
-        style={{
-          position: 'fixed', top: 16, left: sidebarCollapsed ? 52 : 236, zIndex: 60,
-          width: 32, height: 32, alignItems: 'center', justifyContent: 'center',
-          border: '1px solid #334155', borderRadius: 8, background: '#0f172a',
-          color: '#fff', cursor: 'pointer', boxShadow: '0 4px 12px rgba(15,23,42,.2)',
-          transition: 'left 180ms ease',
-        }}
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          {sidebarCollapsed ? <path d="m9 18 6-6-6-6" /> : <path d="m15 18-6-6 6-6" />}
-        </svg>
-      </button>
 
       {/* Mobile sidebar via Sheet */}
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
