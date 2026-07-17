@@ -68,6 +68,32 @@ const PALETTE_COLORS = [
 type CycleItem = { id: string; nom: string; actif: boolean; typePeriode?: string; moyenneMaximale?: number; seeded?: boolean };
 type FraisItem = { sectionId?: string; section: string; niveau: string; inscription: number; mensualite: number; nbMois: number; actif: boolean };
 
+const NIVEAU_DESCENDING_ORDER = [
+  'TERMINALE', 'PREMIERE', 'SECONDE',
+  '3EME', '4EME', '5EME', '6EME',
+  'CM2', 'CM1', 'CE2', 'CE1', 'CP', 'CI',
+  'GRANDE SECTION', 'GS', 'MOYENNE SECTION', 'MS', 'PETITE SECTION', 'PS',
+];
+
+function normalizeNiveau(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/E(?:ME)?$/i, 'EME')
+    .trim()
+    .toUpperCase();
+}
+
+function sortFraisByDescendingLevel(items: FraisItem[]): FraisItem[] {
+  return [...items].sort((a, b) => {
+    const rankA = NIVEAU_DESCENDING_ORDER.indexOf(normalizeNiveau(a.niveau));
+    const rankB = NIVEAU_DESCENDING_ORDER.indexOf(normalizeNiveau(b.niveau));
+    const safeRankA = rankA === -1 ? Number.MAX_SAFE_INTEGER : rankA;
+    const safeRankB = rankB === -1 ? Number.MAX_SAFE_INTEGER : rankB;
+    return safeRankA - safeRankB || a.niveau.localeCompare(b.niveau, 'fr');
+  });
+}
+
 type CoefNiveau = { id: string; nom: string };
 type CoefMatiere = { id: string; libelle: string };
 type CoefRow = { id: string; niveauId?: string; matiere?: { libelle?: string }; niveau?: { id?: string; libelle?: string; nom?: string }; coefficient?: number };
@@ -208,6 +234,7 @@ export default function ConfigurationPage() {
   type NiveauConfigItem = { id: string; nom: string; section: string; moyennePassage: number; actif: boolean };
   const [cycles, setCycles] = useState<CycleItem[]>([]);
   const [fraisList, setFraisList] = useState<FraisItem[]>([]);
+  const sortedFraisList = sortFraisByDescendingLevel(fraisList);
   const [niveauxConfig, setNiveauxConfig] = useState<NiveauConfigItem[]>([]);
   const [loadingCycles, setLoadingCycles] = useState(true);
   const [showCycleModal, setShowCycleModal] = useState(false);
@@ -864,10 +891,10 @@ export default function ConfigurationPage() {
                         <span key={h} style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.04em' }}>{h}</span>
                       ))}
                     </div>
-                    {fraisList.map((f, idx) => {
+                    {sortedFraisList.map((f, idx) => {
                       const key = `${f.section}::${f.niveau}`;
                       return (
-                      <div key={key} style={{ display: 'grid', gridTemplateColumns: '110px 110px 120px 120px 75px 95px', minWidth: 630, padding: '11px 14px', borderBottom: idx < fraisList.length - 1 ? '1px solid #eef2f6' : 'none', alignItems: 'center' }}>
+                      <div key={key} style={{ display: 'grid', gridTemplateColumns: '110px 110px 120px 120px 75px 95px', minWidth: 630, padding: '11px 14px', borderBottom: idx < sortedFraisList.length - 1 ? '1px solid #eef2f6' : 'none', alignItems: 'center' }}>
                         <span style={{ fontSize: 12, fontWeight: 600, color: '#475569' }}>{f.section}</span>
                         <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{f.niveau}</span>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
