@@ -4,14 +4,6 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import { useAdminConvocations, useAdminEleves, useCreateConvocation, useUpdateConvocation } from '@/hooks/use-query-api';
 
-const STATIC_CONVOCATIONS = [
-  { id: 'c1', eleveNom: 'Awa Ndiaye', eleveClasse: '3ème B', type: 'DISCIPLINAIRE', dateConvocation: '2026-06-30', motif: 'Comportement perturbateur en classe', statut: 'CONVOQUE', compteRendu: null },
-  { id: 'c2', eleveNom: 'Cheikh Sarr', eleveClasse: '4ème A', type: 'ACADEMIQUE', dateConvocation: '2026-07-02', motif: 'Résultats insuffisants au premier trimestre', statut: 'EN_ATTENTE', compteRendu: null },
-  { id: 'c3', eleveNom: 'Fatou Bâ', eleveClasse: '3ème B', type: 'ADMINISTRATIF', dateConvocation: '2026-06-25', motif: 'Dossier incomplet — documents manquants', statut: 'CLOTURE', compteRendu: 'Réunion effectuée. Dossier complété le 25/06.' },
-  { id: 'c4', eleveNom: 'Ibrahima Fall', eleveClasse: '5ème A', type: 'DISCIPLINAIRE', dateConvocation: '2026-07-05', motif: 'Absence répétée et non justifiée', statut: 'EN_ATTENTE', compteRendu: null },
-  { id: 'c5', eleveNom: 'Mariama Diop', eleveClasse: '4ème B', type: 'ACADEMIQUE', dateConvocation: '2026-06-28', motif: 'Tutorat pour les examens de fin d\'année', statut: 'CONVOQUE', compteRendu: null },
-];
-
 type Convocation = {
   id: string;
   eleveNom?: string;
@@ -66,10 +58,10 @@ function getClasse(c: Convocation): string {
 }
 
 export default function ConvocationsPage() {
-  const { data } = useAdminConvocations();
+  const { data, isLoading, isError } = useAdminConvocations();
   const { data: elevesData } = useAdminEleves();
   const rawList = Array.isArray(data) ? data : (data?.convocations ?? data?.data ?? []);
-  const convocations: Convocation[] = rawList.length > 0 ? rawList : STATIC_CONVOCATIONS;
+  const convocations: Convocation[] = rawList;
 
   const rawEleves = Array.isArray(elevesData) ? elevesData : (elevesData?.eleves ?? elevesData?.data ?? []);
 
@@ -237,7 +229,13 @@ export default function ConvocationsPage() {
               <span key={h} style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.04em' }}>{h}</span>
             ))}
           </div>
-          {filtered.length === 0 && (
+          {isLoading && (
+            <div style={{ padding: '32px 18px', textAlign: 'center', color: '#64748b', fontSize: 13 }}>Chargement des convocations…</div>
+          )}
+          {isError && !isLoading && (
+            <div style={{ padding: '32px 18px', textAlign: 'center', color: '#dc2626', fontSize: 13 }}>Impossible de charger les convocations.</div>
+          )}
+          {!isLoading && !isError && filtered.length === 0 && (
             <div style={{ padding: '32px 18px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Aucune convocation trouvée</div>
           )}
           {filtered.map((c, idx) => {

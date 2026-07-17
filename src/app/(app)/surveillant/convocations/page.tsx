@@ -13,13 +13,6 @@ import { classeLabel } from '@/lib/display';
 
 type Conv = Record<string, unknown>;
 
-const STATIC_CONV: Conv[] = [
-  { id: 'c1', eleveNom: 'Moussa Diallo', parentNom: 'Abdoulaye Diallo', motif: 'Indiscipline répétée', dateConvocation: '2026-01-30T14:00:00Z', statut: 'EN_ATTENTE', compteRendu: null },
-  { id: 'c2', eleveNom: 'Ibrahima Fall', parentNom: 'Mamadou Fall', motif: 'Absences non justifiées (5)', dateConvocation: '2026-01-31T10:00:00Z', statut: 'EFFECTUEE', compteRendu: 'Parents informés, engagement signé.' },
-  { id: 'c3', eleveNom: 'Awa Cissé', parentNom: 'Aminata Cissé', motif: 'Retards répétés', dateConvocation: '2026-02-04T09:30:00Z', statut: 'EN_ATTENTE', compteRendu: null },
-  { id: 'c4', eleveNom: 'Cheikh Sarr', parentNom: 'Oumar Sarr', motif: 'Résultats préoccupants', dateConvocation: '2026-02-05T15:00:00Z', statut: 'EN_ATTENTE', compteRendu: null },
-];
-
 const STATUT_CFG: Record<string, { label: string; bg: string; color: string }> = {
   EN_ATTENTE: { label: 'Planifiée', bg: '#eff6ff', color: '#2563eb' },
   EFFECTUEE:  { label: 'Effectuée', bg: '#dcfce7', color: '#16a34a' },
@@ -31,7 +24,7 @@ function fd(v: unknown): string {
 }
 
 export default function ConvocationsPage() {
-  const { data: convData } = useSurveillantConvocations();
+  const { data: convData, isLoading, isError } = useSurveillantConvocations();
   const { data: elevesData } = useSurveillantEleves();
   const { data: parentsData } = useSurveillantParents();
 
@@ -43,7 +36,7 @@ export default function ConvocationsPage() {
   const rawEleves: Conv[]  = Array.isArray(elevesData)  ? elevesData  : (elevesData?.content  ?? elevesData?.data  ?? []) as Conv[];
   const rawParents: Conv[] = Array.isArray(parentsData) ? parentsData : (parentsData?.content ?? parentsData?.data ?? []) as Conv[];
 
-  const convocations = rawConv.length > 0 ? rawConv : STATIC_CONV;
+  const convocations = rawConv;
 
   // Filters
   const [search, setSearch] = useState('');
@@ -169,7 +162,11 @@ export default function ConvocationsPage() {
               <span key={h} style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.04em' }}>{h}</span>
             ))}
           </div>
-          {filtered.length === 0 ? (
+          {isLoading ? (
+            <div style={{ padding: '32px 18px', textAlign: 'center', color: '#64748b', fontSize: 13 }}>Chargement des convocations…</div>
+          ) : isError ? (
+            <div style={{ padding: '32px 18px', textAlign: 'center', color: '#dc2626', fontSize: 13 }}>Impossible de charger les convocations.</div>
+          ) : filtered.length === 0 ? (
             <div style={{ padding: '32px 18px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Aucune convocation trouvée</div>
           ) : (
             filtered.map((c, idx) => {
