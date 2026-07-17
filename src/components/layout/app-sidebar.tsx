@@ -370,9 +370,11 @@ export function AppSidebar({ onClose, collapsed = false, onToggleCollapse }: { o
                     key={item.href}
                     href={item.href}
                     onClick={onClose}
+                    title={collapsed ? item.label : undefined}
+                    aria-label={collapsed ? item.label : undefined}
                     style={{
-                      display: 'flex', alignItems: 'center', gap: 10,
-                      padding: '8px 10px',
+                      display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'flex-start', gap: collapsed ? 0 : 10,
+                      padding: collapsed ? '10px 8px' : '8px 10px',
                       color: isActive ? '#fff' : '#94a3b8',
                       fontSize: 12.5, fontWeight: isActive ? 600 : 400,
                       background: isActive ? '#1d4ed8' : 'transparent',
@@ -381,8 +383,8 @@ export function AppSidebar({ onClose, collapsed = false, onToggleCollapse }: { o
                     }}
                   >
                     <span style={{ color: isActive ? '#fff' : '#64748b', lineHeight: 0, flexShrink: 0 }}>{item.icon}</span>
-                    <span style={{ flex: 1 }}>{item.label}</span>
-                    {badges[item.href] ? <span style={{ background: '#dc2626', color: '#fff', fontSize: 10, fontWeight: 700, padding: '1px 5px', borderRadius: 8, minWidth: 16, textAlign: 'center' }}>{badges[item.href]}</span> : null}
+                    {!collapsed && <span style={{ flex: 1 }}>{item.label}</span>}
+                    {!collapsed && badges[item.href] ? <span style={{ background: '#dc2626', color: '#fff', fontSize: 10, fontWeight: 700, padding: '1px 5px', borderRadius: 8, minWidth: 16, textAlign: 'center' }}>{badges[item.href]}</span> : null}
                   </Link>
                 );
               })}
