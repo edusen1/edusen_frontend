@@ -256,6 +256,40 @@ export default function ConfigurationPage() {
     }
   };
 
+  const handleSaveAllMoyennes = async () => {
+    const changes = Object.entries(editMoyennes).map(([id, rawValue]) => ({
+      id,
+      value: Number.parseFloat(rawValue),
+    }));
+
+    if (changes.length === 0) {
+      toast.info('Aucune moyenne modifiée');
+      return;
+    }
+    if (changes.some(({ value }) => Number.isNaN(value) || value < 0 || value > 20)) {
+      toast.error('Toutes les moyennes doivent être comprises entre 0 et 20');
+      return;
+    }
+
+    setSavingMoyenne('__all__');
+    try {
+      await Promise.all(changes.map(({ id, value }) =>
+        apiClient.patch(`/admin/configuration/niveaux/${id}`, { moyennePassage: value }),
+      ));
+      const valuesById = new Map(changes.map(({ id, value }) => [id, value]));
+      setNiveauxConfig((prev) => prev.map((niveau) =>
+        valuesById.has(niveau.id)
+          ? { ...niveau, moyennePassage: valuesById.get(niveau.id)! }
+          : niveau,
+      ));
+      setEditMoyennes({});
+      toast.success(`${changes.length} moyenne${changes.length > 1 ? 's' : ''} enregistrée${changes.length > 1 ? 's' : ''}`);
+    } catch {
+      toast.error("Erreur lors de l'enregistrement des moyennes");
+    } finally {
+      setSavingMoyenne(null);
+    }
+  };
   const handleSaveFrais = async () => {
     setSavingFrais(true);
     try {
@@ -909,8 +943,16 @@ export default function ConfigurationPage() {
             {/* Niveaux — moyenne de passage */}
             {!loadingCycles && (
               <div style={{ background: '#fff', border: '1px solid #e6ebf1', margin: '20px auto 0', width: '100%', maxWidth: 960, overflowX: 'auto' }}>
-                <div style={{ padding: '14px 20px', borderBottom: '1px solid #e6ebf1', fontSize: 13, fontWeight: 700, color: '#0f172a' }}>
-                  Moyenne de passage par niveau
+                <div style={{ minWidth: 700, padding: '12px 20px', borderBottom: '1px solid #e6ebf1', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>Moyenne de passage par niveau</span>
+                  <button
+                    type="button"
+                    onClick={handleSaveAllMoyennes}
+                    disabled={savingMoyenne !== null || Object.keys(editMoyennes).length === 0}
+                    style={{ height: 32, padding: '0 14px', border: 'none', borderRadius: 6, background: '#2563eb', color: '#fff', fontSize: 11, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer', opacity: savingMoyenne !== null || Object.keys(editMoyennes).length === 0 ? 0.5 : 1 }}
+                  >
+                    {savingMoyenne === '__all__' ? 'Enregistrement…' : `Tout enregistrer${Object.keys(editMoyennes).length > 0 ? ` (${Object.keys(editMoyennes).length})` : ''}`}
+                  </button>
                 </div>
                 {niveauxConfig.length === 0 ? (
                   <div style={{ padding: '24px 20px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Aucun niveau configuré</div>
@@ -934,8 +976,8 @@ export default function ConfigurationPage() {
                         />
                         <button
                           onClick={() => handleSaveMoyenne(n.id)}
-                          disabled={savingMoyenne === n.id}
-                          style={{ height: 28, padding: '0 12px', border: 'none', background: '#dcfce7', color: '#16a34a', fontSize: 11, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer', opacity: savingMoyenne === n.id ? 0.6 : 1 }}
+                          disabled={savingMoyenne !== null}
+                          style={{ height: 28, padding: '0 12px', border: 'none', background: '#dcfce7', color: '#16a34a', fontSize: 11, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer', opacity: savingMoyenne !== null ? 0.6 : 1 }}
                         >
                           {savingMoyenne === n.id ? '…' : 'Enregistrer'}
                         </button>
