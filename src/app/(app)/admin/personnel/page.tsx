@@ -689,15 +689,23 @@ export default function PersonnelPage() {
 
             {/* Type selector */}
             <div style={{ marginBottom: 18 }}>
-              <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 8 }}>Fonction *</label>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                {TYPES_PERSONNEL.map((t) => (
-                  <button key={t.value} onClick={() => { setForm((f) => ({ ...f, type: t.value, sectionId: '' })); if (t.needsSection) void loadSections(); }}
-                    style={{ height: 32, padding: '0 12px', border: `2px solid ${form.type === t.value ? t.color : '#d9e0e8'}`, background: form.type === t.value ? t.bg : '#fff', color: form.type === t.value ? t.color : '#64748b', fontSize: 12, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer' }}>
-                    {t.label}
-                  </button>
+              <label htmlFor="personnel-function" style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 5 }}>Fonction *</label>
+              <select
+                id="personnel-function"
+                value={form.type}
+                required
+                onChange={(e) => {
+                  const type = e.target.value;
+                  const selectedType = TYPES_PERSONNEL.find((item) => item.value === type);
+                  setForm((f) => ({ ...f, type, sectionId: '' }));
+                  if (selectedType?.needsSection) void loadSections();
+                }}
+                style={{ width: '100%', height: 38, border: '1px solid #d9e0e8', padding: '0 12px', fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box', background: '#fff', color: '#0f172a', cursor: 'pointer' }}
+              >
+                {TYPES_PERSONNEL.map((type) => (
+                  <option key={type.value} value={type.value}>{type.label}</option>
                 ))}
-              </div>
+              </select>
             </div>
 
             <div style={{ marginBottom: 18, display: 'flex', alignItems: 'center', gap: 14 }}>
