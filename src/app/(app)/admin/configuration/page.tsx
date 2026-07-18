@@ -843,7 +843,7 @@ export default function ConfigurationPage() {
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
                     {cycles.map((s) => (
-                      <div key={s.id} style={{ minHeight: 128, padding: '14px 16px', background: s.actif ? '#f8fafc' : '#f1f5f9', border: '1px solid #e6ebf1', borderRadius: 8, display: 'flex', flexDirection: 'column' }}>
+                      <div key={s.id} style={{ minHeight: 128, padding: '14px 16px', background: s.actif ? '#f8fafc' : '#f1f5f9', border: '1px solid #e6ebf1', display: 'flex', flexDirection: 'column' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
 
@@ -852,18 +852,18 @@ export default function ConfigurationPage() {
                           <span style={{ fontSize: 10, fontWeight: 700, color: s.actif ? '#16a34a' : '#dc2626', background: s.actif ? '#dcfce7' : '#fee2e2', padding: '2px 6px' }}>{s.actif ? 'Actif' : 'Inactif'}</span>
                         </div>
                         <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: 11, color: '#2563eb', fontWeight: 600, background: '#eff6ff', padding: '2px 8px' }}>
+                          <span style={{ fontSize: 11, color: '#475569', fontWeight: 600, background: '#f1f5f9', padding: '2px 8px' }}>
                             {s.typePeriode === 'SEMESTRE' ? 'Semestres' : 'Trimestres'}
                           </span>
-                          <span style={{ fontSize: 11, color: '#7c3aed', fontWeight: 600, background: '#f5f3ff', padding: '2px 8px' }}>
+                          <span style={{ fontSize: 11, color: '#475569', fontWeight: 600, background: '#f1f5f9', padding: '2px 8px' }}>
                             Moyenne /{s.moyenneMaximale ?? 20}
                           </span>
                         </div>
                         <div style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'flex-end', marginTop: 'auto', paddingTop: 10, borderTop: '1px solid #e6ebf1' }}>
-                          <button onClick={() => { setEditCycleId(s.id); setCycleForm({ nom: s.nom, typePeriode: s.typePeriode ?? 'TRIMESTRE' }); setShowCycleModal(true); }} style={{ height: 28, padding: '0 10px', fontSize: 11, fontWeight: 600, color: '#2563eb', border: '1px solid #bfdbfe', borderRadius: 6, background: '#eff6ff', cursor: 'pointer', fontFamily: 'inherit' }}>
+                          <button onClick={() => { setEditCycleId(s.id); setCycleForm({ nom: s.nom, typePeriode: s.typePeriode ?? 'TRIMESTRE' }); setShowCycleModal(true); }} style={{ height: 28, padding: '0 10px', fontSize: 11, fontWeight: 600, color: '#2563eb', border: '1px solid #bfdbfe', background: '#eff6ff', cursor: 'pointer', fontFamily: 'inherit' }}>
                             Modifier
                           </button>
-                          <button onClick={() => handleToggleCycle(s)} style={{ height: 28, padding: '0 10px', fontSize: 11, fontWeight: 600, color: s.actif ? '#dc2626' : '#16a34a', border: `1px solid ${s.actif ? '#fecaca' : '#bbf7d0'}`, borderRadius: 6, background: s.actif ? '#fff1f2' : '#f0fdf4', cursor: 'pointer', fontFamily: 'inherit' }}>
+                          <button onClick={() => handleToggleCycle(s)} style={{ height: 28, padding: '0 10px', fontSize: 11, fontWeight: 600, color: s.actif ? '#dc2626' : '#16a34a', border: `1px solid ${s.actif ? '#fecaca' : '#bbf7d0'}`, background: s.actif ? '#fff1f2' : '#f0fdf4', cursor: 'pointer', fontFamily: 'inherit' }}>
                             {s.actif ? 'Désactiver' : 'Activer'}
                           </button>
                         </div>
@@ -947,7 +947,7 @@ export default function ConfigurationPage() {
                     type="button"
                     onClick={handleSaveAllMoyennes}
                     disabled={savingMoyenne !== null || Object.keys(editMoyennes).length === 0}
-                    style={{ height: 32, padding: '0 14px', border: 'none', borderRadius: 6, background: '#2563eb', color: '#fff', fontSize: 11, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer', opacity: savingMoyenne !== null || Object.keys(editMoyennes).length === 0 ? 0.5 : 1 }}
+                    style={{ height: 32, padding: '0 14px', border: 'none', background: '#2563eb', color: '#fff', fontSize: 11, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer', opacity: savingMoyenne !== null || Object.keys(editMoyennes).length === 0 ? 0.5 : 1 }}
                   >
                     {savingMoyenne === '__all__' ? 'Enregistrement…' : `Tout enregistrer${Object.keys(editMoyennes).length > 0 ? ` (${Object.keys(editMoyennes).length})` : ''}`}
                   </button>

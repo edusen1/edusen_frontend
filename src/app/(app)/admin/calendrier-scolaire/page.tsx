@@ -362,7 +362,7 @@ export default function CalendrierScolairePage() {
               </div>
               {/* Visibilité — plusieurs acteurs possibles */}
               <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: '#475569', marginBottom: 6, display: 'block' }}>Visibilité (acteurs concernés)</label>
+                <label style={{ fontSize: 11, fontWeight: 700, color: '#475569', marginBottom: 6, display: 'block' }}>Visibilité — acteurs concernés</label>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                   {(() => {
                     const isTous = form.visibilites.includes('TOUS');
@@ -376,7 +376,6 @@ export default function CalendrierScolairePage() {
                           border: `1px solid ${active ? '#2563eb' : '#e2e8f0'}`,
                           background: active ? '#2563eb' : '#fff',
                           color: active ? '#fff' : '#475569',
-                          borderRadius: 999,
                         }}
                       >
                         {VISIBILITE_LABELS[key]}

@@ -62,6 +62,7 @@ const TYPES_PERSONNEL: { value: string; label: string; color: string; bg: string
   { value: 'COMPTABLE', label: 'Comptable', color: '#16a34a', bg: '#dcfce7', needsSection: false },
   { value: 'RH', label: 'Ressources Humaines', color: '#7c3aed', bg: '#ede9fe', needsSection: false },
   { value: 'SECRETAIRE', label: 'Secrétaire', color: '#0891b2', bg: '#e0f2fe', needsSection: false },
+  { value: 'BIBLIOTHECAIRE', label: 'Bibliothécaire', color: '#4f46e5', bg: '#e0e7ff', needsSection: false },
 ];
 
 const CONTRATS = [
