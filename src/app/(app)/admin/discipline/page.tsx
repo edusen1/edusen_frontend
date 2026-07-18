@@ -10,6 +10,7 @@ type StatutDiscipline = 'OUVERT' | 'EN_TRAITEMENT' | 'CLOTURE' | 'APPEL';
 
 interface Incident {
   id: string;
+  sujetType?: 'ELEVE' | 'ENSEIGNANT' | 'PERSONNEL';
   eleveNom?: string; eleve?: { nom?: string; prenom?: string };
   eleveClasse?: string; classe?: { nom?: string };
   type: TypeSanction;
@@ -50,6 +51,10 @@ function getEleveNom(i: Incident) {
 function getClasse(i: Incident) {
   return i.eleveClasse ?? i.classe?.nom ?? '—';
 }
+function getSujetLabel(i: Incident) {
+  const t = i.sujetType ?? 'ELEVE';
+  return t === 'ELEVE' ? 'Élève' : t === 'ENSEIGNANT' ? 'Enseignant' : 'Personnel';
+}
 
 type RapporteurType = 'ELEVE' | 'PROFESSEUR' | 'PERSONNEL' | 'PARENT';
 const RAPPORTEUR_TYPES: { value: RapporteurType; label: string }[] = [
@@ -65,10 +70,22 @@ const RAPPORTEUR_URLS: Record<RapporteurType, string> = {
   PARENT: '/admin/parents',
 };
 
-type PersonItem = { id: string; firstName?: string; lastName?: string; nom?: string; prenom?: string; matricule?: string };
+// Le sujet d'un incident n'est pas forcément un élève : un enseignant ou un
+// membre du personnel peut aussi être à l'origine (ou faire l'objet) d'un incident.
+type SujetType = 'ELEVE' | 'ENSEIGNANT' | 'PERSONNEL';
+const SUJET_TYPES: { value: SujetType; label: string }[] = [
+  { value: 'ELEVE',      label: 'Élève' },
+  { value: 'ENSEIGNANT', label: 'Enseignant' },
+  { value: 'PERSONNEL',  label: 'Personnel' },
+];
+
+type PersonItem = { id: string; firstName?: string; lastName?: string; nom?: string; prenom?: string; matricule?: string; specialite?: string | null };
+type PersonnelOpt = { personnelId: string; userId: string; nom: string; role: string | null };
 
 const EMPTY_FORM = {
+  sujetType: 'ELEVE' as SujetType,
   classeId: '', classeNom: '', eleveId: '', eleveNom: '',
+  enseignantId: '', personnelId: '',
   type: 'AVERTISSEMENT' as TypeSanction,
   motif: '', dateIncident: new Date().toISOString().slice(0, 10),
   gravite: 2 as 1 | 2 | 3,
@@ -96,6 +113,8 @@ export default function DisciplinePage() {
   const [elevesByClasse, setElevesByClasse] = useState<Record<string, PersonItem[]>>({});
   const [rapporteurList, setRapporteurList] = useState<PersonItem[]>([]);
   const [rapporteurLoading, setRapporteurLoading] = useState(false);
+  const [enseignants, setEnseignants] = useState<PersonItem[]>([]);
+  const [personnels, setPersonnels] = useState<PersonnelOpt[]>([]);
 
   const actifs    = incidents.filter(i => i.statut === 'OUVERT' || i.statut === 'EN_TRAITEMENT' || i.statut === 'APPEL');
   const historique = incidents.filter(i => i.statut === 'CLOTURE');
@@ -107,6 +126,22 @@ export default function DisciplinePage() {
       const raw = res.data;
       const data = raw?.data ?? raw?.content ?? (Array.isArray(raw) ? raw : []);
       setElevesByClasse(prev => ({ ...prev, [classeId]: Array.isArray(data) ? data : [] }));
+    } catch { /* ignore */ }
+  }
+
+  async function loadEnseignants() {
+    if (enseignants.length) return;
+    try {
+      const res = await apiClient.get('/admin/classes/professeurs');
+      setEnseignants((Array.isArray(res.data) ? res.data : []) as PersonItem[]);
+    } catch { /* ignore */ }
+  }
+
+  async function loadPersonnels() {
+    if (personnels.length) return;
+    try {
+      const res = await apiClient.get('/admin/absences-personnel-list/personnels');
+      setPersonnels((Array.isArray(res.data) ? res.data : []) as PersonnelOpt[]);
     } catch { /* ignore */ }
   }
 
@@ -128,7 +163,9 @@ export default function DisciplinePage() {
 
   function validateCreate() {
     const e: Record<string, string> = {};
-    if (!form.eleveNom.trim()) e.eleveNom = 'Élève requis';
+    if (!form.eleveNom.trim()) {
+      e.eleveNom = form.sujetType === 'ELEVE' ? 'Élève requis' : form.sujetType === 'ENSEIGNANT' ? 'Enseignant requis' : 'Personnel requis';
+    }
     if (!form.motif.trim()) e.motif = 'Motif requis';
     if (!form.dateIncident) e.dateIncident = 'Date requise';
     return e;
@@ -138,10 +175,13 @@ export default function DisciplinePage() {
     const e = validateCreate();
     if (Object.keys(e).length) { setErrors(e); return; }
     createDiscipline.mutate({
-      eleveId: form.eleveId || undefined,
+      sujetType: form.sujetType,
+      eleveId: form.sujetType === 'ELEVE' ? (form.eleveId || undefined) : undefined,
+      classeId: form.sujetType === 'ELEVE' ? (form.classeId || undefined) : undefined,
+      enseignantId: form.sujetType === 'ENSEIGNANT' ? (form.enseignantId || undefined) : undefined,
+      personnelId: form.sujetType === 'PERSONNEL' ? (form.personnelId || undefined) : undefined,
       eleveNom: form.eleveNom,
-      classeId: form.classeId || undefined,
-      eleveClasse: form.classeNom,
+      eleveClasse: form.sujetType === 'ELEVE' ? form.classeNom : undefined,
       type: form.type,
       motif: form.motif,
       dateIncident: form.dateIncident,
@@ -233,7 +273,10 @@ export default function DisciplinePage() {
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5, flexWrap: 'wrap' }}>
                       <span style={{ fontSize: 14, fontWeight: 600, color: '#0f172a' }}>{getEleveNom(inc)}</span>
-                      <span style={{ background: '#f1f5f9', color: '#475569', borderRadius: 4, padding: '2px 7px', fontSize: 11, fontWeight: 600 }}>{getClasse(inc)}</span>
+                      <span style={{ background: '#eef2ff', color: '#4f46e5', borderRadius: 4, padding: '2px 7px', fontSize: 11, fontWeight: 600 }}>{getSujetLabel(inc)}</span>
+                      {getClasse(inc) !== '—' && (
+                        <span style={{ background: '#f1f5f9', color: '#475569', borderRadius: 4, padding: '2px 7px', fontSize: 11, fontWeight: 600 }}>{getClasse(inc)}</span>
+                      )}
                       <span style={{ background: t.bg, color: t.color, borderRadius: 4, padding: '2px 7px', fontSize: 11, fontWeight: 600 }}>{t.label}</span>
                       <span style={{ color: st.color, fontWeight: 600, fontSize: 11 }}>{st.label}</span>
                       <span style={{ color: GRAVITE_COLORS[inc.gravite], fontSize: 11, fontWeight: 600 }}>Gravité {GRAVITE_LABELS[inc.gravite]}</span>
@@ -265,32 +308,80 @@ export default function DisciplinePage() {
               <button onClick={() => { setShowCreate(false); setErrors({}); }} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#94a3b8' }}>×</button>
             </div>
             <div style={{ padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-              {/* Classe → Élève */}
-              <div style={{ display: 'flex', gap: 12 }}>
-                <div style={{ flex: 1 }}>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Classe *</label>
-                  <select value={form.classeId} onChange={e => {
-                    const c = classes.find(cl => cl.id === e.target.value);
-                    setForm(f => ({ ...f, classeId: e.target.value, classeNom: c?.nom ?? '', eleveId: '', eleveNom: '' }));
-                    if (e.target.value) loadEleves(e.target.value);
-                  }} style={{ width: '100%', border: `1px solid ${errors.eleveNom ? '#dc2626' : '#e2e8f0'}`, borderRadius: 6, padding: '8px 10px', fontSize: 13 }}>
-                    <option value="">Choisir…</option>
-                    {classes.map(c => <option key={c.id} value={c.id}>{c.nom}</option>)}
-                  </select>
+              {/* Type de sujet : l'incident ne concerne pas forcément un élève */}
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Concerné(e) *</label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {SUJET_TYPES.map(s => (
+                    <button key={s.value} type="button" onClick={() => {
+                      setForm(f => ({ ...f, sujetType: s.value, classeId: '', classeNom: '', eleveId: '', enseignantId: '', personnelId: '', eleveNom: '' }));
+                      if (s.value === 'ENSEIGNANT') void loadEnseignants();
+                      if (s.value === 'PERSONNEL') void loadPersonnels();
+                    }} style={{ flex: 1, padding: '8px', border: `2px solid ${form.sujetType === s.value ? '#2563eb' : '#e2e8f0'}`, borderRadius: 6, background: form.sujetType === s.value ? '#eff6ff' : '#fff', color: form.sujetType === s.value ? '#2563eb' : '#64748b', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>
+                      {s.label}
+                    </button>
+                  ))}
                 </div>
-                <div style={{ flex: 1 }}>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Élève *</label>
-                  <select value={form.eleveId} onChange={e => {
-                    const el = (elevesByClasse[form.classeId] ?? []).find(x => x.id === e.target.value);
-                    const mat = el?.matricule ? ` (${el.matricule})` : '';
-                    setForm(f => ({ ...f, eleveId: e.target.value, eleveNom: el ? personLabel(el) + mat : '' }));
-                  }} disabled={!form.classeId} style={{ width: '100%', border: `1px solid ${errors.eleveNom ? '#dc2626' : '#e2e8f0'}`, borderRadius: 6, padding: '8px 10px', fontSize: 13, background: !form.classeId ? '#f8fafc' : '#fff' }}>
+              </div>
+
+              {/* Élève : Classe → Élève */}
+              {form.sujetType === 'ELEVE' && (
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Classe *</label>
+                    <select value={form.classeId} onChange={e => {
+                      const c = classes.find(cl => cl.id === e.target.value);
+                      setForm(f => ({ ...f, classeId: e.target.value, classeNom: c?.nom ?? '', eleveId: '', eleveNom: '' }));
+                      if (e.target.value) loadEleves(e.target.value);
+                    }} style={{ width: '100%', border: `1px solid ${errors.eleveNom ? '#dc2626' : '#e2e8f0'}`, borderRadius: 6, padding: '8px 10px', fontSize: 13 }}>
+                      <option value="">Choisir…</option>
+                      {classes.map(c => <option key={c.id} value={c.id}>{c.nom}</option>)}
+                    </select>
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Élève *</label>
+                    <select value={form.eleveId} onChange={e => {
+                      const el = (elevesByClasse[form.classeId] ?? []).find(x => x.id === e.target.value);
+                      const mat = el?.matricule ? ` (${el.matricule})` : '';
+                      setForm(f => ({ ...f, eleveId: e.target.value, eleveNom: el ? personLabel(el) + mat : '' }));
+                    }} disabled={!form.classeId} style={{ width: '100%', border: `1px solid ${errors.eleveNom ? '#dc2626' : '#e2e8f0'}`, borderRadius: 6, padding: '8px 10px', fontSize: 13, background: !form.classeId ? '#f8fafc' : '#fff' }}>
+                      <option value="">Sélectionner…</option>
+                      {(elevesByClasse[form.classeId] ?? []).map(el => <option key={el.id} value={el.id}>{personLabel(el)}{el.matricule ? ` (${el.matricule})` : ''}</option>)}
+                    </select>
+                    {errors.eleveNom && <div style={{ color: '#dc2626', fontSize: 11, marginTop: 3 }}>{errors.eleveNom}</div>}
+                  </div>
+                </div>
+              )}
+
+              {/* Enseignant */}
+              {form.sujetType === 'ENSEIGNANT' && (
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Enseignant *</label>
+                  <select value={form.enseignantId} onChange={e => {
+                    const en = enseignants.find(x => x.id === e.target.value);
+                    setForm(f => ({ ...f, enseignantId: e.target.value, eleveNom: en ? personLabel(en) : '' }));
+                  }} style={{ width: '100%', border: `1px solid ${errors.eleveNom ? '#dc2626' : '#e2e8f0'}`, borderRadius: 6, padding: '8px 10px', fontSize: 13 }}>
                     <option value="">Sélectionner…</option>
-                    {(elevesByClasse[form.classeId] ?? []).map(el => <option key={el.id} value={el.id}>{personLabel(el)}{el.matricule ? ` (${el.matricule})` : ''}</option>)}
+                    {enseignants.map(en => <option key={en.id} value={en.id}>{personLabel(en)}{en.specialite ? ` (${en.specialite})` : ''}</option>)}
                   </select>
                   {errors.eleveNom && <div style={{ color: '#dc2626', fontSize: 11, marginTop: 3 }}>{errors.eleveNom}</div>}
                 </div>
-              </div>
+              )}
+
+              {/* Personnel */}
+              {form.sujetType === 'PERSONNEL' && (
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Membre du personnel *</label>
+                  <select value={form.personnelId} onChange={e => {
+                    const p = personnels.find(x => x.personnelId === e.target.value);
+                    setForm(f => ({ ...f, personnelId: e.target.value, eleveNom: p?.nom ?? '' }));
+                  }} style={{ width: '100%', border: `1px solid ${errors.eleveNom ? '#dc2626' : '#e2e8f0'}`, borderRadius: 6, padding: '8px 10px', fontSize: 13 }}>
+                    <option value="">Sélectionner…</option>
+                    {personnels.map(p => <option key={p.personnelId} value={p.personnelId}>{p.nom}{p.role ? ` (${p.role})` : ''}</option>)}
+                  </select>
+                  {errors.eleveNom && <div style={{ color: '#dc2626', fontSize: 11, marginTop: 3 }}>{errors.eleveNom}</div>}
+                </div>
+              )}
               {/* Date + Type sanction */}
               <div style={{ display: 'flex', gap: 12 }}>
                 <div style={{ flex: 1 }}>
@@ -370,7 +461,10 @@ export default function DisciplinePage() {
                 <span style={{ color: STATUT_LABELS[detail.statut]?.color, fontWeight: 700, fontSize: 12 }}>{STATUT_LABELS[detail.statut]?.label}</span>
                 <span style={{ color: GRAVITE_COLORS[detail.gravite], fontSize: 11, fontWeight: 600 }}>Gravité {GRAVITE_LABELS[detail.gravite]}</span>
               </div>
-              <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a' }}>{getEleveNom(detail)} — {getClasse(detail)}</div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a' }}>
+                {getEleveNom(detail)}{getClasse(detail) !== '—' ? ` — ${getClasse(detail)}` : ''}
+                <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 600, color: '#4f46e5', background: '#eef2ff', borderRadius: 4, padding: '2px 7px' }}>{getSujetLabel(detail)}</span>
+              </div>
               <div style={{ fontSize: 13, color: '#374151', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 6, padding: '12px 14px', lineHeight: 1.6 }}>{detail.motif}</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 5, fontSize: 12, color: '#64748b' }}>
                 <div><b>Date :</b> {new Date(detail.dateIncident).toLocaleDateString('fr-FR')}</div>
