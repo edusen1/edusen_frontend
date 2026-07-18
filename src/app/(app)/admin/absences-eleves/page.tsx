@@ -188,6 +188,8 @@ export default function AbsencesElevesPage() {
 
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [justifFiles, setJustifFiles] = useState<File[]>([]);
+  const [uploadingDecl, setUploadingDecl] = useState(false);
 
   const [showRejetModal, setShowRejetModal] = useState<string | null>(null);
   const [motifRejet, setMotifRejet] = useState('');
@@ -305,19 +307,41 @@ export default function AbsencesElevesPage() {
     setMotifRejet('');
   };
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!form.eleveId) { toast.error('Sélectionnez un élève'); return; }
     if (!form.date) { toast.error('La date est obligatoire'); return; }
+    let documentUrl: string | undefined;
+    if (justifFiles.length > 0) {
+      setUploadingDecl(true);
+      try {
+        const urls: string[] = [];
+        for (const file of justifFiles) {
+          const fd = new FormData();
+          fd.append('file', file);
+          const up = await apiClient.post('/admin/absences-eleves/justificatif', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+          const url = (up.data as Record<string, unknown>)?.justificatifUrl as string;
+          if (url) urls.push(url);
+        }
+        documentUrl = urls.length > 0 ? urls.join(',') : undefined;
+      } catch {
+        setUploadingDecl(false);
+        toast.error('Erreur lors de l\'envoi des justificatifs');
+        return;
+      }
+      setUploadingDecl(false);
+    }
     createMut.mutate({
       eleveId: form.eleveId,
       classeId: form.classeId,
       date: form.date,
       typeAbsence: form.typeAbsence,
       motif: form.motif || null,
-      justifiee: form.justifiee,
+      justifiee: form.justifiee || (documentUrl ? true : form.justifiee),
+      ...(documentUrl ? { documentUrl } : {}),
     });
     setShowForm(false);
     setForm(EMPTY_FORM);
+    setJustifFiles([]);
   };
 
   const openConvocModal = () => {
@@ -771,14 +795,32 @@ export default function AbsencesElevesPage() {
               <label style={lbl()}>Motif</label>
               <input value={form.motif} onChange={(e) => setForm((f) => ({ ...f, motif: e.target.value }))} style={inp()} placeholder="Motif (optionnel)" />
             </div>
+            <div style={{ marginBottom: 16 }}>
+              <label style={lbl()}>Justificatifs (1 ou plusieurs)</label>
+              <input id="eleve-justif-input" type="file" accept="image/*,.pdf,.doc,.docx" multiple style={{ display: 'none' }}
+                onChange={(e) => setJustifFiles((prev) => [...prev, ...(e.target.files ? [...e.target.files] : [])])} />
+              <label htmlFor="eleve-justif-input" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 36, padding: '0 14px', border: '1px dashed #94a3b8', background: '#f8fafc', color: '#475569', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                📎 Joindre un justificatif (certificat, mot des parents…)
+              </label>
+              {justifFiles.length > 0 && (
+                <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {justifFiles.map((file, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, fontSize: 11, color: '#334155', background: '#f1f5f9', padding: '5px 10px' }}>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</span>
+                      <button onClick={() => setJustifFiles((prev) => prev.filter((_, j) => j !== i))} style={{ border: 'none', background: 'none', color: '#dc2626', cursor: 'pointer', fontSize: 13 }}>✕</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#475569', marginBottom: 20, cursor: 'pointer' }}>
               <input type="checkbox" checked={form.justifiee} onChange={(e) => setForm((f) => ({ ...f, justifiee: e.target.checked }))} />
               Absence justifiée
             </label>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-              <button onClick={() => { setShowForm(false); setForm(EMPTY_FORM); }} style={{ height: 38, padding: '0 16px', border: '1px solid #d9e0e8', background: '#fff', color: '#334155', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' }}>Annuler</button>
-              <button onClick={handleCreate} disabled={createMut.isPending} style={{ height: 38, padding: '0 20px', border: 'none', background: '#2563eb', color: '#fff', fontSize: 13, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer', opacity: createMut.isPending ? 0.7 : 1 }}>
-                {createMut.isPending ? 'Enregistrement…' : 'Déclarer'}
+              <button onClick={() => { setShowForm(false); setForm(EMPTY_FORM); setJustifFiles([]); }} style={{ height: 38, padding: '0 16px', border: '1px solid #d9e0e8', background: '#fff', color: '#334155', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' }}>Annuler</button>
+              <button onClick={() => void handleCreate()} disabled={createMut.isPending || uploadingDecl} style={{ height: 38, padding: '0 20px', border: 'none', background: '#2563eb', color: '#fff', fontSize: 13, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer', opacity: (createMut.isPending || uploadingDecl) ? 0.7 : 1 }}>
+                {uploadingDecl ? 'Envoi des fichiers…' : createMut.isPending ? 'Enregistrement…' : 'Déclarer'}
               </button>
             </div>
           </div>
@@ -870,19 +912,27 @@ export default function AbsencesElevesPage() {
                   </div>
                 )}
 
-                {/* Justificatif */}
+                {/* Justificatif(s) */}
                 {selectedAbsence.documentJustificatifUrl && (
                   <div style={{ marginBottom: 14 }}>
-                    <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', marginBottom: 6 }}>Justificatif</div>
-                    <div style={{ border: '1px solid #e6ebf1', padding: '12px 14px', background: '#f8fafc', display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <span style={{ fontSize: 20 }}>📎</span>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 12, color: '#334155', fontWeight: 600, marginBottom: 2 }}>Document joint</div>
-                        <div style={{ fontSize: 11, color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selectedAbsence.documentJustificatifUrl.split('/').pop()}</div>
-                      </div>
-                      <a href={selectedAbsence.documentJustificatifUrl} target="_blank" rel="noopener noreferrer" style={{ height: 30, padding: '0 12px', background: '#2563eb', color: '#fff', fontSize: 11, fontWeight: 600, textDecoration: 'none', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-                        Ouvrir
-                      </a>
+                    <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', marginBottom: 6 }}>Justificatifs</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {selectedAbsence.documentJustificatifUrl.split(',').map((raw, i) => {
+                        const url = raw.trim();
+                        if (!url) return null;
+                        return (
+                          <div key={i} style={{ border: '1px solid #e6ebf1', padding: '12px 14px', background: '#f8fafc', display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <span style={{ fontSize: 20 }}>📎</span>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: 12, color: '#334155', fontWeight: 600, marginBottom: 2 }}>Document {i + 1}</div>
+                              <div style={{ fontSize: 11, color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{url.split('/').pop()}</div>
+                            </div>
+                            <a href={url} target="_blank" rel="noopener noreferrer" style={{ height: 30, padding: '0 12px', background: '#2563eb', color: '#fff', fontSize: 11, fontWeight: 600, textDecoration: 'none', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                              Ouvrir
+                            </a>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 )}

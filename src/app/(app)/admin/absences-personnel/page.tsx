@@ -30,6 +30,9 @@ const TYPE_MAP: Record<string, { label: string; bg: string; color: string }> = {
 function inp(): React.CSSProperties { return { width: '100%', height: 38, border: '1px solid #d9e0e8', padding: '0 12px', fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box', background: '#fff' }; }
 function lbl(): React.CSSProperties { return { fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 5 }; }
 
+type Enseignant = { id: string; firstName: string; lastName: string; specialite: string | null };
+const DECL_TYPES = ['MALADIE', 'CONGE', 'SANS_SOLDE', 'FORMATION', 'AUTRE'];
+const EMPTY_DECL = { enseignantId: '', dateDebut: '', dateFin: '', heureDebut: '', heureFin: '', typeAbsence: 'MALADIE', motif: '' };
 
 export default function AbsencesEnseignantsPage() {
   const [absences, setAbsences] = useState<AbsItem[]>([]);
@@ -41,6 +44,11 @@ export default function AbsencesEnseignantsPage() {
   const [filterDateFrom, setFilterDateFrom] = useState('');
   const [filterDateTo, setFilterDateTo] = useState('');
   const [selectedAbsence, setSelectedAbsence] = useState<AbsItem | null>(null);
+  const [showDecl, setShowDecl] = useState(false);
+  const [declForm, setDeclForm] = useState(EMPTY_DECL);
+  const [justifFiles, setJustifFiles] = useState<File[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [enseignants, setEnseignants] = useState<Enseignant[]>([]);
 
   const fetchAbsences = useCallback(async () => {
     setLoading(true);
@@ -66,6 +74,38 @@ export default function AbsencesEnseignantsPage() {
   }, []);
 
   useEffect(() => { void fetchAbsences(); }, [fetchAbsences]);
+
+  useEffect(() => {
+    apiClient.get('/admin/classes/professeurs')
+      .then((res) => setEnseignants((Array.isArray(res.data) ? res.data : []) as Enseignant[]))
+      .catch(() => { /* ignore */ });
+  }, []);
+
+  function openDecl() { setDeclForm(EMPTY_DECL); setJustifFiles([]); setShowDecl(true); }
+
+  async function handleDeclare() {
+    if (!declForm.enseignantId) { toast.error('Sélectionnez un enseignant'); return; }
+    if (!declForm.dateDebut || !declForm.dateFin) { toast.error('Dates de début et de fin requises'); return; }
+    setSaving(true);
+    try {
+      const urls: string[] = [];
+      for (const file of justifFiles) {
+        const fd = new FormData();
+        fd.append('file', file);
+        const up = await apiClient.post('/admin/absences-enseignants/justificatif', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+        const url = (up.data as R)?.justificatifUrl as string;
+        if (url) urls.push(url);
+      }
+      await apiClient.post('/admin/absences-enseignants', {
+        ...declForm,
+        documentJustificatifUrl: urls.length > 0 ? urls.join(',') : undefined,
+      });
+      toast.success('Absence déclarée');
+      setShowDecl(false);
+      void fetchAbsences();
+    } catch { toast.error('Erreur lors de la déclaration'); }
+    setSaving(false);
+  }
 
   async function handleApprouver(id: string) {
     try { await apiClient.patch(`/admin/absences-enseignants/${id}/approuver`); toast.success('Approuvée'); setAbsences((p) => p.map((a) => a.id === id ? { ...a, statut: 'APPROUVEE' } : a)); } catch { toast.error('Erreur'); }
@@ -144,6 +184,9 @@ export default function AbsencesEnseignantsPage() {
                 ↓ Exporter CSV
               </button>
             )}
+            <button onClick={openDecl} style={{ height: 38, padding: '0 16px', border: 'none', background: '#2563eb', color: '#fff', fontSize: 13, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer' }}>
+              + Déclarer une absence
+            </button>
           </div>
         </div>
         {/* Tabs */}
@@ -410,6 +453,71 @@ export default function AbsencesEnseignantsPage() {
                   <button onClick={() => { void handleRejeter(selectedAbsence.id); setSelectedAbsence(null); }} style={{ flex: 1, height: 38, border: '1px solid #fee2e2', background: '#fff', color: '#dc2626', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Rejeter</button>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ MODAL DÉCLARER UNE ABSENCE ═══ */}
+      {showDecl && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: '#fff', width: 520, maxHeight: '90vh', overflow: 'auto', boxShadow: '0 8px 30px rgba(0,0,0,.18)' }}>
+            <div style={{ padding: '18px 24px', borderBottom: '1px solid #e6ebf1', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ fontSize: 16, fontWeight: 700, color: '#0f172a' }}>Déclarer une absence enseignant</div>
+              <button onClick={() => setShowDecl(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: 18 }}>✕</button>
+            </div>
+            <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div>
+                <label style={lbl()}>Enseignant *</label>
+                <select value={declForm.enseignantId} onChange={(e) => setDeclForm((f) => ({ ...f, enseignantId: e.target.value }))} style={{ ...inp(), padding: '0 10px' }}>
+                  <option value="">— Sélectionner —</option>
+                  {enseignants.map((en) => (
+                    <option key={en.id} value={en.id}>{`${en.lastName ?? ''} ${en.firstName ?? ''}`.trim()}{en.specialite ? ` (${en.specialite})` : ''}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <div style={{ flex: 1 }}><label style={lbl()}>Date début *</label><input type="date" value={declForm.dateDebut} onChange={(e) => setDeclForm((f) => ({ ...f, dateDebut: e.target.value }))} style={inp()} /></div>
+                <div style={{ flex: 1 }}><label style={lbl()}>Date fin *</label><input type="date" value={declForm.dateFin} onChange={(e) => setDeclForm((f) => ({ ...f, dateFin: e.target.value }))} style={inp()} /></div>
+              </div>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <div style={{ flex: 1 }}><label style={lbl()}>Heure début</label><input type="time" value={declForm.heureDebut} onChange={(e) => setDeclForm((f) => ({ ...f, heureDebut: e.target.value }))} style={inp()} /></div>
+                <div style={{ flex: 1 }}><label style={lbl()}>Heure fin</label><input type="time" value={declForm.heureFin} onChange={(e) => setDeclForm((f) => ({ ...f, heureFin: e.target.value }))} style={inp()} /></div>
+              </div>
+              <div>
+                <label style={lbl()}>Type</label>
+                <select value={declForm.typeAbsence} onChange={(e) => setDeclForm((f) => ({ ...f, typeAbsence: e.target.value }))} style={{ ...inp(), padding: '0 10px' }}>
+                  {DECL_TYPES.map((t) => <option key={t} value={t}>{TYPE_MAP[t]?.label ?? t}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={lbl()}>Motif</label>
+                <textarea value={declForm.motif} onChange={(e) => setDeclForm((f) => ({ ...f, motif: e.target.value }))} rows={2} style={{ ...inp(), height: 'auto', padding: '10px 12px', resize: 'vertical' }} />
+              </div>
+              <div>
+                <label style={lbl()}>Justificatifs (1 ou plusieurs)</label>
+                <input id="ens-justif-input" type="file" accept="image/*,.pdf,.doc,.docx" multiple style={{ display: 'none' }}
+                  onChange={(e) => setJustifFiles((prev) => [...prev, ...(e.target.files ? [...e.target.files] : [])])} />
+                <label htmlFor="ens-justif-input" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 36, padding: '0 14px', border: '1px dashed #94a3b8', background: '#f8fafc', color: '#475569', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                  📎 Joindre un justificatif (certificat, ordonnance…)
+                </label>
+                {justifFiles.length > 0 && (
+                  <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    {justifFiles.map((file, i) => (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, fontSize: 11, color: '#334155', background: '#f1f5f9', padding: '5px 10px' }}>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</span>
+                        <button onClick={() => setJustifFiles((prev) => prev.filter((_, j) => j !== i))} style={{ border: 'none', background: 'none', color: '#dc2626', cursor: 'pointer', fontSize: 13 }}>✕</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div style={{ padding: '14px 24px', borderTop: '1px solid #e6ebf1', display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button onClick={() => setShowDecl(false)} style={{ height: 38, padding: '0 18px', border: '1px solid #d9e0e8', background: '#fff', color: '#334155', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' }}>Annuler</button>
+              <button onClick={() => void handleDeclare()} disabled={saving} style={{ height: 38, padding: '0 20px', border: 'none', background: '#2563eb', color: '#fff', fontSize: 13, fontWeight: 700, fontFamily: 'inherit', cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}>
+                {saving ? 'Enregistrement…' : 'Déclarer'}
+              </button>
             </div>
           </div>
         </div>
