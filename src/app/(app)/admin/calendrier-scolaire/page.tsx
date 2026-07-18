@@ -38,10 +38,21 @@ const TYPE_COLORS: Record<string, string> = {
 
 const STATUT_LABELS: Record<string, string> = { PLANIFIE: 'Planifié', CONFIRME: 'Confirmé', ANNULE: 'Annulé', REPORTE: 'Reporté' };
 const STATUT_COLORS: Record<string, string> = { PLANIFIE: '#64748b', CONFIRME: '#16a34a', ANNULE: '#dc2626', REPORTE: '#d97706' };
-const VISIBILITE_LABELS: Record<string, string> = { TOUS: 'Tous', ADMIN_ONLY: 'Admin', ENSEIGNANTS: 'Enseignants', PARENTS: 'Parents', ELEVES: 'Élèves' };
+const VISIBILITE_LABELS: Record<string, string> = { TOUS: 'Tous', ADMIN: 'Admin', ENSEIGNANTS: 'Enseignants', SURVEILLANTS: 'Surveillants', PARENTS: 'Parents', ELEVES: 'Élèves', CAISSE: 'Caisse', RH: 'RH' };
+// Acteurs sélectionnables (hors "Tous" qui est le raccourci « tout le monde »)
+const VISIBILITE_ACTEURS = ['ADMIN', 'ENSEIGNANTS', 'SURVEILLANTS', 'PARENTS', 'ELEVES', 'CAISSE', 'RH'];
 
 type Evt = Record<string, unknown> & { id: string; titre: string; dateDebut: string; type: string; statut: string };
-const EMPTY_FORM = { titre: '', description: '', dateDebut: '', dateFin: '', heureDebut: '', heureFin: '', type: 'AUTRE', statut: 'PLANIFIE', visibilite: 'TOUS', sectionId: '', classeId: '', niveauId: '', couleur: '', important: false };
+const EMPTY_FORM = { titre: '', description: '', dateDebut: '', dateFin: '', heureDebut: '', heureFin: '', type: 'AUTRE', statut: 'PLANIFIE', visibilites: ['TOUS'] as string[], sectionId: '', classeId: '', niveauId: '', couleur: '', important: false };
+
+// Normalise vers un tableau d'acteurs. Accepte l'ancien champ `visibilite` (string) pour rétro-compat.
+function readVisibilites(e: Record<string, unknown>): string[] {
+  const raw = e.visibilites ?? e.visibilite;
+  const arr = Array.isArray(raw) ? raw.map(String) : raw ? [String(raw)] : [];
+  const cleaned = arr.filter((v) => v === 'TOUS' || VISIBILITE_ACTEURS.includes(v));
+  if (cleaned.length === 0 || cleaned.includes('TOUS')) return ['TOUS'];
+  return cleaned;
+}
 
 function fmtDate(v: string) { try { return new Date(v).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }); } catch { return v; } }
 function dateKey(v: string) { return v.slice(0, 10); }
@@ -91,7 +102,7 @@ export default function CalendrierScolairePage() {
       heureFin: String(e.heureFin ?? ''),
       type: String(e.type ?? 'AUTRE'),
       statut: String(e.statut ?? 'PLANIFIE'),
-      visibilite: String(e.visibilite ?? 'TOUS'),
+      visibilites: readVisibilites(e),
       sectionId: String(e.sectionId ?? ''),
       classeId: String(e.classeId ?? ''),
       niveauId: String(e.niveauId ?? ''),
@@ -127,6 +138,15 @@ export default function CalendrierScolairePage() {
       void fetchEvents();
     } catch { toast.error('Erreur'); }
     setSaving(false);
+  }
+
+  function toggleVisibilite(key: string) {
+    setForm((f) => {
+      if (key === 'TOUS') return { ...f, visibilites: ['TOUS'] };
+      const base = f.visibilites.filter((v) => v !== 'TOUS');
+      const next = base.includes(key) ? base.filter((v) => v !== key) : [...base, key];
+      return { ...f, visibilites: next.length ? next : ['TOUS'] };
+    });
   }
 
   async function handleDelete(id: string) {
@@ -333,19 +353,43 @@ export default function CalendrierScolairePage() {
                   <input type="time" value={form.heureFin} onChange={(e) => setForm((f) => ({ ...f, heureFin: e.target.value }))} style={{ width: '100%', border: '1px solid #e2e8f0', padding: '8px 10px', fontSize: 13, fontFamily: 'inherit' }} />
                 </div>
               </div>
-              {/* Statut + Visibilité */}
-              <div style={{ display: 'flex', gap: 8 }}>
-                <div style={{ flex: 1 }}>
-                  <label style={{ fontSize: 11, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Statut</label>
-                  <select value={form.statut} onChange={(e) => setForm((f) => ({ ...f, statut: e.target.value }))} style={{ width: '100%', border: '1px solid #e2e8f0', padding: '8px 10px', fontSize: 13, fontFamily: 'inherit', background: '#fff' }}>
-                    {Object.entries(STATUT_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                  </select>
+              {/* Statut */}
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Statut</label>
+                <select value={form.statut} onChange={(e) => setForm((f) => ({ ...f, statut: e.target.value }))} style={{ width: '100%', border: '1px solid #e2e8f0', padding: '8px 10px', fontSize: 13, fontFamily: 'inherit', background: '#fff' }}>
+                  {Object.entries(STATUT_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                </select>
+              </div>
+              {/* Visibilité — plusieurs acteurs possibles */}
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: '#475569', marginBottom: 6, display: 'block' }}>Visibilité (acteurs concernés)</label>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {(() => {
+                    const isTous = form.visibilites.includes('TOUS');
+                    const chip = (key: string, active: boolean) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => toggleVisibilite(key)}
+                        style={{
+                          padding: '5px 12px', fontSize: 12, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer',
+                          border: `1px solid ${active ? '#2563eb' : '#e2e8f0'}`,
+                          background: active ? '#2563eb' : '#fff',
+                          color: active ? '#fff' : '#475569',
+                          borderRadius: 999,
+                        }}
+                      >
+                        {VISIBILITE_LABELS[key]}
+                      </button>
+                    );
+                    return [
+                      chip('TOUS', isTous),
+                      ...VISIBILITE_ACTEURS.map((k) => chip(k, !isTous && form.visibilites.includes(k))),
+                    ];
+                  })()}
                 </div>
-                <div style={{ flex: 1 }}>
-                  <label style={{ fontSize: 11, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>Visibilité</label>
-                  <select value={form.visibilite} onChange={(e) => setForm((f) => ({ ...f, visibilite: e.target.value }))} style={{ width: '100%', border: '1px solid #e2e8f0', padding: '8px 10px', fontSize: 13, fontFamily: 'inherit', background: '#fff' }}>
-                    {Object.entries(VISIBILITE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                  </select>
+                <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 5 }}>
+                  « Tous » = visible par tout le monde. Sinon, sélectionnez un ou plusieurs acteurs.
                 </div>
               </div>
               {/* Description */}
