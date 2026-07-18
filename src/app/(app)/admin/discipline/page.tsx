@@ -79,7 +79,7 @@ const SUJET_TYPES: { value: SujetType; label: string }[] = [
   { value: 'PERSONNEL',  label: 'Personnel' },
 ];
 
-type PersonItem = { id: string; firstName?: string; lastName?: string; nom?: string; prenom?: string; matricule?: string; specialite?: string | null };
+type PersonItem = { id: string; firstName?: string; lastName?: string; nom?: string; prenom?: string; matricule?: string; specialite?: string | null; utilisateur?: { firstName?: string; lastName?: string } };
 type PersonnelOpt = { personnelId: string; userId: string; nom: string; role: string | null };
 
 const EMPTY_FORM = {
@@ -105,6 +105,10 @@ export default function DisciplinePage() {
   const cloturerDiscipline = useCloturerDiscipline();
 
   const [onglet, setOnglet] = useState<'actifs' | 'historique'>('actifs');
+  const [sujetFilter, setSujetFilter] = useState<'TOUS' | SujetType>('TOUS');
+  const [search, setSearch] = useState('');
+  const [filterType, setFilterType] = useState<'' | TypeSanction>('');
+  const [filterGravite, setFilterGravite] = useState<'' | 1 | 2 | 3>('');
   const [showCreate, setShowCreate] = useState(false);
   const [detail, setDetail] = useState<Incident | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -158,7 +162,8 @@ export default function DisciplinePage() {
   }
 
   function personLabel(p: PersonItem) {
-    return `${p.firstName ?? p.prenom ?? ''} ${p.lastName ?? p.nom ?? ''}`.trim();
+    const u = p.utilisateur;
+    return `${p.firstName ?? u?.firstName ?? p.prenom ?? ''} ${p.lastName ?? u?.lastName ?? p.nom ?? ''}`.trim();
   }
 
   function validateCreate() {
@@ -212,7 +217,28 @@ export default function DisciplinePage() {
     });
   }
 
-  const liste = onglet === 'actifs' ? actifs : historique;
+  const parListe = onglet === 'actifs' ? actifs : historique;
+
+  const parSujet = (arr: Incident[], sujet: SujetType) => arr.filter(i => (i.sujetType ?? 'ELEVE') === sujet);
+  const sujetCounts: Record<SujetType, number> = {
+    ELEVE: parSujet(parListe, 'ELEVE').length,
+    ENSEIGNANT: parSujet(parListe, 'ENSEIGNANT').length,
+    PERSONNEL: parSujet(parListe, 'PERSONNEL').length,
+  };
+
+  const liste = parListe.filter(i => {
+    if (sujetFilter !== 'TOUS' && (i.sujetType ?? 'ELEVE') !== sujetFilter) return false;
+    if (filterType && i.type !== filterType) return false;
+    if (filterGravite && i.gravite !== filterGravite) return false;
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      if (!getEleveNom(i).toLowerCase().includes(q) && !i.motif.toLowerCase().includes(q)) return false;
+    }
+    return true;
+  });
+
+  const hasFilters = !!(sujetFilter !== 'TOUS' || search || filterType || filterGravite);
+  const resetFilters = () => { setSujetFilter('TOUS'); setSearch(''); setFilterType(''); setFilterGravite(''); };
 
   return (
     <div style={{ background: '#f5f7fa', minHeight: '100%', paddingBottom: 40 }}>
@@ -221,7 +247,7 @@ export default function DisciplinePage() {
           <div style={{ fontSize: 17, fontWeight: 700, color: '#0f172a' }}>Discipline</div>
           <div style={{ fontSize: 13, color: '#64748b', marginTop: 2 }}>Incidents · Sanctions · Dossiers</div>
         </div>
-        <button onClick={() => setShowCreate(true)} style={{ background: '#dc2626', color: '#fff', border: 'none', borderRadius: 6, padding: '9px 18px', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+        <button onClick={() => setShowCreate(true)} style={{ background: '#dc2626', color: '#fff', border: 'none', padding: '9px 18px', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
           + Signaler un incident
         </button>
       </div>
@@ -251,6 +277,32 @@ export default function DisciplinePage() {
           ))}
         </div>
 
+        {/* Filtre par sujet : Élèves / Enseignants / Personnel */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+          {(['TOUS', 'ELEVE', 'ENSEIGNANT', 'PERSONNEL'] as const).map(s => (
+            <button key={s} onClick={() => setSujetFilter(s)} style={{ padding: '6px 14px', fontSize: 12, fontWeight: 600, border: `1px solid ${sujetFilter === s ? '#2563eb' : '#e2e8f0'}`, background: sujetFilter === s ? '#eff6ff' : '#fff', color: sujetFilter === s ? '#2563eb' : '#64748b', cursor: 'pointer' }}>
+              {s === 'TOUS' ? `Tous (${parListe.length})` : `${s === 'ELEVE' ? 'Élèves' : s === 'ENSEIGNANT' ? 'Enseignants' : 'Personnel'} (${sujetCounts[s]})`}
+            </button>
+          ))}
+        </div>
+
+        {/* Recherche + filtres */}
+        <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: 220, maxWidth: 320, display: 'flex', alignItems: 'center', gap: 8, border: '1px solid #d9e0e8', background: '#fff', padding: '0 12px' }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher un nom, un motif…" style={{ border: 'none', outline: 'none', fontSize: 13, height: 36, background: 'transparent', fontFamily: 'inherit', width: '100%' }} />
+          </div>
+          <select value={filterType} onChange={e => setFilterType(e.target.value as '' | TypeSanction)} style={{ height: 36, border: '1px solid #d9e0e8', background: '#fff', padding: '0 10px', fontSize: 12, fontFamily: 'inherit' }}>
+            <option value="">Tous les types</option>
+            {(Object.keys(TYPE_LABELS) as TypeSanction[]).map(t => <option key={t} value={t}>{TYPE_LABELS[t].label}</option>)}
+          </select>
+          <select value={filterGravite} onChange={e => setFilterGravite(e.target.value ? Number(e.target.value) as 1 | 2 | 3 : '')} style={{ height: 36, border: '1px solid #d9e0e8', background: '#fff', padding: '0 10px', fontSize: 12, fontFamily: 'inherit' }}>
+            <option value="">Toutes gravités</option>
+            {([1, 2, 3] as const).map(g => <option key={g} value={g}>{GRAVITE_LABELS[g]}</option>)}
+          </select>
+          {hasFilters && <button onClick={resetFilters} style={{ height: 36, padding: '0 12px', border: '1px solid #d9e0e8', background: '#fff', color: '#475569', fontSize: 11, fontFamily: 'inherit', cursor: 'pointer' }}>Réinitialiser</button>}
+        </div>
+
         {/* Liste */}
         {isLoading && (
           <div style={{ background: '#fff', border: '1px solid #e6ebf1', padding: '32px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>
@@ -260,24 +312,24 @@ export default function DisciplinePage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {!isLoading && liste.length === 0 && (
             <div style={{ background: '#fff', border: '1px solid #e6ebf1', padding: '32px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>
-              {onglet === 'actifs' ? 'Aucun dossier disciplinaire actif' : 'Aucun historique'}
+              {hasFilters ? 'Aucun résultat pour ces filtres' : onglet === 'actifs' ? 'Aucun dossier disciplinaire actif' : 'Aucun historique'}
             </div>
           )}
           {liste.map(inc => {
             const t = TYPE_LABELS[inc.type] ?? { label: inc.type, bg: '#f1f5f9', color: '#475569' };
             const st = STATUT_LABELS[inc.statut] ?? { label: inc.statut, color: '#94a3b8' };
             return (
-              <div key={inc.id} style={{ background: '#fff', border: `1px solid ${inc.gravite === 3 ? '#fecaca' : '#e6ebf1'}`, padding: '14px 18px', cursor: 'pointer' }} onClick={() => setDetail(inc)}>
+              <div key={inc.id} style={{ background: '#fff', border: '1px solid #e6ebf1', borderLeft: `4px solid ${GRAVITE_COLORS[inc.gravite]}`, padding: '14px 18px', cursor: 'pointer' }} onClick={() => setDetail(inc)}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
                   <div style={{ width: 6, height: 6, borderRadius: '50%', background: GRAVITE_COLORS[inc.gravite], marginTop: 6, flexShrink: 0 }} />
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5, flexWrap: 'wrap' }}>
                       <span style={{ fontSize: 14, fontWeight: 600, color: '#0f172a' }}>{getEleveNom(inc)}</span>
-                      <span style={{ background: '#eef2ff', color: '#4f46e5', borderRadius: 4, padding: '2px 7px', fontSize: 11, fontWeight: 600 }}>{getSujetLabel(inc)}</span>
+                      <span style={{ background: '#eef2ff', color: '#4f46e5', padding: '2px 7px', fontSize: 11, fontWeight: 600 }}>{getSujetLabel(inc)}</span>
                       {getClasse(inc) !== '—' && (
-                        <span style={{ background: '#f1f5f9', color: '#475569', borderRadius: 4, padding: '2px 7px', fontSize: 11, fontWeight: 600 }}>{getClasse(inc)}</span>
+                        <span style={{ background: '#f1f5f9', color: '#475569', padding: '2px 7px', fontSize: 11, fontWeight: 600 }}>{getClasse(inc)}</span>
                       )}
-                      <span style={{ background: t.bg, color: t.color, borderRadius: 4, padding: '2px 7px', fontSize: 11, fontWeight: 600 }}>{t.label}</span>
+                      <span style={{ background: t.bg, color: t.color, padding: '2px 7px', fontSize: 11, fontWeight: 600 }}>{t.label}</span>
                       <span style={{ color: st.color, fontWeight: 600, fontSize: 11 }}>{st.label}</span>
                       <span style={{ color: GRAVITE_COLORS[inc.gravite], fontSize: 11, fontWeight: 600 }}>Gravité {GRAVITE_LABELS[inc.gravite]}</span>
                     </div>
@@ -288,7 +340,7 @@ export default function DisciplinePage() {
                     </div>
                   </div>
                   {inc.statut === 'OUVERT' && (
-                    <button onClick={e => { e.stopPropagation(); handlePrendreEnCharge(inc.id); }} style={{ background: '#fffbeb', border: '1px solid #fde68a', color: '#d97706', borderRadius: 5, padding: '5px 10px', fontSize: 12, cursor: 'pointer', flexShrink: 0 }}>
+                    <button onClick={e => { e.stopPropagation(); handlePrendreEnCharge(inc.id); }} style={{ background: '#fffbeb', border: '1px solid #fde68a', color: '#d97706', padding: '5px 10px', fontSize: 12, cursor: 'pointer', flexShrink: 0 }}>
                       Prendre en charge
                     </button>
                   )}
@@ -302,7 +354,7 @@ export default function DisciplinePage() {
       {/* Modal création */}
       {showCreate && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ background: '#fff', width: 500, maxHeight: '90vh', overflowY: 'auto', borderRadius: 8, boxShadow: '0 20px 60px rgba(0,0,0,.2)' }}>
+          <div style={{ background: '#fff', width: 500, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,.2)' }}>
             <div style={{ padding: '18px 22px', borderBottom: '1px solid #e6ebf1', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontWeight: 700, fontSize: 15 }}>Signaler un incident</span>
               <button onClick={() => { setShowCreate(false); setErrors({}); }} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#94a3b8' }}>×</button>
@@ -317,7 +369,7 @@ export default function DisciplinePage() {
                       setForm(f => ({ ...f, sujetType: s.value, classeId: '', classeNom: '', eleveId: '', enseignantId: '', personnelId: '', eleveNom: '' }));
                       if (s.value === 'ENSEIGNANT') void loadEnseignants();
                       if (s.value === 'PERSONNEL') void loadPersonnels();
-                    }} style={{ flex: 1, padding: '8px', border: `2px solid ${form.sujetType === s.value ? '#2563eb' : '#e2e8f0'}`, borderRadius: 6, background: form.sujetType === s.value ? '#eff6ff' : '#fff', color: form.sujetType === s.value ? '#2563eb' : '#64748b', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>
+                    }} style={{ flex: 1, padding: '8px', border: `2px solid ${form.sujetType === s.value ? '#2563eb' : '#e2e8f0'}`, background: form.sujetType === s.value ? '#eff6ff' : '#fff', color: form.sujetType === s.value ? '#2563eb' : '#64748b', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>
                       {s.label}
                     </button>
                   ))}
@@ -333,7 +385,7 @@ export default function DisciplinePage() {
                       const c = classes.find(cl => cl.id === e.target.value);
                       setForm(f => ({ ...f, classeId: e.target.value, classeNom: c?.nom ?? '', eleveId: '', eleveNom: '' }));
                       if (e.target.value) loadEleves(e.target.value);
-                    }} style={{ width: '100%', border: `1px solid ${errors.eleveNom ? '#dc2626' : '#e2e8f0'}`, borderRadius: 6, padding: '8px 10px', fontSize: 13 }}>
+                    }} style={{ width: '100%', border: `1px solid ${errors.eleveNom ? '#dc2626' : '#e2e8f0'}`, padding: '8px 10px', fontSize: 13 }}>
                       <option value="">Choisir…</option>
                       {classes.map(c => <option key={c.id} value={c.id}>{c.nom}</option>)}
                     </select>
@@ -344,7 +396,7 @@ export default function DisciplinePage() {
                       const el = (elevesByClasse[form.classeId] ?? []).find(x => x.id === e.target.value);
                       const mat = el?.matricule ? ` (${el.matricule})` : '';
                       setForm(f => ({ ...f, eleveId: e.target.value, eleveNom: el ? personLabel(el) + mat : '' }));
-                    }} disabled={!form.classeId} style={{ width: '100%', border: `1px solid ${errors.eleveNom ? '#dc2626' : '#e2e8f0'}`, borderRadius: 6, padding: '8px 10px', fontSize: 13, background: !form.classeId ? '#f8fafc' : '#fff' }}>
+                    }} disabled={!form.classeId} style={{ width: '100%', border: `1px solid ${errors.eleveNom ? '#dc2626' : '#e2e8f0'}`, padding: '8px 10px', fontSize: 13, background: !form.classeId ? '#f8fafc' : '#fff' }}>
                       <option value="">Sélectionner…</option>
                       {(elevesByClasse[form.classeId] ?? []).map(el => <option key={el.id} value={el.id}>{personLabel(el)}{el.matricule ? ` (${el.matricule})` : ''}</option>)}
                     </select>
@@ -360,7 +412,7 @@ export default function DisciplinePage() {
                   <select value={form.enseignantId} onChange={e => {
                     const en = enseignants.find(x => x.id === e.target.value);
                     setForm(f => ({ ...f, enseignantId: e.target.value, eleveNom: en ? personLabel(en) : '' }));
-                  }} style={{ width: '100%', border: `1px solid ${errors.eleveNom ? '#dc2626' : '#e2e8f0'}`, borderRadius: 6, padding: '8px 10px', fontSize: 13 }}>
+                  }} style={{ width: '100%', border: `1px solid ${errors.eleveNom ? '#dc2626' : '#e2e8f0'}`, padding: '8px 10px', fontSize: 13 }}>
                     <option value="">Sélectionner…</option>
                     {enseignants.map(en => <option key={en.id} value={en.id}>{personLabel(en)}{en.specialite ? ` (${en.specialite})` : ''}</option>)}
                   </select>
@@ -375,7 +427,7 @@ export default function DisciplinePage() {
                   <select value={form.personnelId} onChange={e => {
                     const p = personnels.find(x => x.personnelId === e.target.value);
                     setForm(f => ({ ...f, personnelId: e.target.value, eleveNom: p?.nom ?? '' }));
-                  }} style={{ width: '100%', border: `1px solid ${errors.eleveNom ? '#dc2626' : '#e2e8f0'}`, borderRadius: 6, padding: '8px 10px', fontSize: 13 }}>
+                  }} style={{ width: '100%', border: `1px solid ${errors.eleveNom ? '#dc2626' : '#e2e8f0'}`, padding: '8px 10px', fontSize: 13 }}>
                     <option value="">Sélectionner…</option>
                     {personnels.map(p => <option key={p.personnelId} value={p.personnelId}>{p.nom}{p.role ? ` (${p.role})` : ''}</option>)}
                   </select>
@@ -386,11 +438,11 @@ export default function DisciplinePage() {
               <div style={{ display: 'flex', gap: 12 }}>
                 <div style={{ flex: 1 }}>
                   <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Date *</label>
-                  <input type="date" value={form.dateIncident} onChange={e => setForm({ ...form, dateIncident: e.target.value })} style={{ width: '100%', border: `1px solid ${errors.dateIncident ? '#dc2626' : '#e2e8f0'}`, borderRadius: 6, padding: '8px 10px', fontSize: 13, boxSizing: 'border-box' }} />
+                  <input type="date" value={form.dateIncident} onChange={e => setForm({ ...form, dateIncident: e.target.value })} style={{ width: '100%', border: `1px solid ${errors.dateIncident ? '#dc2626' : '#e2e8f0'}`, padding: '8px 10px', fontSize: 13, boxSizing: 'border-box' }} />
                 </div>
                 <div style={{ flex: 1 }}>
                   <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Type de sanction envisagée</label>
-                  <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value as TypeSanction })} style={{ width: '100%', border: '1px solid #e2e8f0', borderRadius: 6, padding: '8px 10px', fontSize: 13 }}>
+                  <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value as TypeSanction })} style={{ width: '100%', border: '1px solid #e2e8f0', padding: '8px 10px', fontSize: 13 }}>
                     {(Object.keys(TYPE_LABELS) as TypeSanction[]).map(t => <option key={t} value={t}>{TYPE_LABELS[t].label}</option>)}
                   </select>
                 </div>
@@ -400,7 +452,7 @@ export default function DisciplinePage() {
                 <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Gravité</label>
                 <div style={{ display: 'flex', gap: 8 }}>
                   {([1, 2, 3] as const).map(g => (
-                    <button key={g} onClick={() => setForm({ ...form, gravite: g })} style={{ flex: 1, padding: '8px', border: `2px solid ${form.gravite === g ? GRAVITE_COLORS[g] : '#e2e8f0'}`, borderRadius: 6, background: form.gravite === g ? GRAVITE_COLORS[g] + '12' : '#fff', color: form.gravite === g ? GRAVITE_COLORS[g] : '#64748b', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>
+                    <button key={g} onClick={() => setForm({ ...form, gravite: g })} style={{ flex: 1, padding: '8px', border: `2px solid ${form.gravite === g ? GRAVITE_COLORS[g] : '#e2e8f0'}`, background: form.gravite === g ? GRAVITE_COLORS[g] + '12' : '#fff', color: form.gravite === g ? GRAVITE_COLORS[g] : '#64748b', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>
                       {GRAVITE_LABELS[g]}
                     </button>
                   ))}
@@ -409,7 +461,7 @@ export default function DisciplinePage() {
               {/* Motif */}
               <div>
                 <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Motif *</label>
-                <textarea value={form.motif} onChange={e => setForm({ ...form, motif: e.target.value })} rows={3} placeholder="Décrivez l'incident précisément…" style={{ width: '100%', border: `1px solid ${errors.motif ? '#dc2626' : '#e2e8f0'}`, borderRadius: 6, padding: '8px 10px', fontSize: 13, resize: 'vertical', boxSizing: 'border-box' }} />
+                <textarea value={form.motif} onChange={e => setForm({ ...form, motif: e.target.value })} rows={3} placeholder="Décrivez l'incident précisément…" style={{ width: '100%', border: `1px solid ${errors.motif ? '#dc2626' : '#e2e8f0'}`, padding: '8px 10px', fontSize: 13, resize: 'vertical', boxSizing: 'border-box' }} />
                 {errors.motif && <div style={{ color: '#dc2626', fontSize: 11, marginTop: 3 }}>{errors.motif}</div>}
               </div>
               {/* Rapporteur */}
@@ -420,7 +472,7 @@ export default function DisciplinePage() {
                     const t = e.target.value as '' | RapporteurType;
                     setForm(f => ({ ...f, rapporteurType: t, rapporteurId: '', rapporteurNom: '' }));
                     if (t) loadRapporteurs(t);
-                  }} style={{ width: '100%', border: '1px solid #e2e8f0', borderRadius: 6, padding: '8px 10px', fontSize: 13 }}>
+                  }} style={{ width: '100%', border: '1px solid #e2e8f0', padding: '8px 10px', fontSize: 13 }}>
                     <option value="">— Aucun —</option>
                     {RAPPORTEUR_TYPES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
                   </select>
@@ -430,7 +482,7 @@ export default function DisciplinePage() {
                   <select value={form.rapporteurId} onChange={e => {
                     const p = rapporteurList.find(x => x.id === e.target.value);
                     setForm(f => ({ ...f, rapporteurId: e.target.value, rapporteurNom: p ? personLabel(p) : '' }));
-                  }} disabled={!form.rapporteurType || rapporteurLoading} style={{ width: '100%', border: '1px solid #e2e8f0', borderRadius: 6, padding: '8px 10px', fontSize: 13, background: !form.rapporteurType ? '#f8fafc' : '#fff' }}>
+                  }} disabled={!form.rapporteurType || rapporteurLoading} style={{ width: '100%', border: '1px solid #e2e8f0', padding: '8px 10px', fontSize: 13, background: !form.rapporteurType ? '#f8fafc' : '#fff' }}>
                     <option value="">{rapporteurLoading ? 'Chargement…' : 'Sélectionner…'}</option>
                     {rapporteurList.map(p => <option key={p.id} value={p.id}>{personLabel(p)}</option>)}
                   </select>
@@ -438,8 +490,8 @@ export default function DisciplinePage() {
               </div>
             </div>
             <div style={{ padding: '14px 22px', borderTop: '1px solid #e6ebf1', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button onClick={() => { setShowCreate(false); setErrors({}); }} style={{ border: '1px solid #e2e8f0', background: '#fff', color: '#475569', borderRadius: 6, padding: '8px 16px', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Annuler</button>
-              <button onClick={handleCreate} disabled={createDiscipline.isPending} style={{ background: '#dc2626', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 18px', fontWeight: 600, fontSize: 13, cursor: 'pointer', opacity: createDiscipline.isPending ? .7 : 1 }}>
+              <button onClick={() => { setShowCreate(false); setErrors({}); }} style={{ border: '1px solid #e2e8f0', background: '#fff', color: '#475569', padding: '8px 16px', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Annuler</button>
+              <button onClick={handleCreate} disabled={createDiscipline.isPending} style={{ background: '#dc2626', color: '#fff', border: 'none', padding: '8px 18px', fontWeight: 600, fontSize: 13, cursor: 'pointer', opacity: createDiscipline.isPending ? .7 : 1 }}>
                 {createDiscipline.isPending ? 'Enregistrement…' : 'Signaler'}
               </button>
             </div>
@@ -450,22 +502,22 @@ export default function DisciplinePage() {
       {/* Modal détail */}
       {detail && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ background: '#fff', width: 520, maxHeight: '90vh', overflowY: 'auto', borderRadius: 8, boxShadow: '0 20px 60px rgba(0,0,0,.2)' }}>
+          <div style={{ background: '#fff', width: 520, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,.2)' }}>
             <div style={{ padding: '18px 22px', borderBottom: '1px solid #e6ebf1', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontWeight: 700, fontSize: 15 }}>Dossier disciplinaire</span>
               <button onClick={() => { setDetail(null); setCloture(EMPTY_CLOTURE); }} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#94a3b8' }}>×</button>
             </div>
             <div style={{ padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <span style={{ background: TYPE_LABELS[detail.type]?.bg, color: TYPE_LABELS[detail.type]?.color, borderRadius: 4, padding: '2px 8px', fontSize: 11, fontWeight: 600 }}>{TYPE_LABELS[detail.type]?.label ?? detail.type}</span>
+                <span style={{ background: TYPE_LABELS[detail.type]?.bg, color: TYPE_LABELS[detail.type]?.color, padding: '2px 8px', fontSize: 11, fontWeight: 600 }}>{TYPE_LABELS[detail.type]?.label ?? detail.type}</span>
                 <span style={{ color: STATUT_LABELS[detail.statut]?.color, fontWeight: 700, fontSize: 12 }}>{STATUT_LABELS[detail.statut]?.label}</span>
                 <span style={{ color: GRAVITE_COLORS[detail.gravite], fontSize: 11, fontWeight: 600 }}>Gravité {GRAVITE_LABELS[detail.gravite]}</span>
               </div>
               <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a' }}>
                 {getEleveNom(detail)}{getClasse(detail) !== '—' ? ` — ${getClasse(detail)}` : ''}
-                <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 600, color: '#4f46e5', background: '#eef2ff', borderRadius: 4, padding: '2px 7px' }}>{getSujetLabel(detail)}</span>
+                <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 600, color: '#4f46e5', background: '#eef2ff', padding: '2px 7px' }}>{getSujetLabel(detail)}</span>
               </div>
-              <div style={{ fontSize: 13, color: '#374151', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 6, padding: '12px 14px', lineHeight: 1.6 }}>{detail.motif}</div>
+              <div style={{ fontSize: 13, color: '#374151', background: '#f8fafc', border: '1px solid #e2e8f0', padding: '12px 14px', lineHeight: 1.6 }}>{detail.motif}</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 5, fontSize: 12, color: '#64748b' }}>
                 <div><b>Date :</b> {new Date(detail.dateIncident).toLocaleDateString('fr-FR')}</div>
                 {detail.rapporteur && <div><b>Rapporteur :</b> {detail.rapporteur}</div>}
@@ -473,22 +525,22 @@ export default function DisciplinePage() {
                 {detail.compteRendu && <div><b>Compte-rendu :</b> {detail.compteRendu}</div>}
               </div>
               {(detail.statut === 'OUVERT' || detail.statut === 'EN_TRAITEMENT') && (
-                <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 6, padding: '14px' }}>
+                <div style={{ background: '#fef2f2', border: '1px solid #fecaca', padding: '14px' }}>
                   <div style={{ fontSize: 12, fontWeight: 700, color: '#dc2626', marginBottom: 10 }}>Clôturer ce dossier</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                     <div>
                       <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Sanction appliquée *</label>
-                      <input value={cloture.sanction} onChange={e => setCloture({ ...cloture, sanction: e.target.value })} placeholder="Ex : Retenue le samedi 5 juillet" style={{ width: '100%', border: '1px solid #fecaca', borderRadius: 6, padding: '8px 10px', fontSize: 13, boxSizing: 'border-box' }} />
+                      <input value={cloture.sanction} onChange={e => setCloture({ ...cloture, sanction: e.target.value })} placeholder="Ex : Retenue le samedi 5 juillet" style={{ width: '100%', border: '1px solid #fecaca', padding: '8px 10px', fontSize: 13, boxSizing: 'border-box' }} />
                     </div>
                     <div>
                       <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Date de décision</label>
-                      <input type="date" value={cloture.dateDecision} onChange={e => setCloture({ ...cloture, dateDecision: e.target.value })} style={{ width: '100%', border: '1px solid #fecaca', borderRadius: 6, padding: '8px 10px', fontSize: 13, boxSizing: 'border-box' }} />
+                      <input type="date" value={cloture.dateDecision} onChange={e => setCloture({ ...cloture, dateDecision: e.target.value })} style={{ width: '100%', border: '1px solid #fecaca', padding: '8px 10px', fontSize: 13, boxSizing: 'border-box' }} />
                     </div>
                     <div>
                       <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Compte-rendu *</label>
-                      <textarea value={cloture.compteRendu} onChange={e => setCloture({ ...cloture, compteRendu: e.target.value })} rows={3} placeholder="Résumé de l'entretien, décision prise, engagement de l'élève…" style={{ width: '100%', border: '1px solid #fecaca', borderRadius: 6, padding: '8px 10px', fontSize: 13, resize: 'vertical', boxSizing: 'border-box' }} />
+                      <textarea value={cloture.compteRendu} onChange={e => setCloture({ ...cloture, compteRendu: e.target.value })} rows={3} placeholder="Résumé de l'entretien, décision prise, engagement de l'élève…" style={{ width: '100%', border: '1px solid #fecaca', padding: '8px 10px', fontSize: 13, resize: 'vertical', boxSizing: 'border-box' }} />
                     </div>
-                    <button onClick={handleCloturer} disabled={cloturerDiscipline.isPending} style={{ background: '#dc2626', color: '#fff', border: 'none', borderRadius: 6, padding: '9px', fontWeight: 600, fontSize: 13, cursor: 'pointer', opacity: cloturerDiscipline.isPending ? .7 : 1 }}>
+                    <button onClick={handleCloturer} disabled={cloturerDiscipline.isPending} style={{ background: '#dc2626', color: '#fff', border: 'none', padding: '9px', fontWeight: 600, fontSize: 13, cursor: 'pointer', opacity: cloturerDiscipline.isPending ? .7 : 1 }}>
                       {cloturerDiscipline.isPending ? 'Clôture en cours…' : 'Clôturer le dossier'}
                     </button>
                   </div>
@@ -496,7 +548,7 @@ export default function DisciplinePage() {
               )}
             </div>
             <div style={{ padding: '14px 22px', borderTop: '1px solid #e6ebf1', display: 'flex', justifyContent: 'flex-end' }}>
-              <button onClick={() => { setDetail(null); setCloture(EMPTY_CLOTURE); }} style={{ border: '1px solid #e2e8f0', background: '#fff', color: '#475569', borderRadius: 6, padding: '8px 16px', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Fermer</button>
+              <button onClick={() => { setDetail(null); setCloture(EMPTY_CLOTURE); }} style={{ border: '1px solid #e2e8f0', background: '#fff', color: '#475569', padding: '8px 16px', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Fermer</button>
             </div>
           </div>
         </div>
