@@ -477,13 +477,11 @@ export default function ConfigurationPage() {
     notifAbsences: false,
     notifAnnonces: true,
   });
-  const [waStatusLoading, setWaStatusLoading] = useState(true);
   const [testPhone, setTestPhone] = useState('');
 
   // Charger le statut WhatsApp au montage
   useEffect(() => {
     if (activeTab !== 'whatsapp') return;
-    setWaStatusLoading(true);
     apiClient.get('/admin/whatsapp/status')
       .then(({ data }) => {
         const s = data?.data ?? data;
@@ -499,8 +497,7 @@ export default function ConfigurationPage() {
           });
         }
       })
-      .catch(() => { /* backend peut ne pas répondre */ })
-      .finally(() => setWaStatusLoading(false));
+      .catch(() => { /* backend peut ne pas répondre */ });
   }, [activeTab]);
 
   const handleGenerateQr = async () => {
@@ -536,8 +533,8 @@ export default function ConfigurationPage() {
       }, 3000);
       // Stop polling after expiry
       setTimeout(() => clearInterval(statusPoll), expires * 1000);
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message ?? 'Erreur lors de la génération du QR code');
+    } catch {
+      toast.error('Erreur lors de la génération du QR code');
     } finally {
       setLoadingQr(false);
     }
