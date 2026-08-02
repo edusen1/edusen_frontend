@@ -115,7 +115,7 @@ export default function ConfigurationPage() {
           numeroAgrement: d.numeroAgrement ?? '',
           logoUrl: d.logoUrl ?? '',
         }));
-        try { if (d.pays) localStorage.setItem('medaaris_pays', d.pays); } catch { /* ignore */ }
+        try { if (d.pays) localStorage.setItem('edusen_pays', d.pays); } catch { /* ignore */ }
       })
       .catch(() => { /* laisse le formulaire vide */ })
       .finally(() => setLoadingEcole(false));
@@ -142,7 +142,7 @@ export default function ConfigurationPage() {
       const { logoUrl, ...rest } = ecoleForm;
       const payload = logoUrl ? { ...rest, logoUrl } : rest;
       const res = await apiClient.put('/admin/configuration/ecole', payload);
-      try { localStorage.setItem('medaaris_pays', ecoleForm.pays); } catch { /* ignore */ }
+      try { localStorage.setItem('edusen_pays', ecoleForm.pays); } catch { /* ignore */ }
       // Notifier la sidebar pour mise à jour immédiate
       try {
         window.dispatchEvent(new CustomEvent('ecole-config-updated', {
@@ -508,7 +508,7 @@ export default function ConfigurationPage() {
       const qr = data?.data ?? data;
       setQrDataUrl(qr?.qrCode ?? '');
       setQrVisible(true);
-      const expires = qr?.expiresInSeconds ?? 45;
+      const expires = qr?.expiresInSeconds ?? 120;
       setQrCountdown(expires);
       const interval = setInterval(() => {
         setQrCountdown((c) => {
@@ -788,7 +788,7 @@ export default function ConfigurationPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                 <div style={{ ...fieldWrap(), gridColumn: '1 / -1' }}>
                   <label style={lbl()}>Nom de l&apos;école *</label>
-                  <input value={ecoleForm.nom} onChange={(e) => setEcoleForm((f) => ({ ...f, nom: e.target.value }))} style={inp()} placeholder="Ex: École Medaaris" />
+                  <input value={ecoleForm.nom} onChange={(e) => setEcoleForm((f) => ({ ...f, nom: e.target.value }))} style={inp()} placeholder="Ex: École edusen" />
                 </div>
                 <div style={{ ...fieldWrap(), gridColumn: '1 / -1' }}>
                   <label style={lbl()}>Slogan</label>

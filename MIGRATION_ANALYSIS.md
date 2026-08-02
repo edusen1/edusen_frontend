@@ -1,8 +1,8 @@
-# Analyse de Migration — noura-school-frontend → medaaris_frontend
+# Analyse de Migration — noura-school-frontend → edusen_frontend
 
 > Dernière mise à jour : 2026-06-29 (audit complet — batch 9 : espace RH complet)
 > Référence Angular : `noura-school-frontend/`
-> Cible Next.js : `medaaris_frontend/`
+> Cible Next.js : `edusen_frontend/`
 
 ---
 

@@ -114,7 +114,7 @@ export default function PaiementsPage() {
             <div style={{ background: '#fff', border: '1px solid #e6ebf1', padding: 24, marginBottom: 16 }}>
               <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 12 }}>Informations</div>
               <div style={{ fontSize: 13, color: '#475569', lineHeight: 1.8 }}>
-                Pour modifier votre plan, renouveler votre abonnement ou obtenir une facture, veuillez contacter l&apos;administration de la plateforme Medaaris.
+                Pour modifier votre plan, renouveler votre abonnement ou obtenir une facture, veuillez contacter l&apos;administration de la plateforme edusen.
               </div>
               <div style={{ marginTop: 16, padding: '12px 16px', background: '#eff6ff', border: '1px solid #bfdbfe', fontSize: 12, color: '#1e40af' }}>
                 La gestion des abonnements et factures est centralisée au niveau de la plateforme. Un module de paiement en ligne sera disponible prochainement.

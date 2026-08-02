@@ -11,7 +11,7 @@ import { useAdminStats, useAdminStatsMensuel } from '@/hooks/use-query-api';
 function getDevise(): string {
   if (typeof window === 'undefined') return 'MRU';
   try {
-    const p = localStorage.getItem('medaaris_pays');
+    const p = localStorage.getItem('edusen_pays');
     const map: Record<string, string> = { SN: 'F CFA', ML: 'F CFA', GW: 'F CFA', CI: 'F CFA', BF: 'F CFA', NE: 'F CFA', TG: 'F CFA', BJ: 'F CFA', MR: 'MRU', GN: 'GNF', GM: 'GMD', SL: 'SLE', GH: 'GH₵', NG: '₦' };
     if (p && map[p]) return map[p];
   } catch { /* */ }

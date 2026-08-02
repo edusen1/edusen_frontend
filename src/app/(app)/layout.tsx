@@ -64,7 +64,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, display: 'flex' }}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
           </button>
-          <span style={{ fontSize: 14, fontWeight: 600, color: '#fff' }}>Medaaris</span>
+          <span style={{ fontSize: 14, fontWeight: 600, color: '#fff' }}>edusen</span>
         </div>
         <main style={{ flex: 1, overflowY: 'auto' }}>
           {children}
