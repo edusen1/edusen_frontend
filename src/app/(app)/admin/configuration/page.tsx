@@ -468,6 +468,7 @@ export default function ConfigurationPage() {
   const [waPhone, setWaPhone] = useState('');
   const [loadingQr, setLoadingQr] = useState(false);
   const [qrVisible, setQrVisible] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState('');
   const [qrCountdown, setQrCountdown] = useState(0);
   const [waFeatures, setWaFeatures] = useState({
     envoisAutomatiques: true,
@@ -476,31 +477,109 @@ export default function ConfigurationPage() {
     notifAbsences: false,
     notifAnnonces: true,
   });
+  const [waStatusLoading, setWaStatusLoading] = useState(true);
+  const [testPhone, setTestPhone] = useState('');
+
+  // Charger le statut WhatsApp au montage
+  useEffect(() => {
+    if (activeTab !== 'whatsapp') return;
+    setWaStatusLoading(true);
+    apiClient.get('/admin/whatsapp/status')
+      .then(({ data }) => {
+        const s = data?.data ?? data;
+        setWaConnected(!!s?.connected);
+        setWaPhone(s?.phoneNumber ?? s?.displayName ?? '');
+        if (s?.features) {
+          setWaFeatures({
+            envoisAutomatiques: true,
+            notifBulletins: !!s.features.bulletin,
+            notifPaiements: !!s.features.payment,
+            notifAbsences: !!s.features.absence,
+            notifAnnonces: !!s.features.otp,
+          });
+        }
+      })
+      .catch(() => { /* backend peut ne pas répondre */ })
+      .finally(() => setWaStatusLoading(false));
+  }, [activeTab]);
 
   const handleGenerateQr = async () => {
     setLoadingQr(true);
     setQrVisible(false);
-    await new Promise((r) => setTimeout(r, 1200));
-    setLoadingQr(false);
-    setQrVisible(true);
-    setQrCountdown(45);
-    const interval = setInterval(() => {
-      setQrCountdown((c) => {
-        if (c <= 1) { clearInterval(interval); setQrVisible(false); return 0; }
-        return c - 1;
-      });
-    }, 1000);
+    try {
+      const { data } = await apiClient.get('/admin/whatsapp/qr-code');
+      const qr = data?.data ?? data;
+      setQrDataUrl(qr?.qrCode ?? '');
+      setQrVisible(true);
+      const expires = qr?.expiresInSeconds ?? 45;
+      setQrCountdown(expires);
+      const interval = setInterval(() => {
+        setQrCountdown((c) => {
+          if (c <= 1) { clearInterval(interval); setQrVisible(false); return 0; }
+          return c - 1;
+        });
+      }, 1000);
+      // Poll status every 3s to detect scan
+      const statusPoll = setInterval(async () => {
+        try {
+          const { data: st } = await apiClient.get('/admin/whatsapp/status');
+          const s = st?.data ?? st;
+          if (s?.connected) {
+            clearInterval(statusPoll);
+            clearInterval(interval);
+            setQrVisible(false);
+            setWaConnected(true);
+            setWaPhone(s.phoneNumber ?? s.displayName ?? '');
+            toast.success('WhatsApp connecté !');
+          }
+        } catch { /* ignore */ }
+      }, 3000);
+      // Stop polling after expiry
+      setTimeout(() => clearInterval(statusPoll), expires * 1000);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message ?? 'Erreur lors de la génération du QR code');
+    } finally {
+      setLoadingQr(false);
+    }
   };
 
-  const handleDisconnectWa = () => {
-    setWaConnected(false);
-    setWaPhone('');
-    setQrVisible(false);
-    toast.success('WhatsApp déconnecté');
+  const handleDisconnectWa = async () => {
+    try {
+      await apiClient.delete('/admin/whatsapp/logout');
+      setWaConnected(false);
+      setWaPhone('');
+      setQrVisible(false);
+      toast.success('WhatsApp déconnecté');
+    } catch {
+      toast.error('Erreur lors de la déconnexion');
+    }
   };
 
   const handleTestWa = async () => {
-    toast.success('Message de test envoyé !');
+    if (!testPhone.trim()) {
+      toast.error('Saisissez un numéro de téléphone');
+      return;
+    }
+    try {
+      await apiClient.post('/admin/whatsapp/test', { phone: testPhone.trim() });
+      toast.success('Message de test envoyé !');
+    } catch {
+      toast.error('Erreur lors de l\'envoi du message de test');
+    }
+  };
+
+  const handleSaveWaFeatures = async () => {
+    try {
+      await apiClient.put('/admin/whatsapp/features', {
+        otp: waFeatures.notifAnnonces,
+        payment: waFeatures.notifPaiements,
+        absence: waFeatures.notifAbsences,
+        bulletin: waFeatures.notifBulletins,
+      });
+      toast.success('Fonctionnalités mises à jour');
+    } catch {
+      toast.error('Erreur lors de la sauvegarde');
+    }
   };
 
   // ── Bâtiments & Salles ──────────────────────────────────────────────
@@ -1308,13 +1387,14 @@ export default function ConfigurationPage() {
                   )}
                   {qrVisible && (
                     <div style={{ textAlign: 'center', padding: '20px 0' }}>
-                      {/* QR placeholder */}
                       <div style={{ display: 'inline-block', padding: 16, background: '#fff', border: '2px solid #e6ebf1', marginBottom: 12 }}>
-                        <div style={{ width: 180, height: 180, background: 'repeating-conic-gradient(#0f172a 0% 25%, #fff 0% 50%) 0 0 / 12px 12px', position: 'relative' }}>
-                          <div style={{ position: 'absolute', inset: '50%', transform: 'translate(-50%,-50%)', width: 36, height: 36, background: '#25d366', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="#fff"><path d="M20.52 3.449A11.997 11.997 0 0 0 12.003 0C5.376 0 .007 5.368.004 11.993c-.001 2.114.552 4.178 1.603 5.996L0 24l6.194-1.625a12.07 12.07 0 0 0 5.805 1.48h.005c6.625 0 11.994-5.369 11.997-11.995a11.93 11.93 0 0 0-3.481-8.411z"/></svg>
+                        {qrDataUrl ? (
+                          <img src={qrDataUrl} alt="QR Code WhatsApp" width={200} height={200} style={{ display: 'block' }} />
+                        ) : (
+                          <div style={{ width: 200, height: 200, background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, color: '#94a3b8' }}>
+                            QR non disponible
                           </div>
-                        </div>
+                        )}
                       </div>
                       <div style={{ fontSize: 13, color: '#475569', marginBottom: 6 }}>
                         Scannez ce QR code avec votre application WhatsApp
@@ -1323,9 +1403,6 @@ export default function ConfigurationPage() {
                         Expire dans {qrCountdown}s
                       </div>
                       <div style={{ marginTop: 12 }}>
-                        <button onClick={() => { setQrVisible(false); setWaConnected(true); setWaPhone('+222 12 34 56 78'); }} style={{ height: 34, padding: '0 16px', border: 'none', background: '#0f172a', color: '#fff', fontSize: 12, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer', marginRight: 8 }}>
-                          Simuler connexion
-                        </button>
                         <button onClick={() => setQrVisible(false)} style={{ height: 34, padding: '0 16px', border: '1px solid #d9e0e8', background: '#fff', color: '#475569', fontSize: 12, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' }}>
                           Annuler
                         </button>
@@ -1336,9 +1413,16 @@ export default function ConfigurationPage() {
               )}
 
               {waConnected && (
-                <div>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <input
+                    type="text"
+                    value={testPhone}
+                    onChange={(e) => setTestPhone(e.target.value)}
+                    placeholder="+221 7X XXX XX XX"
+                    style={{ height: 34, padding: '0 12px', border: '1px solid #d9e0e8', fontSize: 13, fontFamily: 'inherit', width: 180 }}
+                  />
                   <button onClick={handleTestWa} style={{ height: 34, padding: '0 16px', border: '1px solid #25d366', background: '#fff', color: '#16a34a', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' }}>
-                    Envoyer un message de test
+                    Envoyer un test
                   </button>
                 </div>
               )}
@@ -1376,13 +1460,11 @@ export default function ConfigurationPage() {
                   </div>
                 ))}
               </div>
-              {waConnected && (
-                <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end' }}>
-                  <button onClick={() => toast.success('Fonctionnalités mises à jour')} style={{ height: 36, padding: '0 20px', border: 'none', background: '#2563eb', color: '#fff', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' }}>
-                    Enregistrer les préférences
-                  </button>
-                </div>
-              )}
+              <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end' }}>
+                <button onClick={handleSaveWaFeatures} style={{ height: 36, padding: '0 20px', border: 'none', background: '#2563eb', color: '#fff', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' }}>
+                  Enregistrer les préférences
+                </button>
+              </div>
             </div>
           </div>
         )}
