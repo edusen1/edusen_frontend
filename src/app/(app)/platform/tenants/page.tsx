@@ -13,12 +13,12 @@ import { PageHeader } from '@/components/layout/page-header';
 import { toast } from 'sonner';
 
 const tenants = [
-  { id: 1, nom: 'Noura School Dakar', ville: 'Dakar', pays: 'Sénégal', eleves: 1248, statut: 'actif', abonnement: 'Premium', dateCreation: '01 Sep 2022' },
-  { id: 2, nom: 'Noura School Thiès', ville: 'Thiès', pays: 'Sénégal', eleves: 876, statut: 'actif', abonnement: 'Standard', dateCreation: '15 Jan 2023' },
-  { id: 3, nom: 'Noura School Ziguinchor', ville: 'Ziguinchor', pays: 'Sénégal', eleves: 634, statut: 'actif', abonnement: 'Standard', dateCreation: '01 Sep 2023' },
-  { id: 4, nom: 'Noura School Saint-Louis', ville: 'Saint-Louis', pays: 'Sénégal', eleves: 512, statut: 'actif', abonnement: 'Basic', dateCreation: '15 Mar 2023' },
-  { id: 5, nom: 'Noura School Kaolack', ville: 'Kaolack', pays: 'Sénégal', eleves: 423, statut: 'actif', abonnement: 'Basic', dateCreation: '01 Sep 2023' },
-  { id: 6, nom: 'Noura School Conakry', ville: 'Conakry', pays: 'Guinée', eleves: 320, statut: 'inactif', abonnement: 'Basic', dateCreation: '15 Jan 2024' },
+  { id: 1, nom: 'Edusen Dakar', ville: 'Dakar', pays: 'Sénégal', eleves: 1248, statut: 'actif', abonnement: 'Premium', dateCreation: '01 Sep 2022' },
+  { id: 2, nom: 'Edusen Thiès', ville: 'Thiès', pays: 'Sénégal', eleves: 876, statut: 'actif', abonnement: 'Standard', dateCreation: '15 Jan 2023' },
+  { id: 3, nom: 'Edusen Ziguinchor', ville: 'Ziguinchor', pays: 'Sénégal', eleves: 634, statut: 'actif', abonnement: 'Standard', dateCreation: '01 Sep 2023' },
+  { id: 4, nom: 'Edusen Saint-Louis', ville: 'Saint-Louis', pays: 'Sénégal', eleves: 512, statut: 'actif', abonnement: 'Basic', dateCreation: '15 Mar 2023' },
+  { id: 5, nom: 'Edusen Kaolack', ville: 'Kaolack', pays: 'Sénégal', eleves: 423, statut: 'actif', abonnement: 'Basic', dateCreation: '01 Sep 2023' },
+  { id: 6, nom: 'Edusen Conakry', ville: 'Conakry', pays: 'Guinée', eleves: 320, statut: 'inactif', abonnement: 'Basic', dateCreation: '15 Jan 2024' },
 ];
 
 const abonnementColor: Record<string, string> = {
@@ -108,7 +108,7 @@ export default function TenantsPage() {
             <DialogTitle>{editTenant ? 'Modifier l\'établissement' : 'Nouvel établissement'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
-            <div className="space-y-1.5"><Label>Nom</Label><Input defaultValue={editTenant?.nom} placeholder="Noura School ..." /></div>
+            <div className="space-y-1.5"><Label>Nom</Label><Input defaultValue={editTenant?.nom} placeholder="Edusen ..." /></div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5"><Label>Ville</Label><Input defaultValue={editTenant?.ville} placeholder="Dakar" /></div>
               <div className="space-y-1.5"><Label>Pays</Label><Input defaultValue={editTenant?.pays} placeholder="Sénégal" /></div>

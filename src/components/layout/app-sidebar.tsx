@@ -306,7 +306,7 @@ export function AppSidebar({ onClose, collapsed = false, onToggleCollapse }: { o
         </div>
         {/* Nom */}
         {!collapsed && <span
-          title={ecoleNom || 'Noura School'}
+          title={ecoleNom || 'Edusen'}
           style={{
             color: '#f1f5f9',
             fontWeight: 700,
@@ -318,7 +318,7 @@ export function AppSidebar({ onClose, collapsed = false, onToggleCollapse }: { o
             WebkitBoxOrient: 'vertical',
           }}
         >
-          {ecoleNom || 'Noura School'}
+          {ecoleNom || 'Edusen'}
         </span>}
       </button>
 

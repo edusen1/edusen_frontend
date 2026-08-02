@@ -25,11 +25,11 @@ const activiteData = [
 ];
 
 const tenantsStats = [
-  { nom: 'Noura School Dakar', eleves: 1248, statut: 'actif' },
-  { nom: 'Noura School Thiès', eleves: 876, statut: 'actif' },
-  { nom: 'Noura School Ziguinchor', eleves: 634, statut: 'actif' },
-  { nom: 'Noura School Saint-Louis', eleves: 512, statut: 'actif' },
-  { nom: 'Noura School Kaolack', eleves: 423, statut: 'actif' },
+  { nom: 'Edusen Dakar', eleves: 1248, statut: 'actif' },
+  { nom: 'Edusen Thiès', eleves: 876, statut: 'actif' },
+  { nom: 'Edusen Ziguinchor', eleves: 634, statut: 'actif' },
+  { nom: 'Edusen Saint-Louis', eleves: 512, statut: 'actif' },
+  { nom: 'Edusen Kaolack', eleves: 423, statut: 'actif' },
 ];
 
 export default function PlatformStatsPage() {

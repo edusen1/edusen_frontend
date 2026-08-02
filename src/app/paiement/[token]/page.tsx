@@ -14,7 +14,7 @@ export default function PaiementPublicPage() {
   const paiement = {
     eleve: 'Awa Ndiaye',
     classe: '3ème B',
-    etablissement: 'École NouraSchool',
+    etablissement: 'École Edusen',
     type: 'Frais de scolarité — 2e tranche',
     montant: 75000,
     echeance: '31/01/2026',
@@ -43,7 +43,7 @@ export default function PaiementPublicPage() {
         <div style={{ width: 36, height: 36, background: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
         </div>
-        <span style={{ fontSize: 17, fontWeight: 800, color: '#0f172a' }}>NouraSchool</span>
+        <span style={{ fontSize: 17, fontWeight: 800, color: '#0f172a' }}>Edusen</span>
         <span style={{ marginLeft: 4, fontSize: 13, color: '#64748b' }}>— Paiement en ligne</span>
       </div>
 
@@ -133,7 +133,7 @@ export default function PaiementPublicPage() {
         </div>
 
         <p style={{ textAlign: 'center', fontSize: 12, color: '#94a3b8', marginTop: 20 }}>
-          Paiement sécurisé par NouraSchool · {new Date().getFullYear()}
+          Paiement sécurisé par Edusen · {new Date().getFullYear()}
         </p>
       </div>
     </div>

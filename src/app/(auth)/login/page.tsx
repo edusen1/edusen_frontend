@@ -91,8 +91,8 @@ export default function LoginPage() {
 
         {/* Logo top-left */}
         <div style={{ position: 'absolute', left: 0, right: 0, top: 0, padding: '36px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span style={{ width: 40, height: 40, background: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 16, letterSpacing: '-.02em' }}>NS</span>
-          <span style={{ color: '#fff', fontWeight: 700, fontSize: 17 }}>Noura School</span>
+          <span style={{ width: 40, height: 40, background: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 16, letterSpacing: '-.02em' }}>E</span>
+          <span style={{ color: '#fff', fontWeight: 700, fontSize: 17 }}>Edusen</span>
         </div>
 
         {/* Tagline bottom-left */}

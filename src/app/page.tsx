@@ -9,7 +9,7 @@ export default function LandingPage() {
           <div style={{ width: 36, height: 36, background: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
           </div>
-          <span style={{ fontSize: 18, fontWeight: 800, color: '#0f172a', letterSpacing: '-.02em' }}>NouraSchool</span>
+          <span style={{ fontSize: 18, fontWeight: 800, color: '#0f172a', letterSpacing: '-.02em' }}>Edusen</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <Link href="/login" style={{ height: 40, padding: '0 20px', display: 'inline-flex', alignItems: 'center', border: '1px solid #d9e0e8', background: '#fff', color: '#334155', fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>Se connecter</Link>
@@ -28,7 +28,7 @@ export default function LandingPage() {
           <span style={{ color: '#2563eb' }}>avec intelligence</span>
         </h1>
         <p style={{ fontSize: 18, color: '#64748b', maxWidth: 560, margin: '0 auto 40px', lineHeight: 1.7 }}>
-          NouraSchool centralise élèves, enseignants, notes, absences, paiements et bulletins dans une plateforme moderne et sécurisée.
+          Edusen centralise élèves, enseignants, notes, absences, paiements et bulletins dans une plateforme moderne et sécurisée.
         </p>
         <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
           <Link href="/login" style={{ height: 52, padding: '0 32px', display: 'inline-flex', alignItems: 'center', gap: 10, border: 'none', background: '#2563eb', color: '#fff', fontSize: 16, fontWeight: 700, textDecoration: 'none' }}>
@@ -65,7 +65,7 @@ export default function LandingPage() {
             <div style={{ fontSize: 12, fontWeight: 700, color: '#2563eb', textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: 14 }}>À propos</div>
             <h2 style={{ fontSize: 38, fontWeight: 800, color: '#0f172a', lineHeight: 1.2, marginBottom: 20, letterSpacing: '-.02em' }}>Une solution pensée pour l'Afrique</h2>
             <p style={{ fontSize: 15, color: '#64748b', lineHeight: 1.8, marginBottom: 20 }}>
-              NouraSchool est né du besoin de moderniser la gestion scolaire dans les établissements francophones d'Afrique. Notre plateforme multi-tenant s'adapte à chaque école tout en garantissant la sécurité des données.
+              Edusen est né du besoin de moderniser la gestion scolaire dans les établissements francophones d'Afrique. Notre plateforme multi-tenant s'adapte à chaque école tout en garantissant la sécurité des données.
             </p>
             <p style={{ fontSize: 15, color: '#64748b', lineHeight: 1.8 }}>
               De la saisie des notes à la génération des bulletins PDF, en passant par la gestion des paiements et la communication avec les parents — tout est centralisé.
@@ -142,7 +142,7 @@ export default function LandingPage() {
       {/* CTA */}
       <section style={{ background: '#0f172a', padding: '80px 48px', textAlign: 'center' }}>
         <h2 style={{ fontSize: 40, fontWeight: 900, color: '#fff', marginBottom: 16, letterSpacing: '-.02em' }}>Prêt à transformer votre école ?</h2>
-        <p style={{ fontSize: 16, color: '#94a3b8', marginBottom: 36 }}>Rejoignez les centaines d'établissements qui font confiance à NouraSchool.</p>
+        <p style={{ fontSize: 16, color: '#94a3b8', marginBottom: 36 }}>Rejoignez les centaines d'établissements qui font confiance à Edusen.</p>
         <Link href="/login" style={{ height: 52, padding: '0 40px', display: 'inline-flex', alignItems: 'center', gap: 10, border: 'none', background: '#2563eb', color: '#fff', fontSize: 16, fontWeight: 700, textDecoration: 'none' }}>
           Accéder à la plateforme
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
@@ -158,7 +158,7 @@ export default function LandingPage() {
                 <div style={{ width: 32, height: 32, background: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
                 </div>
-                <span style={{ fontSize: 16, fontWeight: 800, color: '#fff' }}>NouraSchool</span>
+                <span style={{ fontSize: 16, fontWeight: 800, color: '#fff' }}>Edusen</span>
               </div>
               <p style={{ fontSize: 13, color: '#64748b', lineHeight: 1.7, maxWidth: 260 }}>Système de gestion scolaire pour les établissements d'Afrique francophone.</p>
             </div>
@@ -176,13 +176,13 @@ export default function LandingPage() {
             </div>
             <div>
               <div style={{ fontSize: 12, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 16 }}>Contact</div>
-              <div style={{ fontSize: 13, color: '#64748b', marginBottom: 8 }}>📧 contact@nouraschool.sn</div>
+              <div style={{ fontSize: 13, color: '#64748b', marginBottom: 8 }}>📧 contact@edusen.sn</div>
               <div style={{ fontSize: 13, color: '#64748b', marginBottom: 8 }}>📞 +221 77 000 00 00</div>
               <div style={{ fontSize: 13, color: '#64748b' }}>📍 Dakar, Sénégal</div>
             </div>
           </div>
           <div style={{ borderTop: '1px solid #1e293b', paddingTop: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: 12, color: '#475569' }}>© 2026 NouraSchool. Tous droits réservés.</span>
+            <span style={{ fontSize: 12, color: '#475569' }}>© 2026 Edusen. Tous droits réservés.</span>
             <span style={{ fontSize: 12, color: '#475569' }}>Politique de confidentialité · CGU</span>
           </div>
         </div>
