@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { apiClient } from '@/lib/api/client';
+import { AxiosError } from 'axios';
 import { formatFirstName, formatLastName } from '@/lib/person-name';
 import { useCreateEleve, useUpdateEleve } from '@/hooks/use-query-api';
 
@@ -569,7 +570,11 @@ export default function ElevesAdminPage() {
 
       if (editId) {
         await updateEleve.mutateAsync({ id: editId, data: payload });
-        await uploadStudentPhoto(editId);
+        try { await uploadStudentPhoto(editId); } catch (photoErr) {
+          const photoMsg = photoErr instanceof AxiosError && typeof photoErr.response?.data?.message === 'string'
+            ? photoErr.response.data.message : 'Impossible d\'enregistrer la photo';
+          toast.error(photoMsg);
+        }
         if (selectedParent && lienParente) {
           await apiClient.put(`/admin/parents/${selectedParent.id}`, { lienParente }).catch(() => {});
         }
@@ -582,7 +587,11 @@ export default function ElevesAdminPage() {
         const newId = String((res as Record<string, unknown>)?.id ?? (res as Record<string, unknown>)?.eleveId ?? '');
         let cardUrl = String((res as Record<string, unknown>)?.cardUrl ?? (res as Record<string, unknown>)?.cardImageUrl ?? '');
         if (newId) {
-          await uploadStudentPhoto(newId);
+          try { await uploadStudentPhoto(newId); } catch (photoErr) {
+            const photoMsg = photoErr instanceof AxiosError && typeof photoErr.response?.data?.message === 'string'
+              ? photoErr.response.data.message : 'Impossible d\'enregistrer la photo';
+            toast.error(photoMsg);
+          }
           try {
             const cardRes = await apiClient.post(`/admin/users/${newId}/carte-scolaire`);
             const cardData = (cardRes.data?.data ?? cardRes.data) as Record<string, unknown>;
@@ -602,8 +611,11 @@ export default function ElevesAdminPage() {
         setModalOpen(false);
         fetchEleves();
       }
-    } catch {
-      toast.error('Erreur lors de l\'enregistrement');
+    } catch (err) {
+      const msg = err instanceof AxiosError && typeof err.response?.data?.message === 'string'
+        ? err.response.data.message
+        : 'Erreur lors de l\'enregistrement';
+      toast.error(msg);
     } finally {
       setSaving(false);
     }

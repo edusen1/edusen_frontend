@@ -5,6 +5,15 @@ import {
   caisseApi, platformApi, authApi, surveillantApi,
 } from '@/lib/api/endpoints';
 import { toast } from 'sonner';
+import { AxiosError } from 'axios';
+
+function extractApiMessage(error: unknown, fallback = 'Erreur'): string {
+  if (error instanceof AxiosError) {
+    const msg = error.response?.data?.message;
+    if (typeof msg === 'string' && msg.length > 0) return msg;
+  }
+  return fallback;
+}
 
 // --- ELEVE HOOKS ---
 export const useEleveProfil = () =>
@@ -268,7 +277,7 @@ export const useCreateEleve = () => {
   return useMutation({
     mutationFn: adminApi.createEleve,
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'eleves'] }); toast.success('Élève créé'); },
-    onError: () => toast.error('Erreur'),
+    onError: (err) => toast.error(extractApiMessage(err, 'Erreur lors de la création')),
   });
 };
 export const useUpdateEleve = () => {
@@ -276,7 +285,7 @@ export const useUpdateEleve = () => {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: unknown }) => adminApi.updateEleve(id, data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'eleves'] }); toast.success('Élève modifié'); },
-    onError: () => toast.error('Erreur'),
+    onError: (err) => toast.error(extractApiMessage(err, 'Erreur lors de la modification')),
   });
 };
 export const useDeleteEleve = () => {
@@ -284,7 +293,7 @@ export const useDeleteEleve = () => {
   return useMutation({
     mutationFn: adminApi.deleteEleve,
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'eleves'] }); toast.success('Élève supprimé'); },
-    onError: () => toast.error('Erreur'),
+    onError: (err) => toast.error(extractApiMessage(err, 'Erreur lors de la suppression')),
   });
 };
 export const useCreateClasse = () => {
