@@ -175,7 +175,7 @@ export const useAdminClasses = (params?: Record<string, unknown>) =>
 export const useAdminEleves = (params?: Record<string, unknown>) =>
   useQuery({ queryKey: ['admin', 'eleves', params], queryFn: () => adminApi.eleves(params).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
 export const useAdminParents = (params?: Record<string, unknown>) =>
-  useQuery({ queryKey: ['admin', 'parents', params], queryFn: () => adminApi.parents(params).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
+  useQuery({ queryKey: ['admin', 'parents', params], queryFn: () => adminApi.parents(params).then(r => r.data) });
 export const useAdminProfesseurs = (params?: Record<string, unknown>) =>
   useQuery({ queryKey: ['admin', 'professeurs', params], queryFn: () => adminApi.professeurs(params).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
 export const useAdminMatieres = (params?: Record<string, unknown>) =>

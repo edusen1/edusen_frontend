@@ -100,11 +100,14 @@ const NOTE_COLORS = [
   { bg: '#fef2f2', stroke: '#e11d48' },
 ];
 
+const PAGE_SIZE = 20;
+
 export default function ParentsPage() {
-  const { data } = useAdminParents();
+  const [page, setPage] = useState(0);
+  const [search, setSearch] = useState('');
+  const { data, isLoading } = useAdminParents({ page, size: PAGE_SIZE, ...(search.trim() ? { search: search.trim() } : {}) });
   const createParent = useCreateParent();
   const updateParent = useUpdateParent();
-  const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -125,19 +128,20 @@ export default function ParentsPage() {
   const [childPaiements, setChildPaiements] = useState<PaiRow[]>([]);
   const [childDataLoading, setChildDataLoading] = useState(false);
 
-  const parents = useMemo(() => {
-    const raw = Array.isArray(data) ? data : ((data as Record<string, unknown> | undefined)?.content ?? (data as Record<string, unknown> | undefined)?.parents ?? (data as Record<string, unknown> | undefined)?.data ?? []);
-    return (raw as Record<string, unknown>[]).map(normalizeParent);
+  const { parents, totalElements, totalPages } = useMemo(() => {
+    if (!data) return { parents: [], totalElements: 0, totalPages: 0 };
+    // Handle both paginated response and raw array
+    if (Array.isArray(data)) return { parents: data.map(normalizeParent), totalElements: data.length, totalPages: 1 };
+    const d = data as Record<string, unknown>;
+    const content = (d.content ?? d.data ?? d.parents ?? []) as Record<string, unknown>[];
+    return {
+      parents: content.map(normalizeParent),
+      totalElements: Number(d.totalElements ?? content.length),
+      totalPages: Number(d.totalPages ?? 1),
+    };
   }, [data]);
 
-  const filtered = parents.filter((parent) => {
-    const query = search.toLowerCase().trim();
-    if (!query) return true;
-    return parent.nom.toLowerCase().includes(query)
-      || parent.prenom.toLowerCase().includes(query)
-      || parent.telephone.toLowerCase().includes(query)
-      || parent.email.toLowerCase().includes(query);
-  });
+  const filtered = parents;
 
   const resetPhoto = () => { setPhotoFile(null); setPhotoPreview(null); setPhotoChanged(false); };
   const openCreate = () => { setEditId(null); setForm(EMPTY_FORM); resetPhoto(); setShowModal(true); };
@@ -221,7 +225,7 @@ export default function ParentsPage() {
       <div style={{ background: '#fff', borderBottom: '1px solid #e6ebf1', height: 62, flexShrink: 0, display: 'flex', alignItems: 'center', padding: '0 28px', gap: 14 }}>
         <div>
           <div style={{ fontSize: 17, fontWeight: 700, color: '#0f172a', lineHeight: 1.1 }}>Parents</div>
-          <div style={{ fontSize: 12, color: '#64748b' }}>{parents.length} parent{parents.length > 1 ? 's' : ''} inscrit{parents.length > 1 ? 's' : ''}</div>
+          <div style={{ fontSize: 12, color: '#64748b' }}>{totalElements} parent{totalElements > 1 ? 's' : ''} inscrit{totalElements > 1 ? 's' : ''}</div>
         </div>
         <button onClick={openCreate} style={{ marginLeft: 'auto', height: 38, padding: '0 18px', border: 'none', background: '#2563eb', color: '#fff', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' }}>
           + Ajouter
@@ -231,7 +235,7 @@ export default function ParentsPage() {
       <div style={{ flexShrink: 0, padding: '14px 28px 0' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, border: '1px solid #d9e0e8', background: '#fff', padding: '0 12px', maxWidth: 360 }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Rechercher un parent…" style={{ flex: 1, border: 'none', outline: 'none', fontSize: 13, color: '#0f172a', height: 38, background: 'transparent', fontFamily: 'inherit' }} />
+          <input value={search} onChange={(event) => { setSearch(event.target.value); setPage(0); }} placeholder="Rechercher un parent…" style={{ flex: 1, border: 'none', outline: 'none', fontSize: 13, color: '#0f172a', height: 38, background: 'transparent', fontFamily: 'inherit' }} />
         </div>
       </div>
 
@@ -268,10 +272,37 @@ export default function ParentsPage() {
               </div>
             </div>
           ))}
-          {filtered.length === 0 && (
+          {isLoading && (
+            <div style={{ padding: '32px 18px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Chargement...</div>
+          )}
+          {!isLoading && filtered.length === 0 && (
             <div style={{ padding: '32px 18px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Aucun parent trouvé</div>
           )}
         </div>
+
+        {totalPages > 1 && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 18px', background: '#fff', border: '1px solid #e6ebf1', borderTop: 'none' }}>
+            <span style={{ fontSize: 12, color: '#64748b' }}>
+              Page {page + 1} sur {totalPages} · {totalElements} résultat{totalElements > 1 ? 's' : ''}
+            </span>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button
+                disabled={page === 0}
+                onClick={() => setPage(p => Math.max(0, p - 1))}
+                style={{ height: 32, padding: '0 14px', border: '1px solid #e6ebf1', background: page === 0 ? '#f8fafc' : '#fff', color: page === 0 ? '#cbd5e1' : '#475569', cursor: page === 0 ? 'default' : 'pointer', fontSize: 12, fontWeight: 600, fontFamily: 'inherit' }}
+              >
+                Précédent
+              </button>
+              <button
+                disabled={page >= totalPages - 1}
+                onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+                style={{ height: 32, padding: '0 14px', border: '1px solid #e6ebf1', background: page >= totalPages - 1 ? '#f8fafc' : '#fff', color: page >= totalPages - 1 ? '#cbd5e1' : '#475569', cursor: page >= totalPages - 1 ? 'default' : 'pointer', fontSize: 12, fontWeight: 600, fontFamily: 'inherit' }}
+              >
+                Suivant
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {selectedParent && (
