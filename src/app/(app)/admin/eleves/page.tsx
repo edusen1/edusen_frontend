@@ -356,7 +356,7 @@ export default function ElevesAdminPage() {
 
   // ── Fetch helpers ─────────────────────────────────────────────────
   const fetchEleves = useCallback(() => {
-    const params: Record<string, string> = {};
+    const params: Record<string, string> = { size: '1000' };
     if (filterClasse) params['classeId'] = filterClasse;
     if (filterStatut) params['statut']   = filterStatut;
     if (search)       params['search']   = search;
@@ -364,7 +364,7 @@ export default function ElevesAdminPage() {
       const d = r.data as Record<string, unknown>;
       const list = Array.isArray(d) ? d : ((d?.data ?? d?.content ?? d?.eleves ?? []) as EleveItem[]);
       setEleves(list as EleveItem[]);
-      setTotal(Number(d?.total ?? d?.count ?? list.length));
+      setTotal(Number(d?.totalElements ?? d?.total ?? d?.count ?? list.length));
     }).catch(() => {});
   }, [filterClasse, filterStatut, search]);
 
