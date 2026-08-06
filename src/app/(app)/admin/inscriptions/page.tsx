@@ -1143,7 +1143,7 @@ export default function ScolaritePage() {
                           </div>
                           <div><div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{pr} {nm}</div>{p.eleve?.matricule && <div style={{ fontSize: 11, color: '#94a3b8' }}>{p.eleve.matricule}</div>}</div>
                         </div>
-                        <span style={{ fontSize: 12, color: '#64748b' }}>{p.trimestre?.startsWith('MOIS_') ? monthLabelFromKey(p.trimestre) : p.trimestre ? `T${p.trimestre}` : p.anneeScolaire}</span>
+                        <span style={{ fontSize: 12, color: '#64748b' }}>{p.trimestre?.startsWith('MOIS_') ? monthLabelFromKey(p.trimestre) : p.trimestre?.startsWith('TRIMESTRE_') ? p.trimestre.replace('TRIMESTRE_', 'T') : p.trimestre?.startsWith('SEMESTRE_') ? p.trimestre.replace('SEMESTRE_', 'S') : p.trimestre || p.anneeScolaire}</span>
                         <span style={{ fontSize: 12, color: '#475569' }}>{MODE_LABELS[p.modePaiement] ?? p.modePaiement}</span>
                         <div style={{ fontSize: 12 }}>
                           <div style={{ color: '#16a34a' }}>Payé : <strong>{fmt(totalPayeMois)} F</strong></div>

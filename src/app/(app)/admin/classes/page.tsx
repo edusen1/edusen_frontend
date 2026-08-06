@@ -145,7 +145,7 @@ export default function ClassesPage() {
     setEditItem(c);
     setForm({
       nom: (c.nom ?? '') as string,
-      niveauId: (c.niveauId ?? '') as string,
+      niveauId: (c.niveauId ?? (c.niveau as Record<string, unknown> | undefined)?.id ?? '') as string,
       effectifMax: String(c.effectifMax ?? ''),
     });
     setShowModal(true);

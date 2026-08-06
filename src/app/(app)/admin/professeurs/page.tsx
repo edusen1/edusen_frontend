@@ -271,10 +271,11 @@ export default function ProfesseursPage() {
         const newId = String(res?.id ?? '');
         const username = String(res?.username ?? '');
         const matricule = String(res?.matricule ?? '');
+        const generatedPassword = String(res?.generatedPassword ?? '');
         if (newId) await uploadPhoto(newId);
         // Refetch pour avoir la photoUrl dans la bannière
         const photoUrl = photoPreview || String(res?.photoUrl ?? '');
-        if (username) setCredentials({ username, password: matricule, photoUrl, name: `${form.prenom} ${form.nom}`.trim() } as Credentials);
+        if (username) setCredentials({ username, password: generatedPassword || matricule, photoUrl, name: `${form.prenom} ${form.nom}`.trim() } as Credentials);
       }
       setModalOpen(false);
     } catch {
@@ -312,7 +313,7 @@ export default function ProfesseursPage() {
                 <div style={{ fontSize: 14, fontWeight: 700, color: '#15803d', marginBottom: 5 }}>{credentials.name || 'Enseignant'} — Compte créé</div>
                 <div style={{ fontSize: 13, color: '#166534', display: 'flex', gap: 20 }}>
                   <span>Identifiant : <strong style={{ background: '#dcfce7', padding: '1px 8px' }}>{credentials.username}</strong></span>
-                  {credentials.password && <span>Matricule : <strong style={{ background: '#dcfce7', padding: '1px 8px' }}>{credentials.password}</strong></span>}
+                  {credentials.password && <span>Mot de passe : <strong style={{ background: '#dcfce7', padding: '1px 8px' }}>{credentials.password}</strong></span>}
                 </div>
               </div>
             </div>

@@ -70,7 +70,16 @@ export default function LoginPage() {
       else if (role === 'SUPER_ADMIN' || role === 'GESTIONNAIRE') router.push('/platform/stats');
       else router.push('/admin/dashboard');
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Identifiants incorrects';
+      const status = (err as { response?: { status?: number; data?: { message?: string } } })?.response?.status;
+      const serverMsg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      let msg: string;
+      if (status && status >= 500) {
+        msg = 'Le serveur est temporairement indisponible. Veuillez réessayer plus tard.';
+      } else if (status === 429) {
+        msg = 'Trop de tentatives. Veuillez patienter avant de réessayer.';
+      } else {
+        msg = serverMsg ?? 'Identifiants incorrects';
+      }
       toast.error(msg);
     } finally {
       setIsLoading(false);

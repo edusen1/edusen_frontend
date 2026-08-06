@@ -76,6 +76,8 @@ const STATUT_STYLES: Record<string, { color: string; bg: string; label: string }
   actif:    { color: '#16a34a', bg: '#dcfce7', label: 'Actif' },
   suspendu: { color: '#d97706', bg: '#fef3c7', label: 'Suspendu' },
   inactif:  { color: '#94a3b8', bg: '#f1f5f9', label: 'Inactif' },
+  exclu:    { color: '#dc2626', bg: '#fef2f2', label: 'Exclu' },
+  transfere:{ color: '#7c3aed', bg: '#f5f3ff', label: 'Transféré' },
 };
 
 function parentLabel(p: ParentItem): string {
@@ -329,6 +331,17 @@ export default function ElevesAdminPage() {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Erreur lors de l\'exclusion';
       toast.error(msg);
     } finally { setExclureLoading(false); }
+  };
+
+  const handleReactiverEleve = async (e: EleveItem) => {
+    try {
+      await apiClient.patch(`/admin/eleves/${String(e.id ?? e.eleveId)}/reactiver`);
+      toast.success('Inscription réactivée');
+      fetchEleves();
+    } catch (err) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Erreur lors de la réactivation';
+      toast.error(msg);
+    }
   };
 
   const handleDesactiverEleve = (e: EleveItem) => {
@@ -762,8 +775,14 @@ export default function ElevesAdminPage() {
                         <button onMouseDown={() => { setOpenActionMenu(null); openEdit(e); }} style={{ width: '100%', height: 30, border: 'none', background: '#fff', color: '#334155', textAlign: 'left', padding: '0 10px', fontSize: 12, fontFamily: 'inherit', cursor: 'pointer' }}>Modifier</button>
                         <button onMouseDown={() => { setOpenActionMenu(null); goToInscription(e); }} style={{ width: '100%', height: 30, border: 'none', background: '#fff', color: '#2563eb', textAlign: 'left', padding: '0 10px', fontSize: 12, fontFamily: 'inherit', cursor: 'pointer' }}>Inscrire</button>
                         <button onMouseDown={() => { setOpenActionMenu(null); openStudentCard(e); }} style={{ width: '100%', height: 30, border: 'none', background: '#fff', color: '#7c3aed', textAlign: 'left', padding: '0 10px', fontSize: 12, fontFamily: 'inherit', cursor: 'pointer' }}>Carte scolaire</button>
-                        <button onMouseDown={() => { setOpenActionMenu(null); handleDesactiverEleve(e); }} style={{ width: '100%', height: 30, border: 'none', background: '#fff', color: '#d97706', textAlign: 'left', padding: '0 10px', fontSize: 12, fontFamily: 'inherit', cursor: 'pointer' }}>Désactiver</button>
-                        <button onMouseDown={() => { setOpenActionMenu(null); handleExclureEleve(e); }} style={{ width: '100%', height: 30, border: 'none', background: '#fff5f5', color: '#991b1b', textAlign: 'left', padding: '0 10px', fontSize: 12, fontFamily: 'inherit', cursor: 'pointer' }}>Exclure</button>
+                        {statut === 'inactif' ? (
+                          <button onMouseDown={() => { setOpenActionMenu(null); handleReactiverEleve(e); }} style={{ width: '100%', height: 30, border: 'none', background: '#fff', color: '#16a34a', textAlign: 'left', padding: '0 10px', fontSize: 12, fontFamily: 'inherit', cursor: 'pointer' }}>Réactiver</button>
+                        ) : (
+                          <button onMouseDown={() => { setOpenActionMenu(null); handleDesactiverEleve(e); }} style={{ width: '100%', height: 30, border: 'none', background: '#fff', color: '#d97706', textAlign: 'left', padding: '0 10px', fontSize: 12, fontFamily: 'inherit', cursor: 'pointer' }}>Désactiver</button>
+                        )}
+                        {statut !== 'exclu' && (
+                          <button onMouseDown={() => { setOpenActionMenu(null); handleExclureEleve(e); }} style={{ width: '100%', height: 30, border: 'none', background: '#fff5f5', color: '#991b1b', textAlign: 'left', padding: '0 10px', fontSize: 12, fontFamily: 'inherit', cursor: 'pointer' }}>Exclure</button>
+                        )}
                       </div>
                     )}
                   </div>

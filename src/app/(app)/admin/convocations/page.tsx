@@ -43,11 +43,16 @@ function lbl(): React.CSSProperties {
   return { fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 5 };
 }
 
-function getEleve(c: Convocation): string {
+function getEleve(c: Convocation, elevesById?: Map<string, string>): string {
   if (c.eleveNom) return c.eleveNom;
   if (typeof c.eleveId === 'object' && c.eleveId && 'nom' in (c.eleveId as object)) {
     const e = c.eleveId as Record<string, string>;
     return `${e.prenom ?? ''} ${e.nom ?? ''}`.trim();
+  }
+  // Resolve UUID to name via lookup
+  if (c.eleveId && elevesById) {
+    const resolved = elevesById.get(String(c.eleveId));
+    if (resolved) return resolved;
   }
   return String(c.eleveId ?? '');
 }
@@ -64,6 +69,15 @@ export default function ConvocationsPage() {
   const convocations: Convocation[] = rawList;
 
   const rawEleves = Array.isArray(elevesData) ? elevesData : (elevesData?.eleves ?? elevesData?.data ?? []);
+
+  // Build lookup map to resolve eleveId → name
+  const elevesById = new Map<string, string>();
+  for (const el of rawEleves as Record<string, unknown>[]) {
+    if (el.id) {
+      const name = `${el.prenom ?? el.firstName ?? ''} ${el.nom ?? el.lastName ?? ''}`.trim();
+      if (name) elevesById.set(String(el.id), name);
+    }
+  }
 
   const createConvocation = useCreateConvocation();
   const updateConvocation = useUpdateConvocation();
@@ -82,7 +96,7 @@ export default function ConvocationsPage() {
   const [savingCR, setSavingCR] = useState(false);
 
   const filtered = convocations.filter((c) => {
-    const name = getEleve(c).toLowerCase();
+    const name = getEleve(c, elevesById).toLowerCase();
     const matchSearch = !search || name.includes(search.toLowerCase()) || c.motif.toLowerCase().includes(search.toLowerCase());
     const matchStatut = !filterStatut || c.statut === filterStatut;
     const matchType = !filterType || c.type === filterType;
@@ -104,7 +118,7 @@ export default function ConvocationsPage() {
     setEditId(c.id);
     setForm({
       eleveId: String(c.eleveId ?? ''),
-      eleveNom: getEleve(c),
+      eleveNom: getEleve(c, elevesById),
       type: c.type,
       dateConvocation: c.dateConvocation?.slice(0, 10) ?? '',
       motif: c.motif,
@@ -141,7 +155,7 @@ export default function ConvocationsPage() {
   };
 
   const handleCloturer = async (c: Convocation) => {
-    if (!confirm(`Clôturer la convocation de "${getEleve(c)}" ?`)) return;
+    if (!confirm(`Clôturer la convocation de "${getEleve(c, elevesById)}" ?`)) return;
     try {
       await updateConvocation.mutateAsync({ id: c.id, data: { statut: 'CLOTURE' } });
     } catch {
@@ -245,7 +259,7 @@ export default function ConvocationsPage() {
             return (
               <div key={c.id} style={{ display: 'grid', gridTemplateColumns: '1fr 120px 130px 110px 110px 180px', padding: '14px 18px', borderBottom: idx < filtered.length - 1 ? '1px solid #eef2f6' : 'none', alignItems: 'center' }}>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{getEleve(c)}</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{getEleve(c, elevesById)}</div>
                   <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>{getClasse(c)}</div>
                   <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2, maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.motif}</div>
                 </div>

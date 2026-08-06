@@ -173,7 +173,6 @@ export default function BulletinsAdminPage() {
   const cycleGroups: { cycleName: string; typePeriode: string; classes: ClasseItem[] }[] = [];
   const cycleMap = new Map<string, { typePeriode: string; classes: ClasseItem[] }>();
   for (const c of classes) {
-    if (!isPeriodeCompatible(c)) continue;
     const name = getCycleName(c);
     const tp = resolveTypePeriode(c);
     if (!cycleMap.has(name)) cycleMap.set(name, { typePeriode: tp, classes: [] });
