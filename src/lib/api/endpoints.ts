@@ -173,7 +173,11 @@ export const adminApi = {
   createPointage: (data: unknown) => apiClient.post('/v1/pointages', data),
 
   // Absences personnel (v1)
-  absencesPersonnel: (params?: Record<string, unknown>) => apiClient.get('/v1/absences-personnel', { params }),
+  // `/v1/absences-personnel` renvoie l'absence sans aucune relation : ni `personnel`,
+  // ni `utilisateur`. Le nom de l'agent était donc introuvable, d'où les « Agent 1 »,
+  // « Agent 2 »… sur le tableau de bord RH.
+  // `/admin/absences-personnel-list` inclut personnel → utilisateur (firstName/lastName).
+  absencesPersonnel: (params?: Record<string, unknown>) => apiClient.get('/admin/absences-personnel-list', { params }),
   createAbsencePersonnel: (data: unknown) => apiClient.post('/v1/absences-personnel', data),
   validerAbsencePersonnel: (id: string) => apiClient.patch(`/v1/absences-personnel/${id}/valider`),
   refuserAbsencePersonnel: (id: string, motifRefus?: string) => apiClient.patch(`/v1/absences-personnel/${id}/refuser`, { motifRefus }),

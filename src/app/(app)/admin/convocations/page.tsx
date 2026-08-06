@@ -65,7 +65,9 @@ function getClasse(c: Convocation): string {
 
 export default function ConvocationsPage() {
   const { data, isLoading, isError } = useAdminConvocations();
-  const { data: elevesData } = useAdminEleves();
+  // Sans `size`, l'API ne renvoie que la première page (10 élèves) : les convocations
+  // portant sur un élève hors de cette page restaient affichées en identifiant brut.
+  const { data: elevesData } = useAdminEleves({ size: 1000 });
   const rawList = Array.isArray(data) ? data : (data?.convocations ?? data?.data ?? []);
   const convocations: Convocation[] = rawList;
 

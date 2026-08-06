@@ -41,8 +41,10 @@ export default function EnfantsPage() {
 
   const classeObj = enfant?.classe as Record<string, unknown> | undefined;
   const classeNom = (classeObj?.nom ?? '') as string;
-  const prenom = (enfant?.prenom ?? '') as string;
-  const nom = (enfant?.nom ?? '') as string;
+  // L'API renvoie `firstName`/`lastName`, pas `prenom`/`nom` : sans ce repli,
+  // le nom de l'enfant restait vide alors que la fiche était bien chargée.
+  const prenom = (enfant?.prenom ?? enfant?.firstName ?? '') as string;
+  const nom = (enfant?.nom ?? enfant?.lastName ?? '') as string;
   const moyenne = (enfant?.moyenne ?? null) as number | null;
   const rang = (enfant?.rang ?? '—') as number | string;
   const initials = ((prenom[0] ?? '') + (nom[0] ?? '')).toUpperCase() || '?';
@@ -81,8 +83,8 @@ export default function EnfantsPage() {
         {enfants.length > 1 && (
           <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
             {(enfants as Record<string, unknown>[]).map((e) => {
-              const ep = (e.prenom ?? '') as string;
-              const en = (e.nom ?? '') as string;
+              const ep = (e.prenom ?? e.firstName ?? '') as string;
+              const en = (e.nom ?? e.lastName ?? '') as string;
               const eid = String(e.id);
               const isActive = eid === selectedId;
               return (
@@ -326,8 +328,8 @@ export default function EnfantsPage() {
         <div style={{ padding: '0 16px 16px' }}>
           <div style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>Tous les enfants</div>
           {enfants.map((e) => {
-            const ep = (e.prenom ?? '') as string;
-            const en = (e.nom ?? '') as string;
+            const ep = (e.prenom ?? e.firstName ?? '') as string;
+            const en = (e.nom ?? e.lastName ?? '') as string;
             const eid = String(e.id);
             const ec = e.classe as Record<string, unknown> | undefined;
             const ecNom = (ec?.nom ?? '—') as string;
