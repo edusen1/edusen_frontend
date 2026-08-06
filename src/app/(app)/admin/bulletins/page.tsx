@@ -506,7 +506,15 @@ export default function BulletinsAdminPage() {
                     const nbEleves = c.nbEleves ?? c._count?.eleves ?? 0;
                     const nbGeneres = getBulletinCount(c.id, selectedPeriode);
                     const done = nbGeneres > 0 && nbGeneres >= nbEleves;
-                    const progress = nbEleves > 0 ? Math.round((nbGeneres / nbEleves) * 100) : 0;
+                    /**
+                     * Il peut exister plus de bulletins que d'élèves inscrits : les
+                     * bulletins générés restent en base après une désinscription ou
+                     * un transfert. Le ratio brut affichait alors « 160 % » et la
+                     * barre débordait de son cadre. On borne la barre à 100 % et on
+                     * signale l'écart explicitement plutôt que de le masquer.
+                     */
+                    const orphelins = Math.max(0, nbGeneres - nbEleves);
+                    const progress = nbEleves > 0 ? Math.min(100, Math.round((nbGeneres / nbEleves) * 100)) : 0;
                     const isLoading = generating === c.id;
 
                     return (
@@ -527,11 +535,21 @@ export default function BulletinsAdminPage() {
                         {nbGeneres > 0 && (
                           <div style={{ marginBottom: 12 }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#64748b', marginBottom: 4 }}>
-                              <span>{nbGeneres}/{nbEleves} bulletins</span>
+                              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                {nbGeneres}/{nbEleves} bulletins
+                                {orphelins > 0 && (
+                                  <span
+                                    title={`${orphelins} bulletin(s) sans élève inscrit : l'élève a probablement été désinscrit ou transféré après la génération.`}
+                                    style={{ fontSize: 10, fontWeight: 700, color: '#b45309', background: '#fef3c7', border: '1px solid #fde68a', padding: '1px 6px', whiteSpace: 'nowrap' }}
+                                  >
+                                    {orphelins} orphelin{orphelins > 1 ? 's' : ''}
+                                  </span>
+                                )}
+                              </span>
                               <span style={{ fontWeight: 700, color: done ? '#16a34a' : '#0f172a' }}>{progress}%</span>
                             </div>
-                            <div style={{ height: 5, background: '#f1f5f9', borderRadius: 3 }}>
-                              <div style={{ height: '100%', borderRadius: 3, background: done ? '#16a34a' : '#2563eb', width: `${progress}%`, transition: 'width .3s' }} />
+                            <div style={{ height: 5, background: '#f1f5f9', borderRadius: 3, overflow: 'hidden' }}>
+                              <div style={{ height: '100%', borderRadius: 3, background: orphelins > 0 ? '#d97706' : done ? '#16a34a' : '#2563eb', width: `${progress}%`, transition: 'width .3s' }} />
                             </div>
                           </div>
                         )}
