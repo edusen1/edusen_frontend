@@ -305,29 +305,47 @@ export default function ElevesAdminPage() {
     textAlign: 'left',
   });
 
-  const handleExclureEleve = async (e: EleveItem) => {
-    const prenom = String(e.prenom ?? e.firstName ?? '');
-    const nom = String(e.nom ?? e.lastName ?? '');
-    const nbAnneesRaw = prompt(`Exclure ${prenom} ${nom} pour combien d'années scolaires ?`, '1');
-    if (!nbAnneesRaw) return;
-    const nbAnnees = Math.max(1, Math.min(10, Number(nbAnneesRaw) || 1));
-    if (!confirm(`Confirmer l'exclusion de ${prenom} ${nom} pour ${nbAnnees} année(s) ?`)) return;
+  // ── Modales Exclure / Desactiver ──
+  const [exclureTarget, setExclureTarget] = useState<EleveItem | null>(null);
+  const [exclureNbAnnees, setExclureNbAnnees] = useState('1');
+  const [exclureLoading, setExclureLoading] = useState(false);
+  const [desactiverTarget, setDesactiverTarget] = useState<EleveItem | null>(null);
+  const [desactiverLoading, setDesactiverLoading] = useState(false);
+
+  const handleExclureEleve = (e: EleveItem) => {
+    setExclureTarget(e);
+    setExclureNbAnnees('1');
+  };
+  const confirmExclure = async () => {
+    if (!exclureTarget) return;
+    const nbAnnees = Math.max(1, Math.min(10, Number(exclureNbAnnees) || 1));
+    setExclureLoading(true);
     try {
-      await apiClient.patch(`/admin/eleves/${String(e.id ?? e.eleveId)}/exclure`, { nbAnnees });
+      await apiClient.patch(`/admin/eleves/${String(exclureTarget.id ?? exclureTarget.eleveId)}/exclure`, { nbAnnees });
       toast.success('Élève exclu');
+      setExclureTarget(null);
       fetchEleves();
-    } catch { toast.error('Erreur lors de l\'exclusion'); }
+    } catch (err) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Erreur lors de l\'exclusion';
+      toast.error(msg);
+    } finally { setExclureLoading(false); }
   };
 
-  const handleDesactiverEleve = async (e: EleveItem) => {
-    const prenom = String(e.prenom ?? e.firstName ?? '');
-    const nom = String(e.nom ?? e.lastName ?? '');
-    if (!confirm(`Désactiver l'inscription de ${prenom} ${nom} ?`)) return;
+  const handleDesactiverEleve = (e: EleveItem) => {
+    setDesactiverTarget(e);
+  };
+  const confirmDesactiver = async () => {
+    if (!desactiverTarget) return;
+    setDesactiverLoading(true);
     try {
-      await apiClient.patch(`/admin/eleves/${String(e.id ?? e.eleveId)}/desactiver`);
+      await apiClient.patch(`/admin/eleves/${String(desactiverTarget.id ?? desactiverTarget.eleveId)}/desactiver`);
       toast.success('Inscription désactivée');
+      setDesactiverTarget(null);
       fetchEleves();
-    } catch { toast.error('Erreur lors de la désactivation'); }
+    } catch (err) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Erreur lors de la désactivation';
+      toast.error(msg);
+    } finally { setDesactiverLoading(false); }
   };
 
   // ── Form ──────────────────────────────────────────────────────────
@@ -1255,6 +1273,47 @@ export default function ElevesAdminPage() {
             <div style={{ width: 540, height: 340 }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={cardModal.rectoUrl} alt="Carte scolaire" style={{ width: 540, height: 340, display: 'block', boxShadow: '0 20px 50px rgba(0,0,0,.4)' }} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modale Desactiver ── */}
+      {desactiverTarget && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }}>
+          <div style={{ background: '#fff', width: 420, padding: 28 }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', marginBottom: 12 }}>Desactiver l&apos;inscription</div>
+            <p style={{ fontSize: 14, color: '#475569', marginBottom: 20 }}>
+              Voulez-vous desactiver l&apos;inscription de <strong>{String(desactiverTarget.prenom ?? desactiverTarget.firstName ?? '')} {String(desactiverTarget.nom ?? desactiverTarget.lastName ?? '')}</strong> ?
+              L&apos;eleve ne sera plus considere comme inscrit pour l&apos;annee en cours.
+            </p>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button onClick={() => setDesactiverTarget(null)} disabled={desactiverLoading} style={{ height: 36, padding: '0 18px', border: '1px solid #e2e8f0', background: '#fff', color: '#475569', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Annuler</button>
+              <button onClick={confirmDesactiver} disabled={desactiverLoading} style={{ height: 36, padding: '0 18px', border: 'none', background: '#f59e0b', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', opacity: desactiverLoading ? 0.6 : 1 }}>
+                {desactiverLoading ? 'En cours...' : 'Desactiver'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modale Exclure ── */}
+      {exclureTarget && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }}>
+          <div style={{ background: '#fff', width: 420, padding: 28 }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', marginBottom: 12 }}>Exclure l&apos;eleve</div>
+            <p style={{ fontSize: 14, color: '#475569', marginBottom: 16 }}>
+              Exclure <strong>{String(exclureTarget.prenom ?? exclureTarget.firstName ?? '')} {String(exclureTarget.nom ?? exclureTarget.lastName ?? '')}</strong> de l&apos;etablissement.
+            </p>
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ fontSize: 13, fontWeight: 600, color: '#0f172a', display: 'block', marginBottom: 6 }}>Nombre d&apos;annees d&apos;exclusion</label>
+              <input type="number" min="1" max="10" value={exclureNbAnnees} onChange={(e) => setExclureNbAnnees(e.target.value)} style={{ width: '100%', height: 38, border: '1px solid #e2e8f0', padding: '0 12px', fontSize: 14, fontFamily: 'inherit' }} />
+            </div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button onClick={() => setExclureTarget(null)} disabled={exclureLoading} style={{ height: 36, padding: '0 18px', border: '1px solid #e2e8f0', background: '#fff', color: '#475569', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Annuler</button>
+              <button onClick={confirmExclure} disabled={exclureLoading} style={{ height: 36, padding: '0 18px', border: 'none', background: '#dc2626', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', opacity: exclureLoading ? 0.6 : 1 }}>
+                {exclureLoading ? 'En cours...' : 'Exclure'}
+              </button>
             </div>
           </div>
         </div>
