@@ -152,7 +152,7 @@ export default function CalendrierScolairePage() {
   async function handleDelete(id: string) {
     if (!confirm('Supprimer cet événement ?')) return;
     try {
-      await apiClient.delete(`/admin/configuration/calendrier-scolaire/${id}`);
+      await apiClient.delete(`/admin/configuration/calendrier-scolaire/${id}`, { headers: { 'Content-Type': undefined } });
       toast.success('Supprimé');
       void fetchEvents();
     } catch { toast.error('Erreur'); }

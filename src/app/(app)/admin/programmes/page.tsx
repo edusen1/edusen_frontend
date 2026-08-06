@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { apiClient } from '@/lib/api/client';
+import { extractApiMessage } from '@/hooks/use-query-api';
 
 type R = Record<string, unknown>;
 type Programme = R & { id: string; titre: string; niveauNom: string; matiereNom: string; statut: string; nbChapitres: number; anneeAcademique?: { libelle: string } };
@@ -140,7 +141,20 @@ export default function ProgrammesPage() {
   async function handleDelete(id: string) { if (!confirm('Supprimer ce programme ?')) return; try { await apiClient.delete(`/admin/programmes/${id}`); toast.success('Supprimé'); setDetail(null); void fetchProgs(); } catch { toast.error('Erreur'); } }
   async function handleValider(id: string) { try { await apiClient.post(`/admin/programmes/${id}/valider`); toast.success('Validé'); void fetchProgs(); if (detail) void loadDetail(id); } catch { toast.error('Erreur'); } }
 
-  function openAddCh() { setEditChId(null); setChForm(EMPTY_CH); setShowChModal(true); }
+  /**
+   * Période par défaut d'un nouveau chapitre, alignée sur la périodicité du
+   * niveau. Sans ça, le formulaire s'ouvrait toujours sur TRIMESTRE_1 : pour un
+   * niveau en semestres le <select> n'affiche que SEMESTRE_1/2, le navigateur
+   * montrait « Semestre 1 » mais l'état React restait TRIMESTRE_1, et le
+   * chapitre partait enregistré sur une période qui n'existe pas pour ce niveau.
+   */
+  function defaultPeriode(): string {
+    const niveauId = detail?.niveauId ?? form.niveauId;
+    const niveau = niveaux.find((n) => n.id === niveauId);
+    return (niveau?.typePeriode ?? 'TRIMESTRE') === 'SEMESTRE' ? 'SEMESTRE_1' : 'TRIMESTRE_1';
+  }
+
+  function openAddCh() { setEditChId(null); setChForm({ ...EMPTY_CH, periode: defaultPeriode() }); setShowChModal(true); }
   function openEditCh(ch: Chapitre) { setEditChId(ch.id); setChForm({ titre: ch.titre, description: String(ch.description ?? ''), objectifs: String(ch.objectifs ?? ''), competences: String(ch.competences ?? ''), ressources: String(ch.ressources ?? ''), prerequis: String(ch.prerequis ?? ''), periode: ch.periode, dateLimite: ch.dateLimite?.slice(0, 10) ?? '', volumeHoraire: String(ch.volumeHoraire ?? ''), nbSeances: String(ch.nbSeances ?? ''), evaluationPrevue: Boolean(ch.evaluationPrevue), typeEvaluation: String(ch.typeEvaluation ?? '') }); setShowChModal(true); }
 
   async function handleSaveCh() {
@@ -265,7 +279,11 @@ export default function ProgrammesPage() {
               <div style={{ padding: '12px 20px', borderTop: `1px solid ${B}`, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                 <button onClick={() => setShowDupModal(false)} style={{ height: 34, padding: '0 16px', border: `1px solid ${B}`, background: '#fff', color: '#334155', fontSize: 12, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' }}>Annuler</button>
                 <button disabled={!dupAnneeId} onClick={async () => {
-                  try { await apiClient.post(`/admin/programmes/${detail.id}/dupliquer`, { anneeAcademiqueId: dupAnneeId }); toast.success('Programme dupliqué avec tous ses chapitres'); setShowDupModal(false); void fetchProgs(); } catch { toast.error('Erreur'); }
+                  try { await apiClient.post(`/admin/programmes/${detail.id}/dupliquer`, { anneeAcademiqueId: dupAnneeId }); toast.success('Programme dupliqué avec tous ses chapitres'); setShowDupModal(false); void fetchProgs(); }
+                  // Le cas le plus fréquent est la duplication vers une année qui a
+                  // déjà ce couple niveau/matière : le backend renvoie un 409 que
+                  // « Erreur » rendait indéchiffrable.
+                  catch (err) { toast.error(extractApiMessage(err, 'Duplication impossible')); }
                 }} style={{ height: 34, padding: '0 16px', border: 'none', background: '#d97706', color: '#fff', fontSize: 12, fontWeight: 600, fontFamily: 'inherit', cursor: !dupAnneeId ? 'not-allowed' : 'pointer', opacity: !dupAnneeId ? 0.5 : 1 }}>Dupliquer</button>
               </div>
             </div>

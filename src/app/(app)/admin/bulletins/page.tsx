@@ -34,19 +34,31 @@ function fmtRang(r: number): string {
   return `${r}ème`;
 }
 
-function getNoteColor(n: number): string {
-  if (n >= 16) return '#16a34a';
-  if (n >= 12) return '#2563eb';
-  if (n >= 10) return '#d97706';
+/**
+ * Couleur et mention sont exprimées sur 20. Le Préscolaire et le Primaire
+ * notent sur 10 : sans conversion, un 6/10 (au-dessus de la moyenne) était
+ * affiché en rouge et noté « Insuffisant » comme un 6/20.
+ * On ramène donc la note au barème /20 avant de la qualifier.
+ */
+function toBase20(n: number, moyMax: number): number {
+  return moyMax > 0 && moyMax !== 20 ? (n / moyMax) * 20 : n;
+}
+
+function getNoteColor(n: number, moyMax = 20): string {
+  const v = toBase20(n, moyMax);
+  if (v >= 16) return '#16a34a';
+  if (v >= 12) return '#2563eb';
+  if (v >= 10) return '#d97706';
   return '#dc2626';
 }
 
-function getMention(m: number | null): string {
+function getMention(m: number | null, moyMax = 20): string {
   if (m === null) return '—';
-  if (m >= 16) return 'TB';
-  if (m >= 14) return 'B';
-  if (m >= 12) return 'AB';
-  if (m >= 10) return 'Passable';
+  const v = toBase20(m, moyMax);
+  if (v >= 16) return 'TB';
+  if (v >= 14) return 'B';
+  if (v >= 12) return 'AB';
+  if (v >= 10) return 'Passable';
   return 'Insuffisant';
 }
 
@@ -170,9 +182,13 @@ export default function BulletinsAdminPage() {
   };
 
   // Grouper par cycle
+  // Seules les classes dont la périodicité correspond à la période choisie sont
+  // affichées. Sans ce filtre, une classe de Primaire (trimestres) recevait un
+  // bouton « Générer S1 » et l'appel partait avec trimestre=SEMESTRE_1.
   const cycleGroups: { cycleName: string; typePeriode: string; classes: ClasseItem[] }[] = [];
   const cycleMap = new Map<string, { typePeriode: string; classes: ClasseItem[] }>();
   for (const c of classes) {
+    if (!isPeriodeCompatible(c)) continue;
     const name = getCycleName(c);
     const tp = resolveTypePeriode(c);
     if (!cycleMap.has(name)) cycleMap.set(name, { typePeriode: tp, classes: [] });
@@ -181,6 +197,18 @@ export default function BulletinsAdminPage() {
   for (const [cycleName, data] of cycleMap) cycleGroups.push({ cycleName, ...data });
 
   const handleGenerer = async (classe: ClasseItem) => {
+    // Garde-fou : ne jamais générer une période incompatible avec le cycle de la
+    // classe (un Primaire est en trimestres, pas en semestres), ni régénérer une
+    // période déjà complète.
+    if (!isPeriodeCompatible(classe)) {
+      toast.error(`${classe.nom} n'est pas en ${periodeLabel(selectedPeriode).toLowerCase()}`);
+      return;
+    }
+    const nbEleves = classe.nbEleves ?? classe._count?.eleves ?? 0;
+    if (nbEleves > 0 && getBulletinCount(classe.id, selectedPeriode) >= nbEleves) {
+      toast.success(`Bulletins ${periodeShort(selectedPeriode)} déjà générés pour ${classe.nom}`);
+      return;
+    }
     setGenerating(classe.id);
     try {
       await apiClient.post('/admin/bulletins/generer', { classeId: classe.id, trimestre: selectedPeriode, anneeScolaire: selectedAnneeLibelle });
@@ -662,7 +690,7 @@ export default function BulletinsAdminPage() {
                             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" style={{ transition: 'transform .2s', transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)' }}><path d="m9 18 6-6-6-6"/></svg>
                               <span style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>{eleveName(eleve)}</span>
-                              {moyAffichee !== null && <span style={{ fontSize: 12, fontWeight: 700, color: getNoteColor(moyAffichee) }}>{fmt(moyAffichee)}/{detailMoyMax}</span>}
+                              {moyAffichee !== null && <span style={{ fontSize: 12, fontWeight: 700, color: getNoteColor(moyAffichee, detailMoyMax) }}>{fmt(moyAffichee)}/{detailMoyMax}</span>}
                               {rangCalcule && <span style={{ fontSize: 11, color: '#94a3b8' }}>{fmtRang(rangCalcule)}</span>}
                             </div>
                             <span style={{ fontSize: 11, color: '#94a3b8' }}>{eleve.matricule ?? ''}</span>
@@ -686,15 +714,15 @@ export default function BulletinsAdminPage() {
                               </thead>
                               <tbody>
                                 {lignes.map((l, li) => {
-                                  const appreciation = getMention(l.moyPeriode);
+                                  const appreciation = getMention(l.moyPeriode, detailMoyMax);
                                   return (
                                     <tr key={l.matiere.id} style={{ borderBottom: li < lignes.length - 1 ? '1px solid #f1f5f9' : '1px solid #e6ebf1' }}>
                                       <td style={{ padding: '7px 16px', fontWeight: 600, color: '#0f172a' }}>
                                         {l.matiere.libelle ?? l.matiere.code ?? '—'}
                                       </td>
-                                      <td style={{ padding: '7px 4px', textAlign: 'center', fontWeight: 700, color: getNoteColor(l.moyDevoirs) }}>{fmt1(l.moyDevoirs)}</td>
-                                      <td style={{ padding: '7px 4px', textAlign: 'center', fontWeight: 700, color: getNoteColor(l.noteCompo) }}>{fmt1(l.noteCompo)}</td>
-                                      <td style={{ padding: '7px 4px', textAlign: 'center', fontWeight: 800, color: getNoteColor(l.moyPeriode) }}>{fmt1(l.moyPeriode)}</td>
+                                      <td style={{ padding: '7px 4px', textAlign: 'center', fontWeight: 700, color: getNoteColor(l.moyDevoirs, detailMoyMax) }}>{fmt1(l.moyDevoirs)}</td>
+                                      <td style={{ padding: '7px 4px', textAlign: 'center', fontWeight: 700, color: getNoteColor(l.noteCompo, detailMoyMax) }}>{fmt1(l.noteCompo)}</td>
+                                      <td style={{ padding: '7px 4px', textAlign: 'center', fontWeight: 800, color: getNoteColor(l.moyPeriode, detailMoyMax) }}>{fmt1(l.moyPeriode)}</td>
                                       <td style={{ padding: '7px 4px', textAlign: 'center', color: '#64748b' }}>{l.coef}</td>
                                       <td style={{ padding: '7px 4px', textAlign: 'center', fontWeight: 700, color: '#0f172a' }}>{fmt2(l.periodeXCoef)}</td>
                                       <td style={{ padding: '7px 8px', fontSize: 11, color: '#475569' }}>{appreciation}</td>
@@ -717,7 +745,7 @@ export default function BulletinsAdminPage() {
                               </div>
                               <div style={{ padding: '10px 16px', borderRight: '1px solid #e6ebf1' }}>
                                 <div style={{ fontSize: 10, color: '#64748b', fontWeight: 600 }}>Moyenne {periodeLabelStr}</div>
-                                <div style={{ fontSize: 16, fontWeight: 800, color: moyAffichee !== null ? getNoteColor(moyAffichee) : '#64748b' }}>
+                                <div style={{ fontSize: 16, fontWeight: 800, color: moyAffichee !== null ? getNoteColor(moyAffichee, detailMoyMax) : '#64748b' }}>
                                   {fmt(moyAffichee)} <span style={{ fontSize: 10, fontWeight: 400, color: '#94a3b8' }}>sur {detailMoyMax}</span>
                                 </div>
                               </div>
@@ -744,7 +772,7 @@ export default function BulletinsAdminPage() {
                             {isLastPeriode && (
                               <div style={{ padding: '10px 16px', background: '#fefce8', borderBottom: '1px solid #e6ebf1' }}>
                                 <div style={{ fontSize: 10, color: '#92400e', fontWeight: 600 }}>Moyenne générale annuelle</div>
-                                <div style={{ fontSize: 16, fontWeight: 800, color: calcMoyAnnuelle(eleve.id) !== null ? getNoteColor(calcMoyAnnuelle(eleve.id)!) : '#64748b' }}>
+                                <div style={{ fontSize: 16, fontWeight: 800, color: calcMoyAnnuelle(eleve.id) !== null ? getNoteColor(calcMoyAnnuelle(eleve.id)!, detailMoyMax) : '#64748b' }}>
                                   {fmt(calcMoyAnnuelle(eleve.id))} <span style={{ fontSize: 10, fontWeight: 400, color: '#94a3b8' }}>sur {detailMoyMax}</span>
                                 </div>
                               </div>

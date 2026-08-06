@@ -7,7 +7,7 @@ import {
 import { toast } from 'sonner';
 import { AxiosError } from 'axios';
 
-function extractApiMessage(error: unknown, fallback = 'Erreur'): string {
+export function extractApiMessage(error: unknown, fallback = 'Erreur'): string {
   if (error instanceof AxiosError) {
     const msg = error.response?.data?.message;
     if (typeof msg === 'string' && msg.length > 0) return msg;
