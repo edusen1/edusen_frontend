@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useCaissePaiements } from '@/hooks/use-query-api';
+import { formatDateFr, personLabel } from '@/lib/display';
 
 const STATIC_HISTORIQUE = [
   { id: 1, eleve: 'Moussa Diallo', type: 'Scolarité T3', montant: 120000, mode: 'Espèces', date: '2025-06-27', agent: 'Caissier A' },
@@ -35,12 +36,13 @@ export default function HistoriquePage() {
   const historique = (raw as Record<string, unknown>[]).length > 0
     ? (raw as Record<string, unknown>[]).map((p, i) => ({
         id: String(p.id ?? p._id ?? i),
-        eleve: String(p.eleve ?? p.nomEleve ?? ''),
+        // L'API renvoie un objet élève : `String(objet)` donnait « [object Object] ».
+        eleve: personLabel(p.eleve ?? p.nomEleve ?? p.inscription ?? ''),
         type: String(p.type ?? p.typePaiement ?? ''),
         montant: Number(p.montant ?? 0),
         mode: String(p.mode ?? p.modePaiement ?? ''),
         date: String(p.datePaiement ?? p.date ?? p.createdAt ?? ''),
-        agent: String(p.agent ?? p.agentCaisse ?? '—'),
+        agent: personLabel(p.agent ?? p.agentCaisse ?? p.creePar ?? ''),
       }))
     : STATIC_HISTORIQUE;
 
@@ -52,7 +54,18 @@ export default function HistoriquePage() {
     return matchSearch && matchMode && matchDateDebut && matchDateFin;
   });
 
-  const totalMois = filtered.filter((p) => p.date.includes('2025-06') || p.date.includes('Jun')).reduce((s, p) => s + p.montant, 0);
+  // Le mois courant était figé sur « 2025-06 » : l'écran annonçait « Ce mois (Juin) »
+  // quelle que soit la date réelle. On le dérive maintenant de la date du jour.
+  const maintenant = new Date();
+  const moisCourant = `${maintenant.getFullYear()}-${String(maintenant.getMonth() + 1).padStart(2, '0')}`;
+  const moisCourantLabel = maintenant.toLocaleDateString('fr-FR', { month: 'long' });
+  const totalMois = filtered
+    .filter((p) => {
+      const d = new Date(p.date);
+      if (Number.isNaN(d.getTime())) return p.date.startsWith(moisCourant);
+      return d.getFullYear() === maintenant.getFullYear() && d.getMonth() === maintenant.getMonth();
+    })
+    .reduce((s, p) => s + p.montant, 0);
   const totalGeneral = filtered.reduce((s, p) => s + p.montant, 0);
   const fmt = (n: number) => n.toLocaleString('fr-FR') + ' FCFA';
   const fd = (v: string) => { try { return new Date(v).toLocaleDateString('fr-FR'); } catch { return v; } };
@@ -83,7 +96,7 @@ export default function HistoriquePage() {
       {/* Stats */}
       <div style={{ flexShrink: 0, padding: '18px 28px 0', display: 'flex', gap: 14, flexWrap: 'wrap' }}>
         {[
-          { label: 'Ce mois (Juin)', value: fmt(totalMois), color: '#16a34a', bg: '#dcfce7' },
+          { label: `Ce mois (${moisCourantLabel})`, value: fmt(totalMois), color: '#16a34a', bg: '#dcfce7' },
           { label: 'Total filtré', value: fmt(totalGeneral), color: '#2563eb', bg: '#eff6ff' },
           { label: 'Transactions', value: filtered.length, color: '#0f172a', bg: '#f8fafc' },
         ].map((s) => (

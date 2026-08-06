@@ -229,12 +229,12 @@ export default function CommunicationPage() {
   }));
   const anneeActive = annees.find(a => a.active) ?? null;
 
-  // Initialise le filtre sur l'année active dès que les données chargent
-  useEffect(() => {
-    if (!anneeActive || filtreAnnee) return;
-    const timer = window.setTimeout(() => setFiltreAnnee(anneeActive.id), 0);
-    return () => window.clearTimeout(timer);
-  }, [anneeActive?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Le filtre année reste sur « Toutes les années » par défaut.
+  //
+  // Il était auto-positionné sur l'année active, ce qui masquait tous les
+  // messages dont `anneeAcademiqueId` est null — c'est-à-dire l'intégralité
+  // de l'historique. La page affichait « 0 message » alors que l'API en
+  // retournait 7. L'utilisateur choisit désormais explicitement une année.
 
   const filtered = messages.filter(m => {
     if (filtreStatut !== 'TOUS' && m.statut !== filtreStatut) return false;
@@ -376,7 +376,13 @@ export default function CommunicationPage() {
 
   async function handleEnvoyer(brouillon = false) {
     const e = validate();
-    if (Object.keys(e).length) { setErrors(e); return; }
+    if (Object.keys(e).length) {
+      setErrors(e);
+      // Les erreurs inline peuvent être hors écran dans un composeur qui défile :
+      // sans ce retour, le clic paraît sans effet et l'utilisateur croit avoir enregistré.
+      toast.error(Object.values(e)[0] ?? 'Formulaire incomplet');
+      return;
+    }
     try {
       if (editMessage) {
         await updateCommunication.mutateAsync({ id: editMessage.id, data: buildPayload(brouillon) });

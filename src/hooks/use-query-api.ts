@@ -15,21 +15,49 @@ function extractApiMessage(error: unknown, fallback = 'Erreur'): string {
   return fallback;
 }
 
+/**
+ * Déballe une réponse API quelle que soit sa forme.
+ *
+ * Le backend répond tantôt par un tableau nu (`[...]`), tantôt par une
+ * enveloppe (`{ data: ... }`), tantôt par une page (`{ content: [...] }`).
+ * Écrire `r.data?.data` ne marche que pour l'enveloppe : sur un tableau nu
+ * cela renvoie `undefined`, et la page affiche un état vide alors que
+ * l'API a bien répondu.
+ *
+ * C'est la cause du « 0 enfant scolarisé » de l'espace parent, alors que
+ * `GET /parent/enfants` retournait bien les deux enfants.
+ */
+function unwrap<T = unknown>(response: { data: unknown }): T {
+  const body = response?.data as
+    | { data?: unknown; content?: unknown }
+    | unknown[]
+    | null
+    | undefined;
+  if (body === null || body === undefined) return body as T;
+  if (Array.isArray(body)) return body as T;
+  if (typeof body === 'object') {
+    const envelope = body as { data?: unknown; content?: unknown };
+    if (envelope.data !== undefined) return envelope.data as T;
+    if (envelope.content !== undefined) return envelope.content as T;
+  }
+  return body as T;
+}
+
 // --- ELEVE HOOKS ---
 export const useEleveProfil = () =>
-  useQuery({ queryKey: ['eleve', 'profil'], queryFn: () => eleveApi.profil().then(r => r.data?.data) });
+  useQuery({ queryKey: ['eleve', 'profil'], queryFn: () => eleveApi.profil().then(unwrap) });
 export const useEleveNotes = (trimestre?: string) =>
-  useQuery({ queryKey: ['eleve', 'notes', trimestre], queryFn: () => eleveApi.notes(trimestre).then(r => r.data?.data) });
+  useQuery({ queryKey: ['eleve', 'notes', trimestre], queryFn: () => eleveApi.notes(trimestre).then(unwrap) });
 export const useEleveBulletins = () =>
-  useQuery({ queryKey: ['eleve', 'bulletins'], queryFn: () => eleveApi.bulletins().then(r => r.data?.data) });
+  useQuery({ queryKey: ['eleve', 'bulletins'], queryFn: () => eleveApi.bulletins().then(unwrap) });
 export const useEleveEmploiDuTemps = () =>
-  useQuery({ queryKey: ['eleve', 'emploi-du-temps'], queryFn: () => eleveApi.emploiDuTemps().then(r => r.data?.data) });
+  useQuery({ queryKey: ['eleve', 'emploi-du-temps'], queryFn: () => eleveApi.emploiDuTemps().then(unwrap) });
 export const useEleveAbsences = () =>
-  useQuery({ queryKey: ['eleve', 'absences'], queryFn: () => eleveApi.absences().then(r => r.data?.data) });
+  useQuery({ queryKey: ['eleve', 'absences'], queryFn: () => eleveApi.absences().then(unwrap) });
 export const useEleveNotifications = () =>
-  useQuery({ queryKey: ['eleve', 'notifications'], queryFn: () => eleveApi.notifications().then(r => r.data?.data) });
+  useQuery({ queryKey: ['eleve', 'notifications'], queryFn: () => eleveApi.notifications().then(unwrap) });
 export const useEleveReclamations = () =>
-  useQuery({ queryKey: ['eleve', 'reclamations'], queryFn: () => eleveApi.reclamations().then(r => r.data?.data) });
+  useQuery({ queryKey: ['eleve', 'reclamations'], queryFn: () => eleveApi.reclamations().then(unwrap) });
 
 export const useCreerReclamation = () => {
   const qc = useQueryClient();
@@ -58,19 +86,19 @@ export const useToutLireNotifications = () => {
 
 // --- PARENT HOOKS ---
 export const useParentEnfants = () =>
-  useQuery({ queryKey: ['parent', 'enfants'], queryFn: () => parentApi.enfants().then(r => r.data?.data) });
+  useQuery({ queryKey: ['parent', 'enfants'], queryFn: () => parentApi.enfants().then(unwrap) });
 export const useParentEnfantNotes = (id: string, trimestre?: string) =>
-  useQuery({ queryKey: ['parent', 'enfant', id, 'notes', trimestre], queryFn: () => parentApi.enfantNotes(id, trimestre).then(r => r.data?.data), enabled: !!id });
+  useQuery({ queryKey: ['parent', 'enfant', id, 'notes', trimestre], queryFn: () => parentApi.enfantNotes(id, trimestre).then(unwrap), enabled: !!id });
 export const useParentEnfantAbsences = (id: string) =>
-  useQuery({ queryKey: ['parent', 'enfant', id, 'absences'], queryFn: () => parentApi.enfantAbsences(id).then(r => r.data?.data), enabled: !!id });
+  useQuery({ queryKey: ['parent', 'enfant', id, 'absences'], queryFn: () => parentApi.enfantAbsences(id).then(unwrap), enabled: !!id });
 export const useParentEnfantBulletins = (id: string) =>
-  useQuery({ queryKey: ['parent', 'enfant', id, 'bulletins'], queryFn: () => parentApi.enfantBulletins(id).then(r => r.data?.data), enabled: !!id });
+  useQuery({ queryKey: ['parent', 'enfant', id, 'bulletins'], queryFn: () => parentApi.enfantBulletins(id).then(unwrap), enabled: !!id });
 export const useParentEnfantEmploiDuTemps = (id: string) =>
-  useQuery({ queryKey: ['parent', 'enfant', id, 'emploi-du-temps'], queryFn: () => parentApi.enfantEmploiDuTemps(id).then(r => r.data?.data), enabled: !!id });
+  useQuery({ queryKey: ['parent', 'enfant', id, 'emploi-du-temps'], queryFn: () => parentApi.enfantEmploiDuTemps(id).then(unwrap), enabled: !!id });
 export const useParentPaiements = () =>
-  useQuery({ queryKey: ['parent', 'paiements'], queryFn: () => parentApi.paiements().then(r => r.data?.data) });
+  useQuery({ queryKey: ['parent', 'paiements'], queryFn: () => parentApi.paiements().then(unwrap) });
 export const useParentNotifications = () =>
-  useQuery({ queryKey: ['parent', 'notifications'], queryFn: () => parentApi.notifications().then(r => r.data?.data) });
+  useQuery({ queryKey: ['parent', 'notifications'], queryFn: () => parentApi.notifications().then(unwrap) });
 export const useParentReclamations = () =>
   useQuery({ queryKey: ['parent', 'reclamations'], queryFn: () => parentApi.reclamations().then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
 export const useCreerReclamationParent = () => {
@@ -82,7 +110,7 @@ export const useCreerReclamationParent = () => {
   });
 };
 export const useParentProfil = () =>
-  useQuery({ queryKey: ['parent', 'profil'], queryFn: () => parentApi.profil().then(r => r.data?.data) });
+  useQuery({ queryKey: ['parent', 'profil'], queryFn: () => parentApi.profil().then(unwrap) });
 export const useMarquerNotificationLueParent = () => {
   const qc = useQueryClient();
   return useMutation({
@@ -100,15 +128,15 @@ export const useToutLireNotificationsParent = () => {
 
 // --- PROFESSEUR HOOKS ---
 export const useProfesseurMesClasses = () =>
-  useQuery({ queryKey: ['professeur', 'mes-classes'], queryFn: () => professeurApi.mesClasses().then(r => r.data?.data) });
+  useQuery({ queryKey: ['professeur', 'mes-classes'], queryFn: () => professeurApi.mesClasses().then(unwrap) });
 export const useProfesseurClassesMatieres = () =>
-  useQuery({ queryKey: ['professeur', 'classes-matieres'], queryFn: () => professeurApi.classesMatieres().then(r => r.data?.data) });
+  useQuery({ queryKey: ['professeur', 'classes-matieres'], queryFn: () => professeurApi.classesMatieres().then(unwrap) });
 export const useProfesseurPaiements = () =>
-  useQuery({ queryKey: ['professeur', 'paiements'], queryFn: () => professeurApi.paiements().then(r => r.data?.data) });
+  useQuery({ queryKey: ['professeur', 'paiements'], queryFn: () => professeurApi.paiements().then(unwrap) });
 export const useProfesseurEmploiDuTemps = () =>
-  useQuery({ queryKey: ['professeur', 'emploi-du-temps'], queryFn: () => professeurApi.emploiDuTemps().then(r => r.data?.data) });
+  useQuery({ queryKey: ['professeur', 'emploi-du-temps'], queryFn: () => professeurApi.emploiDuTemps().then(unwrap) });
 export const useProfesseurClasseEleves = (classeId: string) =>
-  useQuery({ queryKey: ['professeur', 'classe', classeId, 'eleves'], queryFn: () => professeurApi.classeEleves(classeId).then(r => r.data?.data), enabled: !!classeId });
+  useQuery({ queryKey: ['professeur', 'classe', classeId, 'eleves'], queryFn: () => professeurApi.classeEleves(classeId).then(unwrap), enabled: !!classeId });
 export const useProfesseurAbsences = () =>
   useQuery({ queryKey: ['professeur', 'absences'], queryFn: () => professeurApi.absences().then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
 export const useDeclarerAbsenceProfesseur = () => {

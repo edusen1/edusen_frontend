@@ -1,5 +1,6 @@
 'use client';
 
+import { formatDateFr, personLabel } from '@/lib/display';
 import { useAdminPersonnel, useAdminAbsencesPersonnel, useAdminPointages } from '@/hooks/use-query-api';
 
 const TYPE_COLORS: Record<string, string> = {
@@ -148,7 +149,9 @@ export default function RhDashboardPage() {
               <div style={{ color: '#94a3b8', fontSize: 13, padding: '20px 0', textAlign: 'center' }}>Aucune absence enregistrée</div>
             ) : (
               recentAbsences.map((a, idx) => {
-                const nom = String(a.personnel ?? a.nom ?? `Agent ${idx + 1}`);
+                // « Agent 1 », « Agent 2 »… venaient de ce repli : l'API renvoie
+                // un objet personnel (firstName/lastName) que String() ne sait pas lire.
+                const nom = personLabel(a.personnel ?? a.user ?? a, `Agent ${idx + 1}`);
                 const statut = String(a.statut ?? 'en_attente');
                 const statusStyle = statut === 'justifié' ? { bg: '#dcfce7', color: '#16a34a', label: 'Justifiée' }
                   : statut === 'non_justifié' ? { bg: '#fee2e2', color: '#dc2626', label: 'Non just.' }
@@ -158,7 +161,7 @@ export default function RhDashboardPage() {
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 12, fontWeight: 600, color: '#0f172a' }}>{nom}</div>
                       <div style={{ fontSize: 11, color: '#94a3b8' }}>
-                        {String(a.date ?? a.dateDebut ?? '—')} · {String(a.motif ?? a.type ?? '—')}
+                        {formatDateFr(a.date ?? a.dateDebut)} · {String(a.motif ?? a.type ?? '—')}
                       </div>
                     </div>
                     <span style={{ fontSize: 10, fontWeight: 700, color: statusStyle.color, background: statusStyle.bg, padding: '2px 7px' }}>

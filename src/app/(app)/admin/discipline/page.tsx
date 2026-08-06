@@ -281,7 +281,10 @@ export default function DisciplinePage() {
         <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
           {(['TOUS', 'ELEVE', 'ENSEIGNANT', 'PERSONNEL'] as const).map(s => (
             <button key={s} onClick={() => setSujetFilter(s)} style={{ padding: '6px 14px', fontSize: 12, fontWeight: 600, border: `1px solid ${sujetFilter === s ? '#2563eb' : '#e2e8f0'}`, background: sujetFilter === s ? '#eff6ff' : '#fff', color: sujetFilter === s ? '#2563eb' : '#64748b', cursor: 'pointer' }}>
-              {s === 'TOUS' ? `Tous (${parListe.length})` : `${s === 'ELEVE' ? 'Élèves' : s === 'ENSEIGNANT' ? 'Enseignants' : 'Personnel'} (${sujetCounts[s]})`}
+              {/* « Tous » filtre par type de sujet à l'intérieur de l'onglet courant,
+                  pas sur l'ensemble des dossiers : le libellé le précise pour éviter
+                  de le lire comme un total (« Tous (5) » à côté de « Clôturés (4) »). */}
+              {s === 'TOUS' ? `Tous les sujets (${parListe.length})` : `${s === 'ELEVE' ? 'Élèves' : s === 'ENSEIGNANT' ? 'Enseignants' : 'Personnel'} (${sujetCounts[s]})`}
             </button>
           ))}
         </div>

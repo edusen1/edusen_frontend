@@ -1,5 +1,6 @@
 'use client';
 
+import { personLabel, shortId } from '@/lib/display';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { useAdminConvocations, useAdminEleves, useCreateConvocation, useUpdateConvocation } from '@/hooks/use-query-api';
@@ -45,16 +46,16 @@ function lbl(): React.CSSProperties {
 
 function getEleve(c: Convocation, elevesById?: Map<string, string>): string {
   if (c.eleveNom) return c.eleveNom;
-  if (typeof c.eleveId === 'object' && c.eleveId && 'nom' in (c.eleveId as object)) {
-    const e = c.eleveId as Record<string, string>;
-    return `${e.prenom ?? ''} ${e.nom ?? ''}`.trim();
+  if (typeof c.eleveId === 'object' && c.eleveId) {
+    return personLabel(c.eleveId);
   }
-  // Resolve UUID to name via lookup
+  // Résolution UUID → nom via la liste des élèves
   if (c.eleveId && elevesById) {
     const resolved = elevesById.get(String(c.eleveId));
     if (resolved) return resolved;
   }
-  return String(c.eleveId ?? '');
+  // Ne jamais afficher un UUID complet en colonne « Élève ».
+  return shortId(c.eleveId);
 }
 
 function getClasse(c: Convocation): string {
@@ -74,7 +75,7 @@ export default function ConvocationsPage() {
   const elevesById = new Map<string, string>();
   for (const el of rawEleves as Record<string, unknown>[]) {
     if (el.id) {
-      const name = `${el.prenom ?? el.firstName ?? ''} ${el.nom ?? el.lastName ?? ''}`.trim();
+      const name = personLabel(el, '');
       if (name) elevesById.set(String(el.id), name);
     }
   }
@@ -310,7 +311,7 @@ export default function ConvocationsPage() {
                   <option value="">— Choisir un élève —</option>
                   {(rawEleves as Record<string, unknown>[]).map((el) => (
                     <option key={String(el.id)} value={String(el.id)}>
-                      {`${el.prenom ?? ''} ${el.nom ?? ''}`.trim()}
+                      {personLabel(el, String(el.matricule ?? ''))}
                     </option>
                   ))}
                 </select>

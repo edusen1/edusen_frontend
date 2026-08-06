@@ -281,6 +281,13 @@ export const caisseApi = {
 };
 
 // PLATFORM — /api/platform/*
+/**
+ * @deprecated L'administration de la plateforme a été déplacée dans
+ * l'application `edusen_plateforme`. Ces appels sont conservés pour ne rien
+ * casser pendant la transition, mais ne doivent plus être utilisés ici :
+ * le SUPER_ADMIN et le GESTIONNAIRE ne se connectent plus sur ce front.
+ * Voir obsidian/super-admin/Super Admin - Vue d'ensemble.md
+ */
 export const platformApi = {
   tenants: (params?: Record<string, unknown>) => apiClient.get('/platform/tenants', { params }),
   createTenant: (data: unknown) => apiClient.post('/platform/tenants', data),

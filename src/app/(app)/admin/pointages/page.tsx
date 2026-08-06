@@ -1,5 +1,6 @@
 'use client';
 
+import { displayValue, formatDateFr, personLabel } from '@/lib/display';
 import { useState } from 'react';
 import { useAdminPointages, useAdminPersonnel, useCreatePointage } from '@/hooks/use-query-api';
 
@@ -45,12 +46,9 @@ function lbl(): React.CSSProperties {
 }
 
 function getPersonnelLabel(p: Record<string, unknown>): string {
-  if (typeof p.personnel === 'string') return p.personnel;
-  if (p.personnel && typeof p.personnel === 'object') {
-    const e = p.personnel as Record<string, string>;
-    return `${e.prenom ?? ''} ${e.nom ?? ''}`.trim();
-  }
-  return String(p.personnel ?? '');
+  // L'API renvoie tantôt `personnel`, tantôt `user`, tantôt les champs à plat.
+  // Sans ce repli, la colonne restait vide.
+  return personLabel(p.personnel ?? p.user ?? p.utilisateur ?? p, '—');
 }
 
 function initials(name: string): string {
@@ -110,8 +108,8 @@ export default function PointagesPage() {
     list.forEach((p) => {
       rows.push([
         getPersonnelLabel(p),
-        String(p.poste ?? ''),
-        String(p.date ?? selectedDate),
+        displayValue(p.poste ?? p.fonction ?? p.role),
+        formatDateFr(p.date ?? p.datePointage ?? selectedDate, selectedDate),
         String(p.arrivee ?? p.heureArrivee ?? '—'),
         String(p.depart ?? p.heureDepart ?? '—'),
         String(p.statut ?? ''),
@@ -198,8 +196,8 @@ export default function PointagesPage() {
                   </div>
                   <span style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{name}</span>
                 </div>
-                <span style={{ fontSize: 12, color: '#475569' }}>{String(p.poste ?? '')}</span>
-                <span style={{ fontSize: 12, color: '#64748b' }}>{String(p.date ?? selectedDate)}</span>
+                <span style={{ fontSize: 12, color: '#475569' }}>{displayValue(p.poste ?? p.fonction ?? p.role)}</span>
+                <span style={{ fontSize: 12, color: '#64748b' }}>{formatDateFr(p.date ?? p.datePointage ?? selectedDate, selectedDate)}</span>
                 <span style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{String(p.arrivee ?? p.heureArrivee ?? '—')}</span>
                 <span style={{ fontSize: 13, color: '#475569' }}>{String(p.depart ?? p.heureDepart ?? '—')}</span>
                 <span style={{ fontSize: 11, fontWeight: 700, color: st.color, background: st.bg, padding: '3px 8px', display: 'inline-block' }}>{st.label}</span>
@@ -287,7 +285,7 @@ export default function PointagesPage() {
             <div style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', marginBottom: 20 }}>Détail du pointage</div>
             {[
               ['Personnel', getPersonnelLabel(detailItem)],
-              ['Poste', String(detailItem.poste ?? '—')],
+              ['Poste', displayValue(detailItem.poste ?? detailItem.fonction ?? detailItem.role)],
               ['Date', String(detailItem.date ?? selectedDate)],
               ['Statut', STATUT_MAP[String(detailItem.statut ?? '')]?.label ?? String(detailItem.statut ?? '—')],
               ['Heure d\'arrivée', String(detailItem.arrivee ?? detailItem.heureArrivee ?? '—')],

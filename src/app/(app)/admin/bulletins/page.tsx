@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
 import { apiClient } from '@/lib/api/client';
 
@@ -253,9 +253,9 @@ export default function BulletinsAdminPage() {
         const e = (item as Record<string, unknown>).eleve as EleveItem | undefined;
         return e ?? item as unknown as EleveItem;
       }).filter((e) => e?.id);
-      const sorted = eleves.sort((a, b) => eleveName(a).localeCompare(eleveName(b), 'fr'));
-      setDetailEleves(sorted);
-      setExpandedEleves(sorted.length > 0 ? new Set([sorted[0].id]) : new Set());
+      // Sort by rang (from bulletins of selected period), fallback to name
+      setDetailEleves(eleves);
+      setExpandedEleves(eleves.length > 0 ? new Set([eleves[0].id]) : new Set());
 
       // Coefficients depuis matieres-niveaux (source de vérité)
       const mnList = extract(mnRes) as Record<string, unknown>[];
@@ -326,6 +326,74 @@ export default function BulletinsAdminPage() {
     const t = (n.typeEvaluation ?? n.type ?? '').toUpperCase();
     return t === 'COMPOSITION' || t === 'EXAMEN';
   };
+
+  /**
+   * Moyenne générale d'un élève pour une période, calculée depuis les notes.
+   * C'est exactement le calcul utilisé pour l'affichage — le rang doit en
+   * découler, sinon moyenne et classement se contredisent à l'écran.
+   */
+  const computeMoyenne = (eleveId: string, periode: string): number | null => {
+    if (detailMatieres.length === 0) return null;
+    let totalCoef = 0;
+    let totalPoints = 0;
+    for (const m of detailMatieres) {
+      const notes = detailNotes.filter(
+        (n) =>
+          n.eleveId === eleveId &&
+          (n.matiereId === m.id || (n.matiere as MatiereItem | undefined)?.id === m.id) &&
+          String(n.trimestre ?? '') === periode
+      );
+      const devoirs = notes.filter(isDevoir);
+      const compositions = notes.filter(isComposition);
+      const moyDevoirs = devoirs.length > 0 ? devoirs.reduce((s, n) => s + n.note, 0) / devoirs.length : 0;
+      const noteCompo = compositions.length > 0 ? compositions.reduce((s, n) => s + n.note, 0) / compositions.length : 0;
+      totalCoef += m.coefficient;
+      totalPoints += ((moyDevoirs + noteCompo) / 2) * m.coefficient;
+    }
+    return totalCoef > 0 ? totalPoints / totalCoef : null;
+  };
+
+  /**
+   * Rangs recalculés à partir des moyennes affichées.
+   * Les ex aequo partagent le même rang (1, 2, 2, 4…).
+   */
+  const rangsCalcules = useMemo(() => {
+    const map = new Map<string, number>();
+    if (detailEleves.length === 0 || detailMatieres.length === 0) return map;
+
+    const scores = detailEleves
+      .map((e) => ({ id: e.id, moy: computeMoyenne(e.id, detailTab) }))
+      .filter((s): s is { id: string; moy: number } => s.moy !== null)
+      .sort((a, b) => b.moy - a.moy);
+
+    let rang = 0;
+    let precedente: number | null = null;
+    scores.forEach((s, index) => {
+      // Comparaison sur 2 décimales : deux moyennes affichées identiques
+      // doivent recevoir le même rang.
+      const arrondie = Math.round(s.moy * 100) / 100;
+      if (precedente === null || arrondie !== precedente) {
+        rang = index + 1;
+        precedente = arrondie;
+      }
+      map.set(s.id, rang);
+    });
+    return map;
+  }, [detailEleves, detailNotes, detailMatieres, detailTab]);
+
+  const totalClasses = rangsCalcules.size;
+
+  // Tri par rang recalculé, puis par nom
+  const sortedDetailEleves = useMemo(() => {
+    if (detailEleves.length === 0) return detailEleves;
+    return [...detailEleves].sort((a, b) => {
+      const ra = rangsCalcules.get(a.id) ?? 9999;
+      const rb = rangsCalcules.get(b.id) ?? 9999;
+      if (ra !== rb) return ra - rb;
+      return eleveName(a).localeCompare(eleveName(b), 'fr');
+    });
+  }, [detailEleves, rangsCalcules]);
+
   // Formats : moyenne par matière = 1 décimale, moy×coef et totaux = 2 décimales
   const fmt1 = (n: number): string => n % 1 === 0 ? String(n) : n.toFixed(1);
   const fmt2 = (n: number): string => n % 1 === 0 ? String(n) : n.toFixed(2);
@@ -518,8 +586,8 @@ export default function BulletinsAdminPage() {
                 const isLastPeriode = detailTab === detailPeriodes[detailPeriodes.length - 1];
                 const periodeLabelStr = detailTab.startsWith('SEMESTRE') ? 'semestrielle' : 'trimestrielle';
                 const filteredEleves = detailSearch
-                  ? detailEleves.filter((e) => eleveName(e).toLowerCase().includes(detailSearch.toLowerCase()) || (e.matricule ?? '').toLowerCase().includes(detailSearch.toLowerCase()))
-                  : detailEleves;
+                  ? sortedDetailEleves.filter((e) => eleveName(e).toLowerCase().includes(detailSearch.toLowerCase()) || (e.matricule ?? '').toLowerCase().includes(detailSearch.toLowerCase()))
+                  : sortedDetailEleves;
                 const th = { fontSize: 10, fontWeight: 700 as const, color: '#64748b', textTransform: 'uppercase' as const, letterSpacing: '.03em', padding: '8px 0' };
 
                 // Calcul moyenne annuelle pour un élève
@@ -571,6 +639,8 @@ export default function BulletinsAdminPage() {
                       const moyGenerale = totalCoef > 0 ? totalPoints / totalCoef : null;
                       // Toujours utiliser le calcul frontend (le backend peut avoir une ancienne valeur)
                       const moyAffichee = moyGenerale;
+                      // Le rang dérive de cette même moyenne : les deux ne peuvent plus diverger.
+                      const rangCalcule = rangsCalcules.get(eleve.id) ?? null;
 
                       const isExpanded = expandedEleves.has(eleve.id);
                       const toggleEleve = () => setExpandedEleves((prev) => {
@@ -587,7 +657,7 @@ export default function BulletinsAdminPage() {
                               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" style={{ transition: 'transform .2s', transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)' }}><path d="m9 18 6-6-6-6"/></svg>
                               <span style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>{eleveName(eleve)}</span>
                               {moyAffichee !== null && <span style={{ fontSize: 12, fontWeight: 700, color: getNoteColor(moyAffichee) }}>{fmt(moyAffichee)}/{detailMoyMax}</span>}
-                              {bul?.rang && <span style={{ fontSize: 11, color: '#94a3b8' }}>{fmtRang(bul.rang)}</span>}
+                              {rangCalcule && <span style={{ fontSize: 11, color: '#94a3b8' }}>{fmtRang(rangCalcule)}</span>}
                             </div>
                             <span style={{ fontSize: 11, color: '#94a3b8' }}>{eleve.matricule ?? ''}</span>
                           </div>
@@ -647,7 +717,12 @@ export default function BulletinsAdminPage() {
                               </div>
                               <div style={{ padding: '10px 16px', borderRight: '1px solid #e6ebf1' }}>
                                 <div style={{ fontSize: 10, color: '#64748b', fontWeight: 600 }}>Rang</div>
-                                <div style={{ fontSize: 16, fontWeight: 800, color: '#0f172a' }}>{bul?.rang ? fmtRang(bul.rang) : '—'}</div>
+                                <div style={{ fontSize: 16, fontWeight: 800, color: '#0f172a' }}>
+                                  {rangCalcule ? fmtRang(rangCalcule) : '—'}
+                                  {rangCalcule && totalClasses > 0 && (
+                                    <span style={{ fontSize: 10, fontWeight: 400, color: '#94a3b8' }}> sur {totalClasses}</span>
+                                  )}
+                                </div>
                               </div>
                               <div style={{ padding: '10px 16px', display: 'flex', gap: 16 }}>
                                 <div>

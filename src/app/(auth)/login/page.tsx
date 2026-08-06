@@ -38,6 +38,18 @@ export default function LoginPage() {
       const resData = res.data?.data ?? res.data;
       const { accessToken, refreshToken, passwordChangeRequired } = resData;
       const payload = decodeJwt(accessToken);
+
+      // Les comptes plateforme ne se connectent pas sur le front tenant :
+      // leur espace est l'application `edusen_plateforme`. Aucune session n'est
+      // créée ici. Voir obsidian/super-admin/Super Admin - Vue d'ensemble.md
+      const roleFromToken = payload.role as string;
+      if (roleFromToken === 'SUPER_ADMIN' || roleFromToken === 'GESTIONNAIRE') {
+        toast.error(
+          "Cet espace est réservé aux établissements. Les comptes plateforme se connectent sur l'espace Edusen Plateforme."
+        );
+        return;
+      }
+
       setSession({
         accessToken,
         refreshToken,
@@ -67,7 +79,6 @@ export default function LoginPage() {
       else if (role === 'CAISSIER' || role === 'COMPTABLE') router.push('/caisse/dashboard');
       else if (role === 'SURVEILLANT') router.push('/surveillant/dashboard');
       else if (role === 'RH') router.push('/rh/dashboard');
-      else if (role === 'SUPER_ADMIN' || role === 'GESTIONNAIRE') router.push('/platform/stats');
       else router.push('/admin/dashboard');
     } catch (err: unknown) {
       const status = (err as { response?: { status?: number; data?: { message?: string } } })?.response?.status;

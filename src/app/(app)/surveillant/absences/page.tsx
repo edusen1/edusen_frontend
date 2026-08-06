@@ -5,7 +5,7 @@ import {
   useSurveillantAbsences, useSurveillantClasses, useSurveillantEleves,
   useCreateAbsenceEleve, useApprouverAbsence, useRejeterAbsence,
 } from '@/hooks/use-query-api';
-import { classeLabel } from '@/lib/display';
+import { classeLabel, personLabel } from '@/lib/display';
 
 // TypeAbsence enum du backend
 const TYPE_ABSENCE = [
@@ -64,7 +64,7 @@ export default function SurveillantAbsencesPage() {
     const s = String(a.statut ?? 'EN_ATTENTE');
     const t = String(a.typeAbsence ?? '');
     const d = String(a.date ?? a.createdAt ?? '');
-    const nom = String(a.eleve ?? (a.eleveNom ?? '') + ' ' + (a.elevePrenom ?? '')).toLowerCase();
+    const nom = personLabel(a.eleve ?? { nom: a.eleveNom, prenom: a.elevePrenom }).toLowerCase();
     return (filterStatut === 'tous' || s === filterStatut)
       && (filterType === 'tous' || t === filterType)
       && (!filterDate || d.startsWith(filterDate))
@@ -174,7 +174,7 @@ export default function SurveillantAbsencesPage() {
                       {isRetard ? '⏱' : '✗'}
                     </div>
                     <span style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>
-                      {String(a.eleve ?? (((a.elevePrenom ?? '') + ' ' + (a.eleveNom ?? '')) || '—'))}
+                      {personLabel(a.eleve ?? { prenom: a.elevePrenom, nom: a.eleveNom })}
                     </span>
                   </div>
                   <span style={{ fontSize: 12, color: '#64748b' }}>{fd(a.date)}</span>
@@ -280,7 +280,7 @@ export default function SurveillantAbsencesPage() {
               <button onClick={() => setDetail(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', fontSize: 20, lineHeight: 1 }}>×</button>
             </div>
             {[
-              { label: 'Élève', value: String(detail.eleve ?? (((detail.elevePrenom ?? '') + ' ' + (detail.eleveNom ?? '')) || '—')) },
+              { label: 'Élève', value: personLabel(detail.eleve ?? { prenom: detail.elevePrenom, nom: detail.eleveNom }) },
               { label: 'Date', value: fd(detail.date) },
               { label: 'Type', value: TYPE_ABSENCE.find((t) => t.value === detail.typeAbsence)?.label ?? String(detail.typeAbsence ?? '—') },
               { label: 'Motif', value: String(detail.motif ?? '—') },
