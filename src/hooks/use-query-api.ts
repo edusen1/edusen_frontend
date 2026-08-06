@@ -911,6 +911,19 @@ export const useUpdateProfile = () => {
 // --- SURVEILLANT HOOKS ---
 export const useSurveillantAbsences = (params?: Record<string, unknown>) =>
   useQuery({ queryKey: ['surveillant', 'absences', params], queryFn: () => surveillantApi.absencesEleves(params).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
+
+/** Cours programmés pour une date — base du pointage des enseignants. */
+export const useCoursDuJour = (params?: Record<string, unknown>) =>
+  useQuery({ queryKey: ['surveillant', 'cours-du-jour', params], queryFn: () => surveillantApi.coursDuJour(params).then(unwrap) });
+
+export const useMarquerPresenceProfesseur = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: unknown) => surveillantApi.marquerPresenceProfesseur(data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['surveillant', 'cours-du-jour'] }); toast.success('Présence enregistrée'); },
+    onError: (e) => toast.error(extractApiMessage(e, "Enregistrement impossible")),
+  });
+};
 export const useSurveillantClasses = (params?: Record<string, unknown>) =>
   useQuery({ queryKey: ['surveillant', 'classes', params], queryFn: () => surveillantApi.classes(params).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
 export const useSurveillantEleves = (params?: Record<string, unknown>) =>

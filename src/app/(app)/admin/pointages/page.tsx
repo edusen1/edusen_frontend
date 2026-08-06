@@ -4,14 +4,6 @@ import { displayValue, formatDateFr, personLabel } from '@/lib/display';
 import { useState } from 'react';
 import { useAdminPointages, useAdminPersonnel, useCreatePointage } from '@/hooks/use-query-api';
 
-const STATIC_POINTAGES = [
-  { id: 'pt1', personnel: 'Mamadou Diallo', poste: 'Professeur', date: '27/01/2026', arrivee: '07:45', depart: '14:30', statut: 'PRESENT', methode: 'BADGE', heures: '6h45' },
-  { id: 'pt2', personnel: 'Aminata Sarr', poste: 'Professeur', date: '27/01/2026', arrivee: '07:52', depart: '13:15', statut: 'PRESENT', methode: 'BADGE', heures: '5h23' },
-  { id: 'pt3', personnel: 'Ibrahima Ndiaye', poste: 'Surveillant', date: '27/01/2026', arrivee: '07:30', depart: '17:00', statut: 'PRESENT', methode: 'MANUEL', heures: '9h30' },
-  { id: 'pt4', personnel: 'Fatou Fall', poste: 'Caissière', date: '27/01/2026', arrivee: '08:10', depart: '17:00', statut: 'RETARD', methode: 'BADGE', heures: '8h50' },
-  { id: 'pt5', personnel: 'Cheikh Bâ', poste: 'Professeur', date: '27/01/2026', arrivee: '—', depart: '—', statut: 'ABSENT', methode: 'MANUEL', heures: '0h00' },
-];
-
 const STATUT_MAP: Record<string, { label: string; bg: string; color: string }> = {
   PRESENT: { label: 'Présent', bg: '#dcfce7', color: '#16a34a' },
   present: { label: 'Présent', bg: '#dcfce7', color: '#16a34a' },
@@ -51,6 +43,23 @@ function getPersonnelLabel(p: Record<string, unknown>): string {
   return personLabel(p.personnel ?? p.user ?? p.utilisateur ?? p, '—');
 }
 
+/**
+ * Poste de l'agent. La ligne de pointage ne le porte pas directement :
+ * il faut descendre dans `personnel.utilisateur.role`, sinon la colonne
+ * reste sur un tiret.
+ */
+function getPosteLabel(p: Record<string, unknown>): string {
+  const personnel = (p.personnel ?? p.utilisateur ?? {}) as Record<string, unknown>;
+  const utilisateur = (personnel.utilisateur ?? personnel) as Record<string, unknown>;
+  const poste =
+    p.poste ??
+    p.fonction ??
+    utilisateur.role ??
+    utilisateur.specialite ??
+    personnel.typeContrat;
+  return displayValue(poste);
+}
+
 function initials(name: string): string {
   const parts = name.trim().split(' ');
   return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase();
@@ -59,8 +68,9 @@ function initials(name: string): string {
 export default function PointagesPage() {
   const { data } = useAdminPointages();
   const { data: personnelData } = useAdminPersonnel();
-  const rawList = Array.isArray(data) ? data : (data?.pointages ?? data?.data ?? []);
-  const pointages = rawList.length > 0 ? rawList : STATIC_POINTAGES;
+  // Aucun repli sur des données de démonstration : une liste vide reste vide.
+  // Le repli précédent affichait cinq agents fictifs dès que l'API ne renvoyait rien.
+  const pointages = (Array.isArray(data) ? data : (data?.pointages ?? data?.data ?? [])) as Record<string, unknown>[];
   const rawPersonnel = Array.isArray(personnelData) ? personnelData : (personnelData?.personnel ?? personnelData?.data ?? []);
 
   const createPointage = useCreatePointage();
@@ -108,7 +118,7 @@ export default function PointagesPage() {
     list.forEach((p) => {
       rows.push([
         getPersonnelLabel(p),
-        displayValue(p.poste ?? p.fonction ?? p.role),
+        getPosteLabel(p),
         formatDateFr(p.date ?? p.datePointage ?? selectedDate, selectedDate),
         String(p.arrivee ?? p.heureArrivee ?? '—'),
         String(p.depart ?? p.heureDepart ?? '—'),
@@ -196,7 +206,7 @@ export default function PointagesPage() {
                   </div>
                   <span style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{name}</span>
                 </div>
-                <span style={{ fontSize: 12, color: '#475569' }}>{displayValue(p.poste ?? p.fonction ?? p.role)}</span>
+                <span style={{ fontSize: 12, color: '#475569' }}>{getPosteLabel(p)}</span>
                 <span style={{ fontSize: 12, color: '#64748b' }}>{formatDateFr(p.date ?? p.datePointage ?? selectedDate, selectedDate)}</span>
                 <span style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{String(p.arrivee ?? p.heureArrivee ?? '—')}</span>
                 <span style={{ fontSize: 13, color: '#475569' }}>{String(p.depart ?? p.heureDepart ?? '—')}</span>
@@ -285,7 +295,7 @@ export default function PointagesPage() {
             <div style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', marginBottom: 20 }}>Détail du pointage</div>
             {[
               ['Personnel', getPersonnelLabel(detailItem)],
-              ['Poste', displayValue(detailItem.poste ?? detailItem.fonction ?? detailItem.role)],
+              ['Poste', getPosteLabel(detailItem)],
               ['Date', String(detailItem.date ?? selectedDate)],
               ['Statut', STATUT_MAP[String(detailItem.statut ?? '')]?.label ?? String(detailItem.statut ?? '—')],
               ['Heure d\'arrivée', String(detailItem.arrivee ?? detailItem.heureArrivee ?? '—')],

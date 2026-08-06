@@ -269,6 +269,10 @@ export const surveillantApi = {
   eleves: (params?: Record<string, unknown>) => apiClient.get('/admin/eleves', { params }),
   classes: (params?: Record<string, unknown>) => apiClient.get('/admin/classes', { params }),
   parents: (params?: Record<string, unknown>) => apiClient.get('/admin/parents', { params }),
+  // Présences enseignants — cours du jour + pointage
+  coursDuJour: (params?: Record<string, unknown>) =>
+    apiClient.get('/admin/presences-professeurs/cours-du-jour', { params }),
+  marquerPresenceProfesseur: (data: unknown) => apiClient.post('/admin/presences-professeurs', data),
   // Discipline — same endpoint as admin (SURVEILLANT role authorized)
   discipline: (params?: Record<string, unknown>) => apiClient.get('/admin/discipline', { params }),
   createDiscipline: (data: unknown) => apiClient.post('/admin/discipline', data),
