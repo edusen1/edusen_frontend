@@ -148,7 +148,7 @@ export const useDeclarerAbsenceProfesseur = () => {
   });
 };
 export const useCahierTexte = (coursId?: string) =>
-  useQuery({ queryKey: ['professeur', 'cahier-texte', coursId], queryFn: () => professeurApi.cahierTexte(coursId).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.data ?? d?.content ?? d); }) });
+  useQuery({ queryKey: ['professeur', 'cahier-texte', coursId], queryFn: () => professeurApi.cahierTexte({ coursId }).then(unwrap) });
 export const useCreerCahierTexte = () => {
   const qc = useQueryClient();
   return useMutation({
@@ -158,12 +158,33 @@ export const useCreerCahierTexte = () => {
   });
 };
 
+/**
+ * `data` est la liste des statuts par élève. L'ancienne version l'étalait dans
+ * un objet (`{ classeId, ...tableau }`), ce qui produisait `{0:…, 1:…}` et
+ * vidait l'appel de son contenu ; le classeId part maintenant dans l'URL et la
+ * liste dans `lignes`, seul champ que le backend lit pour les statuts.
+ */
 export const useFaireAppel = () => {
+  const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ classeId, data }: { classeId: string; data: unknown }) =>
-      professeurApi.faireAppel({ classeId, ...(data as Record<string, unknown>) }),
-    onSuccess: () => { toast.success('Appel enregistré'); },
-    onError: () => toast.error("Erreur lors de l'appel"),
+    mutationFn: ({ classeId, lignes, coursId, dateCours, heureDebut, session }: {
+      classeId: string;
+      lignes: { eleveId: string; statut: 'PRESENT' | 'ABSENT' | 'RETARD' }[];
+      coursId?: string; dateCours?: string; heureDebut?: string; session?: string;
+    }) => professeurApi.faireAppel(classeId, {
+      classeId,
+      coursId,
+      dateCours: dateCours ?? new Date().toISOString().slice(0, 10),
+      heureDebut,
+      session: session ?? (new Date().getHours() < 13 ? 'MATIN' : 'APRES_MIDI'),
+      lignes,
+      absents: lignes.filter((l) => l.statut === 'ABSENT').map((l) => l.eleveId),
+    }),
+    onSuccess: (_r, v) => {
+      qc.invalidateQueries({ queryKey: ['professeur', 'classe', v.classeId] });
+      toast.success('Appel enregistré');
+    },
+    onError: (e) => toast.error(extractApiMessage(e, "Erreur lors de l'appel")),
   });
 };
 

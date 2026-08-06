@@ -6,34 +6,38 @@ import { useProfesseurMesClasses, useProfesseurClasseEleves, useFaireAppel } fro
 
 type Statut = 'present' | 'absent' | 'retard';
 
-const STATIC_ELEVES = [
-  { id: 'e1', prenom: 'Awa', nom: 'Ndiaye', numero: '04' },
-  { id: 'e2', prenom: 'Cheikh', nom: 'Sarr', numero: '07' },
-  { id: 'e3', prenom: 'Fatou', nom: 'Bâ', numero: '11' },
-  { id: 'e4', prenom: 'Ibrahima', nom: 'Fall', numero: '13' },
-  { id: 'e5', prenom: 'Mariama', nom: 'Diop', numero: '18' },
-  { id: 'e6', prenom: 'Moussa', nom: 'Diallo', numero: '21' },
-  { id: 'e7', prenom: 'Fatou', nom: 'Sall', numero: '24' },
-  { id: 'e8', prenom: 'Aminata', nom: 'Cissé', numero: '28' },
-];
+/** Statuts d'affichage → valeurs de l'enum Prisma StatutPresence. */
+const STATUT_API = { present: 'PRESENT', absent: 'ABSENT', retard: 'RETARD' } as const;
 
 export default function AppelPage() {
   const { data: classesData } = useProfesseurMesClasses();
-  const rawClasses = Array.isArray(classesData) ? classesData : (classesData?.classes ?? classesData?.classesMatieres ?? []);
+  const classesBody = classesData as { classes?: unknown; classesMatieres?: unknown } | unknown[] | undefined;
+  const rawClasses = (Array.isArray(classesBody)
+    ? classesBody
+    : ((classesBody?.classes ?? classesBody?.classesMatieres ?? []))) as Record<string, unknown>[];
 
-  const [selectedClasseId, setSelectedClasseId] = useState<string>(
-    rawClasses.length > 0 ? String((rawClasses[0] as Record<string, unknown>)?.id ?? 'c1') : 'c1'
-  );
+  const [selectedClasseId, setSelectedClasseId] = useState<string>('');
+  const effectiveClasseId = selectedClasseId || (rawClasses.length > 0 ? String(rawClasses[0]?.id ?? '') : '');
 
-  const selectedClasse = (rawClasses as Record<string, unknown>[]).find((c) => String(c.id) === selectedClasseId);
+  const selectedClasse = rawClasses.find((c) => String(c.id) === effectiveClasseId);
   const sClasseObj = selectedClasse?.classe as Record<string, unknown> | undefined;
-  const sMatiereObj = selectedClasse?.matiere as Record<string, unknown> | undefined;
-  const classeNom = selectedClasse ? ((selectedClasse.nom ?? sClasseObj?.nom ?? '3ᵉ B') as string) : '3ᵉ B';
-  const matiereNom = selectedClasse ? ((sMatiereObj?.nom ?? selectedClasse.matiere ?? 'Mathématiques') as string) : 'Mathématiques';
+  const classeNom = (selectedClasse?.nom ?? sClasseObj?.nom ?? '—') as string;
+  // `/professeur/mes-classes` expose `matieresEnseignees`, pas `matiere`.
+  const matieres = (selectedClasse?.matieresEnseignees ?? []) as Record<string, unknown>[];
+  const matiereNom = matieres.length > 0
+    ? matieres.map((m) => String(m.libelle ?? m.nom ?? '')).filter(Boolean).join(', ')
+    : '—';
 
-  const { data: elevesData } = useProfesseurClasseEleves(selectedClasseId);
-  const rawEleves = Array.isArray(elevesData) ? elevesData : (elevesData?.eleves ?? []);
-  const eleves = rawEleves.length > 0 ? rawEleves : STATIC_ELEVES;
+  const { data: elevesData } = useProfesseurClasseEleves(effectiveClasseId);
+  /**
+   * `/professeur/classes/:id/eleves` renvoie des inscriptions
+   * (`{ inscriptionId, eleve: {…} }`). Lire `.id` à la racine donnait
+   * l'identifiant d'inscription, que le backend ne reconnaît pas comme élève :
+   * les statuts n'étaient rattachés à personne.
+   */
+  const elevesBody = elevesData as { eleves?: unknown } | unknown[] | undefined;
+  const eleves = ((Array.isArray(elevesBody) ? elevesBody : (elevesBody?.eleves ?? [])) as Record<string, unknown>[])
+    .map((row) => (row.eleve ?? row) as Record<string, unknown>);
 
   const [presences, setPresences] = useState<Record<string, Statut>>({});
   const faireAppel = useFaireAppel();
@@ -48,15 +52,19 @@ export default function AppelPage() {
   const effectif = eleves.length;
 
   const handleValider = async () => {
-    const presenceList = (eleves as Record<string, unknown>[]).map((e) => {
+    if (!effectiveClasseId || eleves.length === 0) {
+      toast.error('Sélectionnez une classe avec des élèves');
+      return;
+    }
+    const lignes = eleves.map((e) => {
       const eid = String(e.id ?? e.eleveId);
-      return { eleveId: eid, statut: presences[eid] ?? 'present' };
+      return { eleveId: eid, statut: STATUT_API[presences[eid] ?? 'present'] };
     });
+    // Le toast de succès et le message d'erreur détaillé sont portés par le hook.
     try {
-      await faireAppel.mutateAsync({ classeId: selectedClasseId, data: presenceList });
-      toast.success('Appel validé avec succès');
+      await faireAppel.mutateAsync({ classeId: effectiveClasseId, lignes });
     } catch {
-      toast.error('Erreur lors de la validation');
+      /* déjà signalé par onError */
     }
   };
 
@@ -71,6 +79,20 @@ export default function AppelPage() {
           <div style={{ fontSize: 17, fontWeight: 700, color: '#0f172a', lineHeight: 1.1 }}>Faire l'appel</div>
           <div style={{ fontSize: 12, color: '#64748b' }}>{classeNom} · {matiereNom} · {dateStr}</div>
         </div>
+        {/* Sans ce sélecteur la page restait figée sur la première classe. */}
+        {rawClasses.length > 1 && (
+          <select
+            value={effectiveClasseId}
+            onChange={(e) => { setSelectedClasseId(e.target.value); setPresences({}); }}
+            style={{ height: 34, border: '1px solid #e6ebf1', padding: '0 10px', fontSize: 13, fontFamily: 'inherit', background: '#fff', color: '#0f172a' }}
+          >
+            {rawClasses.map((c) => (
+              <option key={String(c.id)} value={String(c.id)}>
+                {String(c.nom ?? (c.classe as Record<string, unknown>)?.nom ?? '—')}
+              </option>
+            ))}
+          </select>
+        )}
         <button
           onClick={handleValider}
           disabled={faireAppel.isPending}
@@ -110,11 +132,20 @@ export default function AppelPage() {
             <span style={{ width: 280, textAlign: 'center', fontSize: 11, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.04em' }}>Présence</span>
           </div>
 
+          {eleves.length === 0 && (
+            <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>
+              Aucun élève inscrit dans cette classe.
+            </div>
+          )}
+
           {(eleves as Record<string, unknown>[]).map((eleve, idx) => {
             const eid = String(eleve.id ?? eleve.eleveId ?? idx);
-            const ep = (eleve.prenom ?? eleve.firstName ?? '') as string;
-            const en = (eleve.nom ?? eleve.lastName ?? '') as string;
-            const num = (eleve.numero ?? eleve.matricule ?? String(idx + 1).padStart(2, '0')) as string;
+            // L'API expose à la fois `nom` (nom complet) et `firstName`/`lastName`.
+            // Lire `prenom ?? firstName` puis `nom ?? lastName` affichait le
+            // prénom suivi du nom complet (« Bamba Bamba Gueye »).
+            const ep = (eleve.firstName ?? eleve.prenom ?? '') as string;
+            const en = (eleve.lastName ?? '') as string;
+            const num = (eleve.matricule ?? eleve.numero ?? String(idx + 1).padStart(2, '0')) as string;
             const statut = presences[eid];
 
             return (

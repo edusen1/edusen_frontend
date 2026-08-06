@@ -227,7 +227,15 @@ export default function ClasseDetailPage() {
         dateCours: now.toISOString().slice(0, 10),
         heureDebut: coursActuel?.heureDebut ?? heureActuelle,
         session: now.getHours() < 13 ? 'MATIN' : 'APRES_MIDI',
-        absents: [...absents, ...retards.map((id) => ({ eleveId: id, typeAbsence: 'RETARD' }))],
+        // `lignes` porte le statut explicite de chaque élève. On garde `absents`
+        // pour compatibilité, mais c'est `lignes` qui fait foi : mélanger des
+        // identifiants et des objets dans `absents` faisait disparaître les
+        // retards, enregistrés comme « présent ».
+        lignes: [
+          ...absents.map((eleveId) => ({ eleveId, statut: 'ABSENT' })),
+          ...retards.map((eleveId) => ({ eleveId, statut: 'RETARD' })),
+        ],
+        absents,
       });
       toast.success('Appel enregistré');
       setAppelMode(false);

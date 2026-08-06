@@ -52,24 +52,32 @@ export const parentApi = {
   toutLire: () => apiClient.post('/parent/notifications/tout-lire'),
 };
 
-// ENSEIGNANT (professeur) — /api/enseignant/*
+// ENSEIGNANT (professeur) — /api/professeur/*
+/**
+ * Le contrôleur backend est `@Controller('professeur')`. Ce bloc était écrit
+ * sur `/enseignant/*`, un préfixe qui n'existe pas : chaque appel repartait en
+ * 404 et les pages concernées restaient vides ou affichaient « Erreur ».
+ * Vérifié route par route : `/enseignant/*` → 404, `/professeur/*` → 200.
+ */
 export const professeurApi = {
-  profil: () => apiClient.get('/enseignant/profil'),
-  mesClasses: () => apiClient.get('/enseignant/classes-matieres'),
-  classesMatieres: () => apiClient.get('/enseignant/classes-matieres'),
-  paiements: () => apiClient.get('/v1/paiements', { params: { role: 'ENSEIGNANT' } }),
-  saisirNotes: (data: unknown) => apiClient.post('/enseignant/notes', data),
-  faireAppel: (data: unknown) => apiClient.post('/enseignant/appels', data),
+  profil: () => apiClient.get('/professeur/profil'),
+  mesClasses: () => apiClient.get('/professeur/mes-classes'),
+  classesMatieres: () => apiClient.get('/professeur/classes-matieres'),
+  paiements: () => apiClient.get('/professeur/paiements'),
+  saisirNotes: (data: unknown) => apiClient.post('/professeur/notes', data),
+  /** L'appel est rattaché à une classe : la route porte le classeId. */
+  faireAppel: (classeId: string, data: unknown) =>
+    apiClient.post(`/professeur/classes/${classeId}/appels`, data),
   classeEleves: (classeId: string) =>
-    apiClient.get('/admin/eleves', { params: { classeId } }),
-  emploiDuTemps: () => apiClient.get('/enseignant/emploi-du-temps'),
-  absences: () => apiClient.get('/enseignant/absences'),
-  declarerAbsence: (data: unknown) => apiClient.post('/enseignant/absences', data),
-  cahierTexte: (coursId?: string) =>
-    apiClient.get('/enseignant/cahier-texte', { params: { coursId } }),
-  creerCahierTexte: (data: unknown) => apiClient.post('/enseignant/cahier-texte', data),
+    apiClient.get(`/professeur/classes/${classeId}/eleves`),
+  emploiDuTemps: () => apiClient.get('/professeur/emploi-du-temps'),
+  absences: () => apiClient.get('/professeur/absences'),
+  declarerAbsence: (data: unknown) => apiClient.post('/professeur/absences', data),
+  cahierTexte: (params?: Record<string, unknown>) =>
+    apiClient.get('/professeur/cahier-texte', { params }),
+  creerCahierTexte: (data: unknown) => apiClient.post('/professeur/cahier-texte', data),
   modifierCahierTexte: (id: string, data: unknown) =>
-    apiClient.patch(`/enseignant/cahier-texte/${id}`, data),
+    apiClient.patch(`/professeur/cahier-texte/${id}`, data),
   // Discipline (professeurs peuvent signaler — /admin/discipline avec rôle ENSEIGNANT autorisé)
   discipline: (params?: Record<string, unknown>) => apiClient.get('/admin/discipline', { params }),
   createDiscipline: (data: unknown) => apiClient.post('/admin/discipline', data),
