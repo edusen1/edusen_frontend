@@ -569,7 +569,7 @@ export default function BulletinsAdminPage() {
       {detailClasse && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', justifyContent: 'flex-end' }}>
           <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,.3)' }} onClick={() => setDetailClasse(null)} />
-          <div style={{ position: 'relative', width: 780, maxWidth: '92vw', background: '#fff', height: '100%', display: 'flex', flexDirection: 'column', boxShadow: '-4px 0 24px rgba(0,0,0,.1)' }}>
+          <div style={{ position: 'relative', width: 780, maxWidth: '92vw', background: '#fff', height: '100%', display: 'flex', flexDirection: 'column', boxShadow: '-4px 0 24px rgba(0,0,0,.1)', overflow: 'hidden' }}>
             {/* Drawer header */}
             <div style={{ flexShrink: 0, borderBottom: '1px solid #e6ebf1', padding: '18px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>
