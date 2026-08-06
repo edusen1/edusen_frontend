@@ -62,7 +62,7 @@ export default function EleveNotesPage() {
 
   // Calcul par matière
   const lignes = matieres.map((m, idx) => {
-    const devoirs = m.notes.filter((n) => { const t = String(n.typeEvaluation ?? '').toUpperCase(); return ['DEVOIR', 'INTERROGATION', 'CONTROLE'].includes(t); });
+    const devoirs = m.notes.filter((n) => { const t = String(n.typeEvaluation ?? '').toUpperCase(); return ['DEVOIR', 'INTERROGATION', 'CONTROLE', 'TP', 'ORAL'].includes(t); });
     const compos = m.notes.filter((n) => { const t = String(n.typeEvaluation ?? '').toUpperCase(); return ['COMPOSITION', 'EXAMEN'].includes(t); });
     const bonus = m.notes.filter((n) => String(n.typeEvaluation ?? '').toUpperCase() === 'BONUS');
     const calc = calculerMoyenne(

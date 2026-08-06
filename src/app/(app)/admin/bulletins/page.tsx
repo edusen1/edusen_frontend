@@ -318,9 +318,12 @@ export default function BulletinsAdminPage() {
   const getBulletinForEleve = (eleveId: string, periode: string): BulletinItem | undefined => {
     return detailBulletins.find((b) => b.eleveId === eleveId && b.trimestre === periode);
   };
+  // Types alignés sur le backend (`bulletin-calculation.util.ts`) : TP et ORAL
+  // comptent parmi les devoirs. Le front les ignorait, d'où une moyenne affichée
+  // différente de celle stockée — et donc du PDF.
   const isDevoir = (n: NoteItem) => {
     const t = (n.typeEvaluation ?? n.type ?? '').toUpperCase();
-    return t === 'DEVOIR' || t === 'INTERROGATION' || t === 'CONTROLE';
+    return t === 'DEVOIR' || t === 'INTERROGATION' || t === 'CONTROLE' || t === 'TP' || t === 'ORAL';
   };
   const isComposition = (n: NoteItem) => {
     const t = (n.typeEvaluation ?? n.type ?? '').toUpperCase();
