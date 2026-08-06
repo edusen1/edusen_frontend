@@ -427,7 +427,10 @@ export default function BulletinsAdminPage() {
       <div style={{ flexShrink: 0, padding: '18px 28px 0', display: 'flex', gap: 14 }}>
         {[
           { label: 'Classes', val: String(visibleClasses.length), color: '#2563eb', bg: '#eff6ff' },
-          { label: 'Élèves', val: String(totalEleves), color: '#7c3aed', bg: '#f5f3ff' },
+          // Effectif = inscriptions ACTIVES. Les inscriptions désactivées ne sont
+          // pas comptées, d'où un total inférieur au nombre d'élèves de l'école.
+          // Le libellé le dit, sinon l'écart se lit comme des élèves manquants.
+          { label: 'Élèves inscrits', val: String(totalEleves), color: '#7c3aed', bg: '#f5f3ff' },
           { label: `Bulletins ${periodeShort(selectedPeriode)}`, val: String(totalGeneres), color: '#16a34a', bg: '#dcfce7' },
         ].map((s) => (
           <div key={s.label} style={{ flex: 1, background: '#fff', border: '1px solid #e6ebf1', padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
