@@ -219,28 +219,14 @@ export default function ClassesPage() {
   const openEleveDetails = async (item: ClasseEleveItem) => {
     setSelectedEleve(item);
     setSelectedEleveReport(null);
-    setSelectedEleveCardUrl('');
     if (!selectedClasse || !item.eleve?.id) return;
 
     setLoadingEleveReport(true);
-    setLoadingEleveCard(true);
     try {
       const r = await apiClient.get(`/admin/classes/${String(selectedClasse.id)}/eleves/${item.eleve.id}/notes`);
       setSelectedEleveReport(r.data as EleveReport);
-    } catch {
-      toast.error('Impossible de charger les notes de l’élève');
-    } finally {
-      setLoadingEleveReport(false);
-    }
-    try {
-      const r = await apiClient.post(`/admin/inscriptions/${item.inscriptionId}/carte-scolaire`);
-      const data = (r.data?.data ?? r.data) as { cardUrl?: string | null; cardImageUrl?: string | null; cardPdfUrl?: string | null };
-      setSelectedEleveCardUrl(data.cardUrl ?? data.cardImageUrl ?? data.cardPdfUrl ?? '');
-    } catch {
-      toast.error('Impossible de charger la carte scolaire');
-    } finally {
-      setLoadingEleveCard(false);
-    }
+    } catch { /* silent */ }
+    finally { setLoadingEleveReport(false); }
   };
 
   const formatAmount = (value?: number | null) => typeof value === 'number'
@@ -432,122 +418,85 @@ export default function ClassesPage() {
               ) : classeEleves.length === 0 ? (
                 <div style={{ padding: '36px 0', textAlign: 'center', color: '#94a3b8', fontSize: 13, border: '1px dashed #cbd5e1' }}>Aucun élève inscrit dans cette classe.</div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', border: '1px solid #e6ebf1', borderBottom: 'none' }}>
+                <div style={{ display: ‘flex’, flexDirection: ‘column’, border: ‘1px solid #e6ebf1’, borderBottom: ‘none’ }}>
                   {pagedClasseEleves.map((item) => {
                     const eleve = item.eleve;
-                    const fullName = eleve?.nom || `${eleve?.firstName ?? ''} ${eleve?.lastName ?? ''}`.trim() || 'Élève sans nom';
+                    const fullName = eleve?.nom || `${eleve?.firstName ?? ‘’} ${eleve?.lastName ?? ‘’}`.trim() || ‘Eleve sans nom’;
                     const isSelected = selectedEleve?.inscriptionId === item.inscriptionId;
                     return (
-                      <button
-                        key={item.inscriptionId}
-                        type="button"
-                        onClick={() => openEleveDetails(item)}
-                        style={{ width: '100%', border: 'none', borderBottom: '1px solid #e6ebf1', background: isSelected ? '#eff6ff' : '#fff', padding: '10px 12px', display: 'grid', gridTemplateColumns: '1fr 140px 72px 18px', gap: 14, alignItems: 'center', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}
-                      >
-                        <div style={{ minWidth: 0 }}>
-                          <div style={{ fontSize: 13, fontWeight: 800, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{fullName}</div>
-                          <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{eleve?.matricule ?? 'Matricule non défini'}</div>
-                        </div>
-                        <div style={{ fontSize: 12, color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.numeroInscription ?? '—'}</div>
-                        <span style={{ fontSize: 11, fontWeight: 800, color: item.statut === 'ACTIF' ? '#15803d' : '#92400e', background: item.statut === 'ACTIF' ? '#dcfce7' : '#fef3c7', padding: '4px 8px' }}>
-                          {item.statut ?? '—'}
-                        </span>
-                        <span style={{ color: '#94a3b8', fontSize: 18 }}>›</span>
-                      </button>
+                      <div key={item.inscriptionId}>
+                        <button
+                          type="button"
+                          onClick={() => isSelected ? (setSelectedEleve(null), setSelectedEleveReport(null)) : openEleveDetails(item)}
+                          style={{ width: ‘100%’, border: ‘none’, borderBottom: ‘1px solid #e6ebf1’, background: isSelected ? ‘#eff6ff’ : ‘#fff’, padding: ‘10px 12px’, display: ‘grid’, gridTemplateColumns: ‘1fr 140px 72px 18px’, gap: 14, alignItems: ‘center’, cursor: ‘pointer’, textAlign: ‘left’, fontFamily: ‘inherit’ }}
+                        >
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: 13, fontWeight: 800, color: ‘#0f172a’, overflow: ‘hidden’, textOverflow: ‘ellipsis’, whiteSpace: ‘nowrap’ }}>{fullName}</div>
+                            <div style={{ fontSize: 11, color: ‘#64748b’, marginTop: 2 }}>{eleve?.matricule ?? ‘Matricule non defini’}</div>
+                          </div>
+                          <div style={{ fontSize: 12, color: ‘#64748b’, overflow: ‘hidden’, textOverflow: ‘ellipsis’, whiteSpace: ‘nowrap’ }}>{item.numeroInscription ?? ‘—‘}</div>
+                          <span style={{ fontSize: 11, fontWeight: 800, color: item.statut === ‘ACTIF’ ? ‘#15803d’ : ‘#92400e’, background: item.statut === ‘ACTIF’ ? ‘#dcfce7’ : ‘#fef3c7’, padding: ‘4px 8px’ }}>
+                            {item.statut ?? ‘—‘}
+                          </span>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" style={{ transition: ‘transform .2s’, transform: isSelected ? ‘rotate(180deg)’ : ‘rotate(0deg)’ }}><polyline points="6 9 12 15 18 9"/></svg>
+                        </button>
+
+                        {/* Accordeon inline */}
+                        {isSelected && (
+                          <div style={{ borderBottom: ‘1px solid #e6ebf1’, background: ‘#f8fafc’, padding: ‘14px 16px’ }}>
+                            <div style={{ display: ‘grid’, gridTemplateColumns: ‘1fr 1fr 1fr 1fr’, gap: 8, marginBottom: 12 }}>
+                              <div style={{ background: ‘#fff’, border: ‘1px solid #e6ebf1’, padding: ‘8px 10px’ }}>
+                                <div style={{ fontSize: 10, color: ‘#64748b’, fontWeight: 700 }}>Email</div>
+                                <div style={{ fontSize: 12, color: ‘#0f172a’, marginTop: 2 }}>{eleve?.email ?? ‘—‘}</div>
+                              </div>
+                              <div style={{ background: ‘#fff’, border: ‘1px solid #e6ebf1’, padding: ‘8px 10px’ }}>
+                                <div style={{ fontSize: 10, color: ‘#64748b’, fontWeight: 700 }}>Telephone</div>
+                                <div style={{ fontSize: 12, color: ‘#0f172a’, marginTop: 2 }}>{eleve?.telephone ?? ‘—‘}</div>
+                              </div>
+                              <div style={{ background: ‘#fff’, border: ‘1px solid #e6ebf1’, padding: ‘8px 10px’ }}>
+                                <div style={{ fontSize: 10, color: ‘#64748b’, fontWeight: 700 }}>Frais</div>
+                                <div style={{ fontSize: 12, color: ‘#0f172a’, marginTop: 2 }}>{formatAmount(item.fraisInscription)}</div>
+                              </div>
+                              <div style={{ background: ‘#fff’, border: ‘1px solid #e6ebf1’, padding: ‘8px 10px’ }}>
+                                <div style={{ fontSize: 10, color: ‘#64748b’, fontWeight: 700 }}>Moyenne annuelle</div>
+                                <div style={{ fontSize: 12, color: ‘#0f172a’, marginTop: 2, fontWeight: 800 }}>{formatAverage(selectedEleveReport?.moyenneAnnuelle)}</div>
+                              </div>
+                            </div>
+
+                            {/* Notes */}
+                            {loadingEleveReport ? (
+                              <div style={{ padding: ‘16px 0’, color: ‘#64748b’, fontSize: 12, textAlign: ‘center’ }}>Chargement des notes...</div>
+                            ) : !selectedEleveReport?.periodes?.length ? (
+                              <div style={{ padding: ‘16px 0’, color: ‘#94a3b8’, fontSize: 12, textAlign: ‘center’ }}>Aucune note trouvee</div>
+                            ) : (
+                              <div style={{ display: ‘flex’, flexDirection: ‘column’, gap: 8 }}>
+                                {selectedEleveReport.periodes.map((periode) => (
+                                  <div key={periode.code} style={{ border: ‘1px solid #e6ebf1’, background: ‘#fff’ }}>
+                                    <div style={{ display: ‘flex’, justifyContent: ‘space-between’, padding: ‘8px 12px’, background: ‘#f8fafc’, borderBottom: ‘1px solid #e6ebf1’ }}>
+                                      <span style={{ fontSize: 12, fontWeight: 700, color: ‘#0f172a’ }}>{periode.label}</span>
+                                      <span style={{ fontSize: 12, fontWeight: 700, color: ‘#2563eb’ }}>Moy: {formatAverage(periode.moyenne)}</span>
+                                    </div>
+                                    {(periode.matieres ?? []).map((matiere) => (
+                                      <div key={`${periode.code}-${matiere.matiereId}`} style={{ display: ‘grid’, gridTemplateColumns: ‘1fr 60px 60px 60px 60px’, gap: 8, padding: ‘6px 12px’, fontSize: 11, color: ‘#0f172a’, borderBottom: ‘1px solid #f1f5f9’, alignItems: ‘center’ }}>
+                                        <span style={{ fontWeight: 600, overflow: ‘hidden’, textOverflow: ‘ellipsis’, whiteSpace: ‘nowrap’ }}>{matiere.libelle}</span>
+                                        <span style={{ color: ‘#64748b’ }}>{formatNote(matiere.devoirs?.[0])}</span>
+                                        <span style={{ color: ‘#64748b’ }}>{formatNote(matiere.devoirs?.[1])}</span>
+                                        <span style={{ color: ‘#64748b’ }}>{formatNote(matiere.composition?.[0])}</span>
+                                        <span style={{ fontWeight: 800 }}>{formatAverage(matiere.moyenne)}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     );
                   })}
                   <PaginationControls page={classeElevesPage} total={classeEleves.length} onPageChange={setClasseElevesPage} />
                 </div>
               )}
-
-              {selectedEleve && (() => {
-                const eleve = selectedEleve.eleve;
-                const fullName = eleve?.nom || `${eleve?.firstName ?? ''} ${eleve?.lastName ?? ''}`.trim() || 'Élève sans nom';
-                return (
-                  <div style={{ marginTop: 18, border: '1px solid #e6ebf1', background: '#fff', padding: 18 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 14 }}>
-                      <div>
-                        <div style={{ fontSize: 11, color: '#2563eb', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.08em' }}>Détails élève</div>
-                        <div style={{ fontSize: 18, color: '#0f172a', fontWeight: 800, marginTop: 3 }}>{fullName}</div>
-                        <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>{eleve?.matricule ?? 'Matricule non défini'}</div>
-                      </div>
-                      <button onClick={() => { setSelectedEleve(null); setSelectedEleveReport(null); setSelectedEleveCardUrl(''); }} style={{ width: 30, height: 30, border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer', color: '#475569', fontSize: 16 }}>×</button>
-                    </div>
-                    <div style={{ marginBottom: 16, background: '#f8fafc', border: '1px dashed #cbd5e1', padding: 12, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
-                      {loadingEleveCard ? (
-                        <div style={{ padding: '24px 0', color: '#64748b', fontSize: 13 }}>Chargement de la carte…</div>
-                      ) : selectedEleveCardUrl ? (
-                        <>
-                          <img src={selectedEleveCardUrl} alt="Carte scolaire" style={{ width: '100%', maxWidth: 420, height: 'auto', borderRadius: 14, boxShadow: '0 12px 30px rgba(15,23,42,.14)' }} />
-                          <button onClick={() => window.open(selectedEleveCardUrl, '_blank', 'noopener,noreferrer')} style={{ height: 32, padding: '0 14px', border: '1px solid #dbeafe', background: '#eff6ff', color: '#2563eb', fontSize: 12, fontWeight: 800, fontFamily: 'inherit', cursor: 'pointer' }}>Ouvrir / imprimer la carte</button>
-                        </>
-                      ) : (
-                        <div style={{ padding: '20px 0', color: '#94a3b8', fontSize: 13 }}>Carte scolaire non disponible</div>
-                      )}
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
-                      <div style={{ background: '#f8fafc', padding: 12 }}>
-                        <div style={{ fontSize: 11, color: '#64748b', fontWeight: 700 }}>Email</div>
-                        <div style={{ fontSize: 13, color: '#0f172a', marginTop: 4 }}>{eleve?.email ?? '—'}</div>
-                      </div>
-                      <div style={{ background: '#f8fafc', padding: 12 }}>
-                        <div style={{ fontSize: 11, color: '#64748b', fontWeight: 700 }}>Téléphone</div>
-                        <div style={{ fontSize: 13, color: '#0f172a', marginTop: 4 }}>{eleve?.telephone ?? '—'}</div>
-                      </div>
-                      <div style={{ background: '#f8fafc', padding: 12 }}>
-                        <div style={{ fontSize: 11, color: '#64748b', fontWeight: 700 }}>Inscription</div>
-                        <div style={{ fontSize: 13, color: '#0f172a', marginTop: 4 }}>{selectedEleve.numeroInscription ?? selectedEleve.inscriptionId}</div>
-                      </div>
-                      <div style={{ background: '#f8fafc', padding: 12 }}>
-                        <div style={{ fontSize: 11, color: '#64748b', fontWeight: 700 }}>Frais</div>
-                        <div style={{ fontSize: 13, color: '#0f172a', marginTop: 4 }}>{formatAmount(selectedEleve.fraisInscription)}</div>
-                      </div>
-                      <div style={{ background: '#f8fafc', padding: 12 }}>
-                        <div style={{ fontSize: 11, color: '#64748b', fontWeight: 700 }}>Moyenne annuelle</div>
-                        <div style={{ fontSize: 13, color: '#0f172a', marginTop: 4, fontWeight: 800 }}>{formatAverage(selectedEleveReport?.moyenneAnnuelle)}</div>
-                      </div>
-                    </div>
-
-                    <div style={{ marginTop: 16 }}>
-                      <div style={{ fontSize: 13, fontWeight: 800, color: '#0f172a', marginBottom: 10 }}>
-                        Notes de l’année scolaire en cours
-                      </div>
-                      {loadingEleveReport ? (
-                        <div style={{ padding: '24px 0', color: '#64748b', fontSize: 13, textAlign: 'center', border: '1px dashed #cbd5e1' }}>Chargement des notes…</div>
-                      ) : !selectedEleveReport?.periodes?.length ? (
-                        <div style={{ padding: '24px 0', color: '#94a3b8', fontSize: 13, textAlign: 'center', border: '1px dashed #cbd5e1' }}>Aucune note trouvée pour cette classe.</div>
-                      ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                          {selectedEleveReport.periodes.map((periode) => (
-                            <div key={periode.code} style={{ border: '1px solid #e6ebf1' }}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 12px', background: '#f8fafc', borderBottom: '1px solid #e6ebf1' }}>
-                                <span style={{ fontSize: 13, fontWeight: 800, color: '#0f172a' }}>{periode.label}</span>
-                                <span style={{ fontSize: 13, fontWeight: 800, color: '#2563eb' }}>Moyenne : {formatAverage(periode.moyenne)}</span>
-                              </div>
-                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 70px 70px 70px 70px', gap: 12, padding: '8px 12px', fontSize: 11, color: '#64748b', fontWeight: 800, borderBottom: '1px solid #e6ebf1', alignItems: 'center', textAlign: 'left' }}>
-                                <span>Matière</span>
-                                <span>Dev. 1</span>
-                                <span>Dev. 2</span>
-                                <span>Comp.</span>
-                                <span>Moy.</span>
-                              </div>
-                              {(periode.matieres ?? []).map((matiere) => (
-                                <div key={`${periode.code}-${matiere.matiereId}`} style={{ display: 'grid', gridTemplateColumns: '1fr 70px 70px 70px 70px', gap: 12, padding: '9px 12px', fontSize: 12, color: '#0f172a', borderBottom: '1px solid #f1f5f9', alignItems: 'center', textAlign: 'left' }}>
-                                  <span style={{ fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{matiere.libelle}</span>
-                                  <span>{formatNote(matiere.devoirs?.[0])}</span>
-                                  <span>{formatNote(matiere.devoirs?.[1])}</span>
-                                  <span>{formatNote(matiere.composition?.[0])}</span>
-                                  <span style={{ fontWeight: 800 }}>{formatAverage(matiere.moyenne)}</span>
-                                </div>
-                              ))}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })()}
             </div>
           </div>
         </div>
