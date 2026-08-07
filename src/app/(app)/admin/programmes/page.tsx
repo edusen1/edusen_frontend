@@ -22,7 +22,7 @@ function fmtD(v: string) { try { return new Date(v).toLocaleDateString('fr-FR');
 function pctColor(p: number) { return p >= 80 ? '#16a34a' : p >= 50 ? '#d97706' : '#dc2626'; }
 function Bar({ value, max, color, h = 8 }: { value: number; max: number; color: string; h?: number }) {
   const w = max > 0 ? Math.min(100, Math.round((value / max) * 100)) : 0;
-  return <div style={{ background: '#f1f5f9', height: h, borderRadius: h / 2, overflow: 'hidden' }}><div style={{ height: '100%', width: `${w}%`, background: color, borderRadius: h / 2 }} /></div>;
+  return <div style={{ background: '#f1f5f9', height: h, overflow: 'hidden' }}><div style={{ height: '100%', width: `${w}%`, background: color }} /></div>;
 }
 
 const EMPTY_PROG = { titre: '', description: '', niveauId: '', matiereId: '', anneeAcademiqueId: '' };
