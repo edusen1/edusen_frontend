@@ -13,9 +13,9 @@ const COULEURS_TXT = ['#1d4ed8', '#15803d', '#b45309', '#be185d', '#7c3aed', '#c
 type AnneeItem = { id: string; libelle: string; estCourante?: boolean };
 type CycleItem = { id: string; nom: string; typePeriode?: string };
 type NiveauItem = { id: string; nom: string; sectionId: string; section: string };
-type ClasseItem = { id: string; nom: string; cycleId?: string; niveauId?: string; cycle?: { id: string; nom?: string; libelle?: string }; niveau?: { id: string; nom?: string; libelle?: string; cycleId?: string } };
+type ClasseItem = { id: string; nom: string; cycleId?: string; niveauId?: string; cycle?: { id: string; nom?: string; libelle?: string; code?: string }; niveau?: { id: string; nom?: string; libelle?: string; cycleId?: string; cycle?: { code?: string } }; professeurResponsable?: { id: string } | null; salleId?: string | null };
 type MatiereItem = { id: string; code?: string; libelle?: string };
-type ProfItem = { id: string; firstName?: string; lastName?: string; matieresEnseignees?: { id: string; matiereId?: string; matiere?: { id: string } }[] };
+type ProfItem = { id: string; firstName?: string; lastName?: string; specialite?: string; matieresEnseignees?: { id: string; matiereId?: string; matiere?: { id: string } }[] };
 type SalleItem = { id: string; nom: string; capacite?: number };
 type CoursItem = { id: string; matiereId: string; classeId: string; enseignantId: string; matiere?: MatiereItem; classe?: { id: string; nom: string }; volumeHoraireHebdo?: number };
 type EdtItem = { id: string; classeId: string; coursId?: string; salleId?: string; enseignantId?: string; matiereId?: string; jourSemaine: string; heureDebut: string; heureFin: string; publie?: boolean };
@@ -45,6 +45,7 @@ export default function CoursPage() {
   const [matieresNiveaux, setMatieresNiveaux] = useState<MatiereNiveauItem[]>([]);
   const [allCours, setAllCours] = useState<CoursItem[]>([]);
   const [allEdt, setAllEdt] = useState<EdtItem[]>([]);
+  const [profSearch, setProfSearch] = useState('');
   const [loading, setLoading] = useState(true);
 
   // Filtres
@@ -455,7 +456,16 @@ export default function CoursPage() {
               return <>
                 <div style={{ marginBottom: 14 }}>
                   <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 5 }}>Classe *</label>
-                  <select value={form.classeId} onChange={(e) => setForm((f) => ({ ...f, classeId: e.target.value, matiereId: '', enseignantId: '' }))}
+                  <select value={form.classeId} onChange={(e) => {
+                    const cId = e.target.value;
+                    const cls = allClasses.find((c) => c.id === cId);
+                    const cycCode = (cls?.cycle?.code ?? cls?.niveau?.cycle?.code ?? '').toUpperCase();
+                    const isPrim = ['PRESCOLAIRE', 'PRIMAIRE', 'MATERNELLE', 'CRECHE', 'ELEMENTAIRE'].includes(cycCode);
+                    const profResp = isPrim && cls?.professeurResponsable?.id ? cls.professeurResponsable.id : '';
+                    const salleResp = cls?.salleId ?? '';
+                    setForm((f) => ({ ...f, classeId: cId, matiereId: '', enseignantId: profResp, salleId: salleResp }));
+                    setProfSearch('');
+                  }}
                     style={{ width: '100%', height: 38, border: '1px solid #d9e0e8', padding: '0 12px', fontSize: 13, fontFamily: 'inherit' }}>
                     <option value="">Sélectionner…</option>
                     {allClasses.map((c) => <option key={c.id} value={c.id}>{c.nom}</option>)}
@@ -477,25 +487,67 @@ export default function CoursPage() {
 
                 <div style={{ marginBottom: 14 }}>
                   <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 5 }}>Professeur *</label>
-                  <select value={form.enseignantId} onChange={(e) => setForm((f) => ({ ...f, enseignantId: e.target.value }))}
-                    style={{ width: '100%', height: 38, border: '1px solid #d9e0e8', padding: '0 12px', fontSize: 13, fontFamily: 'inherit' }}>
-                    <option value="">Sélectionner…</option>
-                    {(() => {
-                      // Filtrer les profs par matiere selectionnee
-                      const filtered = form.matiereId
-                        ? professeurs.filter((p) => {
-                            if (!p.matieresEnseignees?.length) return true; // Pas d'affectation → afficher quand meme
-                            return p.matieresEnseignees.some((me) => (me.matiereId ?? me.matiere?.id) === form.matiereId);
-                          })
-                        : professeurs;
-                      return filtered.map((p) => <option key={p.id} value={p.id}>{profName(p)}</option>);
-                    })()}
-                  </select>
-                  {form.matiereId && !form.enseignantId && (
-                    <div style={{ fontSize: 10, color: '#64748b', marginTop: 3 }}>
-                      {professeurs.filter((p) => p.matieresEnseignees?.some((me) => (me.matiereId ?? me.matiere?.id) === form.matiereId)).length} prof(s) pour cette matière
-                    </div>
-                  )}
+                  {(() => {
+                    const selectedClasse = allClasses.find((c) => c.id === form.classeId);
+                    const cycleCode = (selectedClasse?.cycle?.code ?? selectedClasse?.niveau?.cycle?.code ?? '').toUpperCase();
+                    const isPrimary = ['PRESCOLAIRE', 'PRIMAIRE', 'MATERNELLE', 'CRECHE', 'ELEMENTAIRE'].includes(cycleCode);
+                    const profResponsableId = selectedClasse?.professeurResponsable?.id;
+
+                    // Filtrer par matiere puis par recherche
+                    let filtered = form.matiereId
+                      ? professeurs.filter((p) => {
+                          if (!p.matieresEnseignees?.length) return true;
+                          return p.matieresEnseignees.some((me) => (me.matiereId ?? me.matiere?.id) === form.matiereId);
+                        })
+                      : professeurs;
+
+                    if (profSearch.trim()) {
+                      const q = profSearch.toLowerCase();
+                      filtered = filtered.filter((p) => profName(p).toLowerCase().includes(q));
+                    }
+
+                    // Pour les classes primaires, mettre le prof responsable en premier
+                    if (isPrimary && profResponsableId) {
+                      const profResp = filtered.find((p) => p.id === profResponsableId);
+                      const others = filtered.filter((p) => p.id !== profResponsableId);
+                      if (profResp) filtered = [profResp, ...others];
+                    }
+
+                    const selectedProfName = form.enseignantId ? profName(professeurs.find((p) => p.id === form.enseignantId)) : '';
+
+                    return (
+                      <>
+                        <div style={{ position: 'relative' }}>
+                          <input
+                            value={form.enseignantId ? selectedProfName : profSearch}
+                            onChange={(e) => { setProfSearch(e.target.value); if (form.enseignantId) setForm((f) => ({ ...f, enseignantId: '' })); }}
+                            placeholder="Rechercher un enseignant..."
+                            style={{ width: '100%', height: 38, border: '1px solid #d9e0e8', padding: '0 12px', fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box', background: form.enseignantId ? '#f0fdf4' : '#fff' }}
+                          />
+                          {form.enseignantId && (
+                            <button onClick={() => { setForm((f) => ({ ...f, enseignantId: '' })); setProfSearch(''); }} style={{ position: 'absolute', right: 8, top: 8, background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: 16 }}>x</button>
+                          )}
+                        </div>
+                        {!form.enseignantId && (profSearch || !form.enseignantId) && (
+                          <div style={{ border: '1px solid #e2e8f0', borderTop: 'none', maxHeight: 180, overflowY: 'auto', background: '#fff' }}>
+                            {isPrimary && profResponsableId && !profSearch && (
+                              <div style={{ padding: '4px 12px', fontSize: 10, color: '#2563eb', fontWeight: 700, background: '#eff6ff', borderBottom: '1px solid #e2e8f0' }}>Prof. responsable</div>
+                            )}
+                            {filtered.length === 0 ? (
+                              <div style={{ padding: '10px 12px', fontSize: 12, color: '#94a3b8' }}>Aucun enseignant trouve</div>
+                            ) : filtered.slice(0, 20).map((p) => (
+                              <button key={p.id} type="button" onClick={() => { setForm((f) => ({ ...f, enseignantId: p.id })); setProfSearch(''); }}
+                                style={{ width: '100%', padding: '8px 12px', border: 'none', borderBottom: '1px solid #f1f5f9', background: p.id === profResponsableId ? '#f0fdf4' : '#fff', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                              >
+                                <span style={{ fontSize: 13, color: '#0f172a', fontWeight: p.id === profResponsableId ? 700 : 400 }}>{profName(p)}</span>
+                                {p.specialite && <span style={{ fontSize: 10, color: '#94a3b8' }}>{p.specialite.toLowerCase()}</span>}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
 
                 <div style={{ marginBottom: 14 }}>
