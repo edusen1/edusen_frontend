@@ -1,11 +1,32 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
 import { apiClient } from '@/lib/api/client';
 import { useCreateClasse, useUpdateClasse, useDeleteClasse } from '@/hooks/use-query-api';
+import { normaliser } from '@/lib/recherche';
 
-type NiveauItem = { id: string; nom: string; cycleId?: string; cycle?: { libelle?: string; code?: string } };
+const CYCLES_PRESCOLAIRE = ['PRESCOLAIRE', 'MATERNELLE', 'CRECHE'];
+const CYCLES_PRIMAIRE = ['PRIMAIRE', 'ELEMENTAIRE'];
+
+/**
+ * `/admin/configuration/niveaux` expose le cycle sous `section` (« Lycée »,
+ * « Collège », « Primaire », « Prescolaire ») et **non** sous un objet `cycle`.
+ * Le filtre du professeur responsable lisait `cycle.code`, toujours `undefined` :
+ * il ne s'activait donc jamais et tous les enseignants restaient proposés,
+ * y compris pour une classe de préscolaire.
+ */
+type NiveauItem = { id: string; nom: string; cycleId?: string; sectionId?: string; section?: string; cycle?: { libelle?: string; code?: string } };
+
+/**
+ * Code de cycle normalisé d'un niveau. « Lycée » et « LYCEE » doivent donner le
+ * même résultat que le `cycle.code` porté par les classes : on retire donc les
+ * accents et on passe en majuscules.
+ */
+function cycleDuNiveau(niveau?: NiveauItem): string {
+  const brut = niveau?.cycle?.code ?? niveau?.section ?? '';
+  return normaliser(brut).toUpperCase();
+}
 type ClasseItem = Record<string, unknown>;
 type AnneeItem = { id: string; libelle: string; active?: boolean; actif?: boolean };
 type ClasseEleveItem = {
@@ -79,7 +100,11 @@ export default function ClassesPage() {
 
   const [niveaux, setNiveaux] = useState<NiveauItem[]>([]);
   const [annees, setAnnees] = useState<AnneeItem[]>([]);
-  const [profs, setProfs] = useState<{ id: string; nom: string; specialite?: string }[]>([]);
+  // `classeIdsEnseignes` : classes où l'enseignant a déjà au moins un cours.
+  // C'est le seul rattachement fiable à un cycle — `specialite` est un texte
+  // libre, tantôt un cycle (« PRIMAIRE »), tantôt une liste de matières
+  // (« Eveil, Motricite »). Le cycle est résolu plus bas via `classes`.
+  const [profs, setProfs] = useState<{ id: string; nom: string; specialite?: string; classeIdsEnseignes: string[] }[]>([]);
   const [salles, setSalles] = useState<{ id: string; nom: string }[]>([]);
   const [search, setSearch] = useState('');
   const [filterNiveauId, setFilterNiveauId] = useState('');
@@ -129,7 +154,14 @@ export default function ClassesPage() {
       setSelectedAnneeId(currentId);
       fetchClasses(currentId);
 
-      setProfs(parse(profsR.data).map((p) => ({ id: String(p.id), nom: `${p.firstName ?? p.prenom ?? ''} ${p.lastName ?? p.nom ?? ''}`.trim() || 'Enseignant', specialite: String(p.specialite ?? '') })));
+      setProfs(parse(profsR.data).map((p) => ({
+        id: String(p.id),
+        nom: `${p.firstName ?? p.prenom ?? ''} ${p.lastName ?? p.nom ?? ''}`.trim() || 'Enseignant',
+        specialite: String(p.specialite ?? ''),
+        classeIdsEnseignes: ((p.coursEnseignant ?? []) as Record<string, unknown>[])
+          .map((c) => String((c.classe as Record<string, unknown> | undefined)?.id ?? ''))
+          .filter(Boolean),
+      })));
       setSalles(parse(sallesR.data).map((s) => ({ id: String(s.id), nom: String(s.nom ?? s.libelle ?? '') })));
     }).catch(() => {});
   }, []);
@@ -137,6 +169,22 @@ export default function ClassesPage() {
   useEffect(() => {
     if (selectedAnneeId) fetchClasses(selectedAnneeId);
   }, [selectedAnneeId]);
+
+  /**
+   * Cycle de chaque classe, pour savoir dans quels cycles un enseignant
+   * intervient déjà. La réponse `/admin/professeurs` ne porte que le nom et
+   * l'identifiant de la classe de ses cours, pas son cycle.
+   */
+  const cycleParClasseId = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const c of classes) {
+      const niveau = c.niveau as Record<string, unknown> | undefined;
+      const cycle = niveau?.cycle as Record<string, unknown> | undefined;
+      const code = normaliser(cycle?.code ?? '').toUpperCase();
+      if (code) map[String(c.id)] = code;
+    }
+    return map;
+  }, [classes]);
 
   const filtered = classes.filter((c) => {
     const nom = (c.nom ?? '') as string;
@@ -384,13 +432,25 @@ export default function ClassesPage() {
                 <select value={form.professeurResponsableId} onChange={(e) => setForm((f) => ({ ...f, professeurResponsableId: e.target.value }))} style={{ width: '100%', height: 38, border: '1px solid #d9e0e8', padding: '0 12px', fontSize: 13, fontFamily: 'inherit', background: '#fff' }}>
                   <option value="">-- Aucun --</option>
                   {(() => {
-                    const selectedNiveau = niveaux.find((n) => n.id === form.niveauId);
-                    const cycleCode = (selectedNiveau?.cycle?.code ?? '').toUpperCase();
-                    const isPrimaire = ['PRESCOLAIRE', 'PRIMAIRE', 'MATERNELLE', 'CRECHE', 'ELEMENTAIRE'].includes(cycleCode);
-                    const expectedType = ['PRESCOLAIRE', 'MATERNELLE', 'CRECHE'].includes(cycleCode) ? 'PRESCOLAIRE' : isPrimaire ? 'PRIMAIRE' : '';
-                    const filteredProfs = expectedType
-                      ? profs.filter((p) => !p.specialite || p.specialite.toUpperCase() === expectedType)
-                      : profs;
+                    const cycleCode = cycleDuNiveau(niveaux.find((n) => n.id === form.niveauId));
+                    if (!cycleCode) return profs.map((p) => <option key={p.id} value={p.id}>{p.nom}</option>);
+
+                    const attendu = CYCLES_PRESCOLAIRE.includes(cycleCode) ? 'PRESCOLAIRE'
+                      : CYCLES_PRIMAIRE.includes(cycleCode) ? 'PRIMAIRE' : '';
+
+                    const filteredProfs = profs.filter((p) => {
+                      // 1. Signal le plus fiable : il enseigne déjà dans ce cycle.
+                      if (p.classeIdsEnseignes.some((id) => cycleParClasseId[id] === cycleCode)) return true;
+                      // 2. Sa spécialité nomme explicitement le cycle (« PRIMAIRE »).
+                      if (attendu && p.specialite?.toUpperCase() === attendu) return true;
+                      // 3. Enseignant sans aucune affectation : il peut aller partout.
+                      //    Sans ce cas, une école qui démarre n'aurait aucun choix.
+                      return !p.specialite && p.classeIdsEnseignes.length === 0;
+                    });
+
+                    if (filteredProfs.length === 0) {
+                      return <option value="" disabled>Aucun enseignant rattaché à ce cycle</option>;
+                    }
                     return filteredProfs.map((p) => (
                       <option key={p.id} value={p.id}>
                         {p.nom}{p.specialite ? ` (${p.specialite.toLowerCase()})` : ''}
