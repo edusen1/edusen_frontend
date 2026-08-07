@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { apiClient } from '@/lib/api/client';
 import { useCreateClasse, useUpdateClasse, useDeleteClasse } from '@/hooks/use-query-api';
 
-type NiveauItem = { id: string; nom: string; cycleId?: string; cycle?: { libelle?: string } };
+type NiveauItem = { id: string; nom: string; cycleId?: string; cycle?: { libelle?: string; code?: string } };
 type ClasseItem = Record<string, unknown>;
 type AnneeItem = { id: string; libelle: string; active?: boolean; actif?: boolean };
 type ClasseEleveItem = {
@@ -79,7 +79,7 @@ export default function ClassesPage() {
 
   const [niveaux, setNiveaux] = useState<NiveauItem[]>([]);
   const [annees, setAnnees] = useState<AnneeItem[]>([]);
-  const [profs, setProfs] = useState<{ id: string; nom: string }[]>([]);
+  const [profs, setProfs] = useState<{ id: string; nom: string; specialite?: string }[]>([]);
   const [salles, setSalles] = useState<{ id: string; nom: string }[]>([]);
   const [search, setSearch] = useState('');
   const [filterNiveauId, setFilterNiveauId] = useState('');
@@ -129,7 +129,7 @@ export default function ClassesPage() {
       setSelectedAnneeId(currentId);
       fetchClasses(currentId);
 
-      setProfs(parse(profsR.data).map((p) => ({ id: String(p.id), nom: `${p.firstName ?? p.prenom ?? ''} ${p.lastName ?? p.nom ?? ''}`.trim() || 'Enseignant' })));
+      setProfs(parse(profsR.data).map((p) => ({ id: String(p.id), nom: `${p.firstName ?? p.prenom ?? ''} ${p.lastName ?? p.nom ?? ''}`.trim() || 'Enseignant', specialite: String(p.specialite ?? '') })));
       setSalles(parse(sallesR.data).map((s) => ({ id: String(s.id), nom: String(s.nom ?? s.libelle ?? '') })));
     }).catch(() => {});
   }, []);
@@ -383,7 +383,20 @@ export default function ClassesPage() {
                 <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 5 }}>Professeur responsable</label>
                 <select value={form.professeurResponsableId} onChange={(e) => setForm((f) => ({ ...f, professeurResponsableId: e.target.value }))} style={{ width: '100%', height: 38, border: '1px solid #d9e0e8', padding: '0 12px', fontSize: 13, fontFamily: 'inherit', background: '#fff' }}>
                   <option value="">-- Aucun --</option>
-                  {profs.map((p) => <option key={p.id} value={p.id}>{p.nom}</option>)}
+                  {(() => {
+                    const selectedNiveau = niveaux.find((n) => n.id === form.niveauId);
+                    const cycleCode = (selectedNiveau?.cycle?.code ?? '').toUpperCase();
+                    const isPrimaire = ['PRESCOLAIRE', 'PRIMAIRE', 'MATERNELLE', 'CRECHE', 'ELEMENTAIRE'].includes(cycleCode);
+                    const expectedType = ['PRESCOLAIRE', 'MATERNELLE', 'CRECHE'].includes(cycleCode) ? 'PRESCOLAIRE' : isPrimaire ? 'PRIMAIRE' : '';
+                    const filteredProfs = expectedType
+                      ? profs.filter((p) => !p.specialite || p.specialite.toUpperCase() === expectedType)
+                      : profs;
+                    return filteredProfs.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.nom}{p.specialite ? ` (${p.specialite.toLowerCase()})` : ''}
+                      </option>
+                    ));
+                  })()}
                 </select>
               </div>
               <div>
