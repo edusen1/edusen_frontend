@@ -27,6 +27,17 @@ function cycleDuNiveau(niveau?: NiveauItem): string {
   const brut = niveau?.cycle?.code ?? niveau?.section ?? '';
   return normaliser(brut).toUpperCase();
 }
+
+/**
+ * La salle principale n'a de sens qu'au préscolaire et au primaire, où la classe
+ * occupe une salle fixe avec un enseignant unique. Au collège et au lycée, les
+ * élèves se déplacent de salle en salle selon la matière : la salle est portée
+ * par le créneau d'emploi du temps, pas par la classe.
+ */
+function salleApplicable(cycleCode: string): boolean {
+  if (!cycleCode) return true; // niveau non encore choisi : on n'anticipe pas
+  return [...CYCLES_PRESCOLAIRE, ...CYCLES_PRIMAIRE].includes(cycleCode);
+}
 type ClasseItem = Record<string, unknown>;
 type AnneeItem = { id: string; libelle: string; active?: boolean; actif?: boolean };
 type ClasseEleveItem = {
@@ -175,6 +186,10 @@ export default function ClassesPage() {
    * intervient déjà. La réponse `/admin/professeurs` ne porte que le nom et
    * l'identifiant de la classe de ses cours, pas son cycle.
    */
+  /** Cycle du niveau actuellement choisi dans le formulaire. */
+  const cycleFormulaire = cycleDuNiveau(niveaux.find((n) => n.id === form.niveauId));
+  const salleVisible = salleApplicable(cycleFormulaire);
+
   const cycleParClasseId = useMemo(() => {
     const map: Record<string, string> = {};
     for (const c of classes) {
@@ -221,7 +236,13 @@ export default function ClassesPage() {
       niveauId: form.niveauId,
       ...(form.effectifMax ? { effectifMax: Number(form.effectifMax) } : {}),
       ...(form.professeurResponsableId ? { professeurResponsableId: form.professeurResponsableId } : editItem ? { professeurResponsableId: null } : {}),
-      ...(form.salleId ? { salleId: form.salleId } : {}),
+      // Au collège et au lycée, la salle est portée par le créneau d'emploi du
+      // temps. On l'efface explicitement en modification : sans ça, une salle
+      // choisie avant de changer de niveau resterait enregistrée sur la classe
+      // alors que le champ n'est plus affiché.
+      ...(salleVisible
+        ? (form.salleId ? { salleId: form.salleId } : editItem ? { salleId: null } : {})
+        : (editItem ? { salleId: null } : {})),
       ...(!editItem ? { anneeAcademiqueId: selectedAnneeId } : {}),
     };
     try {
@@ -426,7 +447,7 @@ export default function ClassesPage() {
                 <input type="number" value={form.effectifMax} onChange={(e) => setForm((f) => ({ ...f, effectifMax: e.target.value }))} placeholder="50" min={1} style={{ width: '100%', height: 38, border: '1px solid #d9e0e8', padding: '0 12px', fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
               </div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 20 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: salleVisible ? '1fr 1fr' : '1fr', gap: 14, marginBottom: 20 }}>
               <div>
                 <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 5 }}>Professeur responsable</label>
                 <select value={form.professeurResponsableId} onChange={(e) => setForm((f) => ({ ...f, professeurResponsableId: e.target.value }))} style={{ width: '100%', height: 38, border: '1px solid #d9e0e8', padding: '0 12px', fontSize: 13, fontFamily: 'inherit', background: '#fff' }}>
@@ -459,13 +480,17 @@ export default function ClassesPage() {
                   })()}
                 </select>
               </div>
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 5 }}>Salle principale</label>
-                <select value={form.salleId} onChange={(e) => setForm((f) => ({ ...f, salleId: e.target.value }))} style={{ width: '100%', height: 38, border: '1px solid #d9e0e8', padding: '0 12px', fontSize: 13, fontFamily: 'inherit', background: '#fff' }}>
-                  <option value="">-- Aucune --</option>
-                  {salles.map((s) => <option key={s.id} value={s.id}>{s.nom}</option>)}
-                </select>
-              </div>
+              {/* Masquée au collège et au lycée : la salle y dépend du créneau,
+                  pas de la classe. Voir `salleApplicable`. */}
+              {salleVisible && (
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 5 }}>Salle principale</label>
+                  <select value={form.salleId} onChange={(e) => setForm((f) => ({ ...f, salleId: e.target.value }))} style={{ width: '100%', height: 38, border: '1px solid #d9e0e8', padding: '0 12px', fontSize: 13, fontFamily: 'inherit', background: '#fff' }}>
+                    <option value="">-- Aucune --</option>
+                    {salles.map((s) => <option key={s.id} value={s.id}>{s.nom}</option>)}
+                  </select>
+                </div>
+              )}
             </div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
               <button onClick={() => setShowModal(false)} style={{ height: 38, padding: '0 16px', border: '1px solid #d9e0e8', background: '#fff', color: '#334155', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' }}>Annuler</button>
