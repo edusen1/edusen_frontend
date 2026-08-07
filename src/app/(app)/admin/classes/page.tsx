@@ -79,6 +79,8 @@ export default function ClassesPage() {
 
   const [niveaux, setNiveaux] = useState<NiveauItem[]>([]);
   const [annees, setAnnees] = useState<AnneeItem[]>([]);
+  const [profs, setProfs] = useState<{ id: string; nom: string }[]>([]);
+  const [salles, setSalles] = useState<{ id: string; nom: string }[]>([]);
   const [search, setSearch] = useState('');
   const [filterNiveauId, setFilterNiveauId] = useState('');
   const [showModal, setShowModal] = useState(false);
@@ -88,11 +90,9 @@ export default function ClassesPage() {
   const [classeElevesPage, setClasseElevesPage] = useState(1);
   const [selectedEleve, setSelectedEleve] = useState<ClasseEleveItem | null>(null);
   const [selectedEleveReport, setSelectedEleveReport] = useState<EleveReport | null>(null);
-  const [selectedEleveCardUrl, setSelectedEleveCardUrl] = useState('');
   const [loadingEleveReport, setLoadingEleveReport] = useState(false);
-  const [loadingEleveCard, setLoadingEleveCard] = useState(false);
   const [loadingEleves, setLoadingEleves] = useState(false);
-  const [form, setForm] = useState({ nom: '', niveauId: '', effectifMax: '' });
+  const [form, setForm] = useState({ nom: '', niveauId: '', effectifMax: '', professeurResponsableId: '', salleId: '' });
 
   const fetchClasses = (anneeId: string) => {
     const params = anneeId ? { anneeId } : {};
@@ -103,11 +103,18 @@ export default function ClassesPage() {
   };
 
   useEffect(() => {
+    const parse = (d: unknown): Record<string, unknown>[] => {
+      if (Array.isArray(d)) return d;
+      const obj = d as Record<string, unknown>;
+      return (Array.isArray(obj?.data) ? obj.data : Array.isArray(obj?.content) ? obj.content : []) as Record<string, unknown>[];
+    };
     Promise.all([
       apiClient.get('/admin/configuration/niveaux'),
       apiClient.get('/admin/configuration/annees-academiques'),
       apiClient.get('/admin/configuration/annees-academiques/courante'),
-    ]).then(([nr, anneesr, currentr]) => {
+      apiClient.get('/admin/professeurs', { params: { size: 500 } }).catch(() => ({ data: [] })),
+      apiClient.get('/admin/salles', { params: { size: 500 } }).catch(() => ({ data: [] })),
+    ]).then(([nr, anneesr, currentr, profsR, sallesR]) => {
       const nd = nr.data as Record<string, unknown>;
       setNiveaux(Array.isArray(nd) ? nd as NiveauItem[] : ((nd?.data ?? nd?.content ?? []) as NiveauItem[]));
 
@@ -121,6 +128,9 @@ export default function ClassesPage() {
       const currentId = current?.id ? String(current.id) : (sorted[0]?.id ?? '');
       setSelectedAnneeId(currentId);
       fetchClasses(currentId);
+
+      setProfs(parse(profsR.data).map((p) => ({ id: String(p.id), nom: `${p.firstName ?? p.prenom ?? ''} ${p.lastName ?? p.nom ?? ''}`.trim() || 'Enseignant' })));
+      setSalles(parse(sallesR.data).map((s) => ({ id: String(s.id), nom: String(s.nom ?? s.libelle ?? '') })));
     }).catch(() => {});
   }, []);
 
@@ -137,16 +147,19 @@ export default function ClassesPage() {
 
   const openCreate = () => {
     setEditItem(null);
-    setForm({ nom: '', niveauId: '', effectifMax: '' });
+    setForm({ nom: '', niveauId: '', effectifMax: '', professeurResponsableId: '', salleId: '' });
     setShowModal(true);
   };
 
   const openEdit = (c: ClasseItem) => {
     setEditItem(c);
+    const profObj = c.professeurResponsable as Record<string, unknown> | undefined;
     setForm({
       nom: (c.nom ?? '') as string,
       niveauId: (c.niveauId ?? (c.niveau as Record<string, unknown> | undefined)?.id ?? '') as string,
       effectifMax: String(c.effectifMax ?? ''),
+      professeurResponsableId: String(profObj?.id ?? c.professeurResponsableId ?? ''),
+      salleId: String(c.salleId ?? ''),
     });
     setShowModal(true);
   };
@@ -159,6 +172,8 @@ export default function ClassesPage() {
       nom: form.nom.trim(),
       niveauId: form.niveauId,
       ...(form.effectifMax ? { effectifMax: Number(form.effectifMax) } : {}),
+      ...(form.professeurResponsableId ? { professeurResponsableId: form.professeurResponsableId } : editItem ? { professeurResponsableId: null } : {}),
+      ...(form.salleId ? { salleId: form.salleId } : {}),
       ...(!editItem ? { anneeAcademiqueId: selectedAnneeId } : {}),
     };
     try {
@@ -210,9 +225,7 @@ export default function ClassesPage() {
     setClasseElevesPage(1);
     setSelectedEleve(null);
     setSelectedEleveReport(null);
-    setSelectedEleveCardUrl('');
     setLoadingEleveReport(false);
-    setLoadingEleveCard(false);
     setLoadingEleves(false);
   };
 
@@ -352,17 +365,33 @@ export default function ClassesPage() {
               </label>
               <input value={form.nom} onChange={(e) => setForm((f) => ({ ...f, nom: e.target.value }))} placeholder="Ex: 3ème B" style={{ width: '100%', height: 38, border: '1px solid #d9e0e8', padding: '0 12px', fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 20 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
               <div>
                 <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 5 }}>Niveau <span style={{ color: '#dc2626' }}>*</span></label>
                 <select value={form.niveauId} onChange={(e) => setForm((f) => ({ ...f, niveauId: e.target.value }))} style={{ width: '100%', height: 38, border: '1px solid #d9e0e8', padding: '0 12px', fontSize: 13, fontFamily: 'inherit', background: '#fff' }}>
-                  <option value="">— Sélectionner —</option>
+                  <option value="">-- Selectionner --</option>
                   {niveaux.map((n) => <option key={n.id} value={n.id}>{n.nom}</option>)}
                 </select>
               </div>
               <div>
                 <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 5 }}>Effectif max</label>
                 <input type="number" value={form.effectifMax} onChange={(e) => setForm((f) => ({ ...f, effectifMax: e.target.value }))} placeholder="50" min={1} style={{ width: '100%', height: 38, border: '1px solid #d9e0e8', padding: '0 12px', fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 20 }}>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 5 }}>Professeur responsable</label>
+                <select value={form.professeurResponsableId} onChange={(e) => setForm((f) => ({ ...f, professeurResponsableId: e.target.value }))} style={{ width: '100%', height: 38, border: '1px solid #d9e0e8', padding: '0 12px', fontSize: 13, fontFamily: 'inherit', background: '#fff' }}>
+                  <option value="">-- Aucun --</option>
+                  {profs.map((p) => <option key={p.id} value={p.id}>{p.nom}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 5 }}>Salle principale</label>
+                <select value={form.salleId} onChange={(e) => setForm((f) => ({ ...f, salleId: e.target.value }))} style={{ width: '100%', height: 38, border: '1px solid #d9e0e8', padding: '0 12px', fontSize: 13, fontFamily: 'inherit', background: '#fff' }}>
+                  <option value="">-- Aucune --</option>
+                  {salles.map((s) => <option key={s.id} value={s.id}>{s.nom}</option>)}
+                </select>
               </div>
             </div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
