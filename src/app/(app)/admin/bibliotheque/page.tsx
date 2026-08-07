@@ -39,11 +39,13 @@ interface Emprunt {
 interface Tarifs {
   dureeJoursDefaut: number; dureeJoursMax: number;
   penaliteParJour: number; penaliteMax: number; valeurRemplacementDefaut: number;
+  prixEmprunt: number; abonnementMensuel: number;
 }
 
 interface Situation {
   nbEnCours: number; nbEnRetard: number; nbPertes: number;
-  amendesDues: number; peutEmprunter: boolean;
+  amendesDues: number; fraisDus: number; peutEmprunter: boolean;
+  abonne: boolean; abonnementJusquau?: string | null; fraisEmpruntApplicable: number;
   ouvragesEnCours: { id: string; titre: string; dateRetourPrevue: string; enRetard: boolean; joursRetard?: number }[];
   pertes: { id: string; titre: string; montantAmende?: number | null }[];
 }
@@ -229,6 +231,29 @@ export default function BibliothequePage() {
     }
   };
 
+  /**
+   * Souscription depuis le formulaire d'emprunt : l'agent constate que la
+   * personne n'est pas abonnée au moment où ça compte. On recharge ensuite la
+   * situation pour que les frais affichés reflètent l'abonnement.
+   */
+  const ouvrirAbonnement = async () => {
+    if (!emprunteur || !tarifs) return;
+    const saisie = prompt(
+      `Abonnement pour ${emprunteur.nom}\nTarif : ${tarifs.abonnementMensuel.toLocaleString('fr-FR')} FCFA / mois\n\nNombre de mois ?`,
+      '1',
+    );
+    if (saisie === null) return;
+    const mois = Math.max(1, Math.min(Number(saisie) || 1, 12));
+    try {
+      await apiClient.post('/bibliotheque/abonnements', { abonneId: emprunteur.id, moisPayes: mois, modePaiement: 'ESPECES' });
+      toast.success(`Abonnement de ${mois} mois enregistré`);
+      const r = await apiClient.get(`/bibliotheque/emprunteurs/${emprunteur.id}/situation`);
+      setSituation(r.data as Situation);
+    } catch (err) {
+      toast.error((err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Abonnement impossible');
+    }
+  };
+
   const reglerAmende = async (e: Emprunt) => {
     if (!confirm(`Encaisser ${e.montantAmende?.toLocaleString('fr-FR')} FCFA pour « ${e.ouvrage?.titre} » ?`)) return;
     try {
@@ -253,13 +278,6 @@ export default function BibliothequePage() {
 
   /** Ouvrage sélectionné : sa valeur prime sur le tarif de perte par défaut. */
   const ouvrageChoisi = useMemo(() => ouvrages.find((o) => o.id === ouvrageId), [ouvrages, ouvrageId]);
-
-  /** Coût d'une semaine de retard, plafond compris — rend le tarif concret. */
-  const penalite7Jours = useMemo(() => {
-    if (!tarifs || tarifs.penaliteParJour <= 0) return 0;
-    const brut = 7 * tarifs.penaliteParJour;
-    return tarifs.penaliteMax > 0 ? Math.min(brut, tarifs.penaliteMax) : brut;
-  }, [tarifs]);
 
   const dateRetourCalculee = useMemo(() => {
     const d = new Date();
@@ -519,9 +537,28 @@ export default function BibliothequePage() {
                       </div>
                     )}
 
-                    {situation.amendesDues > 0 && (
+                    {/* Statut d'abonnement : c'est lui qui décide si l'emprunt
+                        sera facturé, il doit donc être lisible avant validation. */}
+                    <div style={{ padding: '8px 10px', borderTop: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ flex: 1, fontSize: 11, color: situation.abonne ? '#16a34a' : '#64748b' }}>
+                        {situation.abonne
+                          ? `Abonné jusqu'au ${formatDateFr(situation.abonnementJusquau ?? '')} — emprunts gratuits`
+                          : 'Non abonné'}
+                      </span>
+                      {tarifs && tarifs.abonnementMensuel > 0 && (
+                        <button
+                          onClick={() => ouvrirAbonnement()}
+                          style={{ ...btnSecondaire, height: 26, padding: '0 10px', fontSize: 11 }}
+                        >
+                          {situation.abonne ? 'Prolonger' : 'Abonner'}
+                        </button>
+                      )}
+                    </div>
+
+                    {(situation.amendesDues > 0 || situation.fraisDus > 0) && (
                       <div style={{ padding: '8px 10px', fontSize: 11, color: '#6d28d9', borderTop: '1px solid #f1f5f9' }}>
-                        {situation.amendesDues.toLocaleString('fr-FR')} FCFA d&apos;amendes non réglées.
+                        {situation.amendesDues > 0 && <>{situation.amendesDues.toLocaleString('fr-FR')} FCFA d&apos;amendes non réglées. </>}
+                        {situation.fraisDus > 0 && <>{situation.fraisDus.toLocaleString('fr-FR')} FCFA de frais d&apos;emprunt dus.</>}
                       </div>
                     )}
 
@@ -573,7 +610,14 @@ export default function BibliothequePage() {
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', borderBottom: `1px solid ${B}` }}>
                     {[
-                      { label: 'Durée maximale', valeur: `${tarifs.dureeJoursMax} j` },
+                      {
+                        label: situation?.abonne ? 'Emprunt (abonné)' : 'Emprunt',
+                        // Le montant vient du serveur : c'est lui qui tranche
+                        // l'abonnement, l'écran ne recalcule pas la règle.
+                        valeur: situation
+                          ? (situation.fraisEmpruntApplicable > 0 ? `${situation.fraisEmpruntApplicable.toLocaleString('fr-FR')} F` : 'Gratuit')
+                          : (tarifs.prixEmprunt > 0 ? `${tarifs.prixEmprunt.toLocaleString('fr-FR')} F` : 'Gratuit'),
+                      },
                       { label: 'Retard', valeur: tarifs.penaliteParJour > 0 ? `${tarifs.penaliteParJour.toLocaleString('fr-FR')} F/j` : 'Non facturé' },
                       { label: 'Perte', valeur: `${(ouvrageChoisi?.valeur ?? tarifs.valeurRemplacementDefaut).toLocaleString('fr-FR')} F` },
                     ].map((k, i) => (
@@ -583,16 +627,11 @@ export default function BibliothequePage() {
                       </div>
                     ))}
                   </div>
-                  <div style={{ padding: '8px 12px', fontSize: 11, color: '#64748b', lineHeight: 1.5 }}>
-                    {tarifs.penaliteParJour > 0 ? (
-                      <>
-                        Un rendu une semaine après l&apos;échéance coûterait{' '}
-                        <strong style={{ color: '#dc2626' }}>{penalite7Jours.toLocaleString('fr-FR')} FCFA</strong>
-                        {tarifs.penaliteMax > 0 ? ` — plafonné à ${tarifs.penaliteMax.toLocaleString('fr-FR')} FCFA.` : '.'}
-                      </>
-                    ) : 'Aucune pénalité de retard n’est appliquée.'}
-                    {ouvrageChoisi?.valeur == null && ' La perte est facturée au tarif par défaut, cet ouvrage n’ayant pas de valeur renseignée.'}
-                  </div>
+                  {ouvrageChoisi?.valeur == null && (
+                    <div style={{ padding: '8px 12px', fontSize: 11, color: '#64748b' }}>
+                      Cet ouvrage n&apos;a pas de valeur renseignée : la perte serait facturée au tarif par défaut.
+                    </div>
+                  )}
                 </div>
               ) : (
                 /* Ne pas masquer en silence : sans tarifs, l'agent doit savoir

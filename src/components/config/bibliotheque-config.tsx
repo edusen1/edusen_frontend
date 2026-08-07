@@ -20,11 +20,14 @@ interface Tarifs {
   penaliteParJour: number;
   penaliteMax: number;
   valeurRemplacementDefaut: number;
+  prixEmprunt: number;
+  abonnementMensuel: number;
 }
 
 const DEFAUTS: Tarifs = {
   dureeJoursDefaut: 14, dureeJoursMax: 60,
   penaliteParJour: 100, penaliteMax: 5000, valeurRemplacementDefaut: 10000,
+  prixEmprunt: 0, abonnementMensuel: 0,
 };
 
 const inp: React.CSSProperties = { width: '100%', height: 36, border: `1px solid ${B}`, padding: '0 10px', fontSize: 13, fontFamily: 'inherit', boxSizing: 'border-box' };
@@ -77,6 +80,28 @@ export function BibliothequeConfig() {
       <div style={{ fontSize: 12, color: '#64748b', marginBottom: 18, lineHeight: 1.5 }}>
         Ces montants servent au calcul automatique des amendes : pénalité de retard au
         retour d&apos;un ouvrage, somme réclamée en cas de perte.
+      </div>
+
+      <div style={{ background: '#fff', border: `1px solid ${B}`, padding: 18, marginBottom: 16 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', marginBottom: 14 }}>Prix</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 16 }}>
+          <div>
+            <label style={lbl}>Prix par emprunt (FCFA)</label>
+            <input type="number" min={0} value={tarifs.prixEmprunt} onChange={(e) => modifier('prixEmprunt', e.target.value)} style={inp} />
+            <div style={aide}>Facturé à chaque prêt. 0 = emprunt gratuit.</div>
+          </div>
+          <div>
+            <label style={lbl}>Abonnement mensuel (FCFA)</label>
+            <input type="number" min={0} value={tarifs.abonnementMensuel} onChange={(e) => modifier('abonnementMensuel', e.target.value)} style={inp} />
+            <div style={aide}>Dispense des frais par emprunt. 0 = aucun abonnement proposé.</div>
+          </div>
+        </div>
+        {tarifs.prixEmprunt > 0 && tarifs.abonnementMensuel > 0 && (
+          <div style={{ marginTop: 14, padding: '10px 12px', background: '#f8fafc', border: `1px solid ${B}`, fontSize: 12, color: '#475569' }}>
+            L&apos;abonnement devient avantageux à partir de{' '}
+            <strong>{Math.ceil(tarifs.abonnementMensuel / tarifs.prixEmprunt)} emprunts</strong> par mois.
+          </div>
+        )}
       </div>
 
       <div style={{ background: '#fff', border: `1px solid ${B}`, padding: 18, marginBottom: 16 }}>
