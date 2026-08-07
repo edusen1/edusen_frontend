@@ -251,6 +251,16 @@ export default function BibliothequePage() {
     }
   };
 
+  /** Ouvrage sélectionné : sa valeur prime sur le tarif de perte par défaut. */
+  const ouvrageChoisi = useMemo(() => ouvrages.find((o) => o.id === ouvrageId), [ouvrages, ouvrageId]);
+
+  /** Coût d'une semaine de retard, plafond compris — rend le tarif concret. */
+  const penalite7Jours = useMemo(() => {
+    if (!tarifs || tarifs.penaliteParJour <= 0) return 0;
+    const brut = 7 * tarifs.penaliteParJour;
+    return tarifs.penaliteMax > 0 ? Math.min(brut, tarifs.penaliteMax) : brut;
+  }, [tarifs]);
+
   const dateRetourCalculee = useMemo(() => {
     const d = new Date();
     d.setDate(d.getDate() + (Number(dureeJours) || 0));
@@ -540,19 +550,58 @@ export default function BibliothequePage() {
 
               <div>
                 <label style={lbl}>Durée de l&apos;emprunt (jours)</label>
-                <input type="number" min={1} max={tarifs?.dureeJoursMax ?? 60} value={dureeJours}
-                  onChange={(e) => setDureeJours(e.target.value)} style={{ ...inp, width: 140 }} />
-                {/* La date découle de la durée : elle n'est jamais saisie. */}
-                <div style={{ fontSize: 12, color: '#475569', marginTop: 6 }}>
-                  Retour attendu le <strong>{dateRetourCalculee}</strong>
-                </div>
-                {tarifs && (
-                  <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
-                    Maximum {tarifs.dureeJoursMax} jours · retard facturé {tarifs.penaliteParJour.toLocaleString('fr-FR')} F/jour
-                    {tarifs.penaliteMax > 0 ? ` (plafond ${tarifs.penaliteMax.toLocaleString('fr-FR')} F)` : ''}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <input type="number" min={1} max={tarifs?.dureeJoursMax ?? 60} value={dureeJours}
+                    onChange={(e) => setDureeJours(e.target.value)} style={{ ...inp, width: 110 }} />
+                  {/* La date découle de la durée : elle n'est jamais saisie. */}
+                  <div style={{ fontSize: 12, color: '#475569' }}>
+                    Retour attendu le <strong>{dateRetourCalculee}</strong>
                   </div>
-                )}
+                </div>
               </div>
+
+              {/*
+                Conditions financières. Elles figuraient en 11 px gris pâle sous
+                le champ de durée : l'information la plus lourde de conséquences
+                du formulaire était la moins lisible. Elle est désormais posée
+                dans un encadré propre, avec le coût réel du dépassement choisi.
+              */}
+              {tarifs ? (
+                <div style={{ marginTop: 16, border: `1px solid ${B}` }}>
+                  <div style={{ padding: '8px 12px', background: '#f8fafc', borderBottom: `1px solid ${B}`, fontSize: 11, fontWeight: 700, color: '#475569', textTransform: 'uppercase' }}>
+                    Conditions
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', borderBottom: `1px solid ${B}` }}>
+                    {[
+                      { label: 'Durée maximale', valeur: `${tarifs.dureeJoursMax} j` },
+                      { label: 'Retard', valeur: tarifs.penaliteParJour > 0 ? `${tarifs.penaliteParJour.toLocaleString('fr-FR')} F/j` : 'Non facturé' },
+                      { label: 'Perte', valeur: `${(ouvrageChoisi?.valeur ?? tarifs.valeurRemplacementDefaut).toLocaleString('fr-FR')} F` },
+                    ].map((k, i) => (
+                      <div key={k.label} style={{ padding: '10px 12px', borderLeft: i > 0 ? `1px solid ${B}` : 'none' }}>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>{k.valeur}</div>
+                        <div style={{ fontSize: 10, color: '#94a3b8' }}>{k.label}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ padding: '8px 12px', fontSize: 11, color: '#64748b', lineHeight: 1.5 }}>
+                    {tarifs.penaliteParJour > 0 ? (
+                      <>
+                        Un rendu une semaine après l&apos;échéance coûterait{' '}
+                        <strong style={{ color: '#dc2626' }}>{penalite7Jours.toLocaleString('fr-FR')} FCFA</strong>
+                        {tarifs.penaliteMax > 0 ? ` — plafonné à ${tarifs.penaliteMax.toLocaleString('fr-FR')} FCFA.` : '.'}
+                      </>
+                    ) : 'Aucune pénalité de retard n’est appliquée.'}
+                    {ouvrageChoisi?.valeur == null && ' La perte est facturée au tarif par défaut, cet ouvrage n’ayant pas de valeur renseignée.'}
+                  </div>
+                </div>
+              ) : (
+                /* Ne pas masquer en silence : sans tarifs, l'agent doit savoir
+                   qu'aucune règle d'amende ne s'appliquera. */
+                <div style={{ marginTop: 16, padding: '10px 12px', background: '#fffbeb', border: '1px solid #fde68a', fontSize: 11, color: '#b45309' }}>
+                  Conditions tarifaires indisponibles — aucune pénalité ne pourra être calculée.
+                  Vérifiez Configuration → Bibliothèque.
+                </div>
+              )}
             </div>
             <div style={{ padding: '14px 22px', borderTop: `1px solid ${B}`, display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
               <button onClick={() => setModalEmprunt(false)} style={btnSecondaire}>Annuler</button>

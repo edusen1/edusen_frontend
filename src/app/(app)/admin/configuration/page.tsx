@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { apiClient } from '@/lib/api/client';
 import { toast } from 'sonner';
 import { HorairesConfig } from '@/components/config/horaires-config';
@@ -92,6 +92,44 @@ function fieldWrap(mb = 14): React.CSSProperties {
 
 export default function ConfigurationPage() {
   const [activeTab, setActiveTab] = useState<Tab>('identite');
+
+  // ── Défilement des onglets ────────────────────────────────────────
+  const onglestRef = useRef<HTMLDivElement>(null);
+  const [peutDefilerGauche, setPeutDefilerGauche] = useState(false);
+  const [peutDefilerDroite, setPeutDefilerDroite] = useState(false);
+
+  /**
+   * Une flèche n'est affichée que s'il reste réellement des onglets de ce côté.
+   * La marge d'un pixel absorbe les arrondis de `scrollWidth`, qui laissaient
+   * sinon la flèche droite visible en fin de course.
+   */
+  const majFleches = useCallback(() => {
+    const el = onglestRef.current;
+    if (!el) return;
+    setPeutDefilerGauche(el.scrollLeft > 1);
+    setPeutDefilerDroite(el.scrollLeft + el.clientWidth < el.scrollWidth - 1);
+  }, []);
+
+  const defiler = (sens: 1 | -1) => {
+    const el = onglestRef.current;
+    if (!el) return;
+    // On déplace d'environ deux tiers de la largeur visible : assez pour
+    // avancer, en gardant un onglet commun comme repère.
+    el.scrollBy({ left: sens * Math.round(el.clientWidth * 0.66), behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    majFleches();
+    // Le redimensionnement de la fenêtre change ce qui dépasse.
+    window.addEventListener('resize', majFleches);
+    return () => window.removeEventListener('resize', majFleches);
+  }, [majFleches]);
+
+  const fleche: React.CSSProperties = {
+    height: 42, width: 30, flexShrink: 0, border: 'none', background: '#fff',
+    color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center',
+    justifyContent: 'center', fontFamily: 'inherit',
+  };
 
   // ── Identité ─────────────────────────────────────────────────────────
   const [ecoleForm, setEcoleForm] = useState({
@@ -729,25 +767,63 @@ export default function ConfigurationPage() {
           <div style={{ fontSize: 17, fontWeight: 700, color: '#0f172a' }}>Configuration</div>
           <div style={{ fontSize: 13, color: '#64748b' }}>Paramètres avancés de l&apos;établissement</div>
         </div>
-        {/* Une seule ligne : les onglets défilent horizontalement plutôt que de
-            passer à la ligne, ce qui déplaçait tout le contenu vers le bas. */}
-        <div style={{ display: 'flex', padding: '0 28px', gap: 0, borderTop: '1px solid #e6ebf1', overflowX: 'auto', flexWrap: 'nowrap' }}>
-          {TABS.map((t) => (
+        {/*
+          Onglets sur une seule ligne. La barre de défilement est masquée au
+          profit de flèches : elle occupait de la hauteur sous les onglets et
+          jurait avec le reste de l'interface. Les flèches n'apparaissent que
+          s'il reste des onglets à atteindre de ce côté — afficher une flèche
+          inerte laisserait croire à un clic sans effet.
+        */}
+        <style>{`.onglets-config::-webkit-scrollbar { display: none; }`}</style>
+        <div style={{ display: 'flex', alignItems: 'center', borderTop: '1px solid #e6ebf1' }}>
+          {peutDefilerGauche && (
             <button
-              key={t.key}
-              onClick={() => setActiveTab(t.key)}
-              style={{
-                height: 42, padding: '0 16px', border: 'none', background: 'transparent',
-                fontSize: 13, fontWeight: activeTab === t.key ? 700 : 400,
-                color: activeTab === t.key ? '#2563eb' : '#64748b',
-                borderBottom: activeTab === t.key ? '2px solid #2563eb' : '2px solid transparent',
-                cursor: 'pointer', fontFamily: 'inherit',
-                whiteSpace: 'nowrap', flexShrink: 0,
-              }}
+              onClick={() => defiler(-1)}
+              aria-label="Onglets précédents"
+              style={fleche}
             >
-              {t.label}
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
             </button>
-          ))}
+          )}
+
+          <div
+            ref={onglestRef}
+            className="onglets-config"
+            onScroll={majFleches}
+            style={{
+              display: 'flex', flex: 1, padding: '0 28px', gap: 0,
+              overflowX: 'auto', flexWrap: 'nowrap',
+              scrollbarWidth: 'none', msOverflowStyle: 'none',
+              scrollBehavior: 'smooth',
+            }}
+          >
+            {TABS.map((t) => (
+              <button
+                key={t.key}
+                onClick={() => setActiveTab(t.key)}
+                style={{
+                  height: 42, padding: '0 16px', border: 'none', background: 'transparent',
+                  fontSize: 13, fontWeight: activeTab === t.key ? 700 : 400,
+                  color: activeTab === t.key ? '#2563eb' : '#64748b',
+                  borderBottom: activeTab === t.key ? '2px solid #2563eb' : '2px solid transparent',
+                  cursor: 'pointer', fontFamily: 'inherit',
+                  whiteSpace: 'nowrap', flexShrink: 0,
+                }}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          {peutDefilerDroite && (
+            <button
+              onClick={() => defiler(1)}
+              aria-label="Onglets suivants"
+              style={fleche}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
+            </button>
+          )}
         </div>
       </div>
 
