@@ -687,6 +687,21 @@ export default function ProfesseursPage() {
                 ))}
               </div>
 
+              {/* Type d'enseignant */}
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 10, marginTop: 4 }}>Type d&apos;enseignant</div>
+              <div style={{ marginBottom: 14 }}>
+                <select
+                  value={form.specialite}
+                  onChange={(e) => setForm((f) => ({ ...f, specialite: e.target.value }))}
+                  style={{ height: 38, width: '100%', border: '1px solid #d9e0e8', padding: '0 12px', fontSize: 13, fontFamily: 'inherit', background: '#fff' }}
+                >
+                  <option value="">-- Selectionner le type --</option>
+                  <option value="PRESCOLAIRE">Prescolaire (maternelle, creche)</option>
+                  <option value="PRIMAIRE">Primaire (elementaire)</option>
+                  <option value="SECONDAIRE">Secondaire (college et lycee)</option>
+                </select>
+              </div>
+
               {/* Matières */}
               {allMatieres.length > 0 && (
                 <>
