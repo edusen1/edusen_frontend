@@ -368,7 +368,7 @@ export default function ClassesPage() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
               <div>
                 <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 5 }}>Niveau <span style={{ color: '#dc2626' }}>*</span></label>
-                <select value={form.niveauId} onChange={(e) => setForm((f) => ({ ...f, niveauId: e.target.value }))} style={{ width: '100%', height: 38, border: '1px solid #d9e0e8', padding: '0 12px', fontSize: 13, fontFamily: 'inherit', background: '#fff' }}>
+                <select value={form.niveauId} onChange={(e) => setForm((f) => ({ ...f, niveauId: e.target.value, professeurResponsableId: '' }))} style={{ width: '100%', height: 38, border: '1px solid #d9e0e8', padding: '0 12px', fontSize: 13, fontFamily: 'inherit', background: '#fff' }}>
                   <option value="">-- Selectionner --</option>
                   {niveaux.map((n) => <option key={n.id} value={n.id}>{n.nom}</option>)}
                 </select>
