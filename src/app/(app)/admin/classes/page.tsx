@@ -193,6 +193,7 @@ export default function ClassesPage() {
     if (!confirm(`Supprimer la classe ${c.nom} ?`)) return;
     try {
       await deleteClasse.mutateAsync(String(c.id));
+      if (selectedClasse && String(selectedClasse.id) === String(c.id)) closeDetails();
       fetchClasses(selectedAnneeId);
     } catch {
       toast.error('Erreur lors de la suppression');
@@ -205,7 +206,6 @@ export default function ClassesPage() {
     setClasseElevesPage(1);
     setSelectedEleve(null);
     setSelectedEleveReport(null);
-    setSelectedEleveCardUrl('');
     setLoadingEleves(true);
     try {
       const r = await apiClient.get(`/admin/classes/${String(c.id)}/eleves`);

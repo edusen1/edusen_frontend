@@ -439,7 +439,7 @@ export default function ClasseDetailPage() {
                 <div style={{ flex: '1 1 150px' }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: '#2563eb' }}>Cours en cours</div>
                   <div style={{ fontSize: 11, color: '#475569', marginTop: 2 }}>
-                    {String((coursActuel.matiere as R)?.libelle ?? (coursActuel.cours as R)?.matiere?.libelle ?? '')} · {String(coursActuel.heureDebut ?? '')}—{String(coursActuel.heureFin ?? '')}
+                    {String((coursActuel.matiere as R)?.libelle ?? ((coursActuel.cours as R)?.matiere as R)?.libelle ?? '')} · {String(coursActuel.heureDebut ?? '')}—{String(coursActuel.heureFin ?? '')}
                   </div>
                 </div>
                 <button onClick={startAppel} style={{ height: 34, padding: '0 14px', border: 'none', background: '#2563eb', color: '#fff', fontSize: 11, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer', whiteSpace: 'nowrap' }}>
@@ -525,12 +525,12 @@ export default function ClasseDetailPage() {
                           onMouseEnter={(ev) => (ev.currentTarget.style.background = '#f8fafc')} onMouseLeave={(ev) => (ev.currentTarget.style.background = '')}>
                           <div style={{ fontSize: 12, fontWeight: 600, color: '#0f172a', width: 130 }}>
                             {fmtD(String(a.dateCours ?? a.date ?? a.createdAt ?? ''))}
-                            {a.heureDebut && <span style={{ color: '#64748b', fontWeight: 400, marginLeft: 4 }}>à {String(a.heureDebut)}</span>}
+                            {Boolean(a.heureDebut) && <span style={{ color: '#64748b', fontWeight: 400, marginLeft: 4 }}>à {String(a.heureDebut)}</span>}
                           </div>
                           <div style={{ flex: 1, display: 'flex', gap: 12, fontSize: 11 }}>
-                            <span style={{ color: '#16a34a', fontWeight: 600 }}>{a.nbPresents ?? 0} Présent(s)</span>
-                            <span style={{ color: '#dc2626', fontWeight: 600 }}>{a.nbAbsents ?? 0} Absent(s)</span>
-                            <span style={{ color: '#d97706', fontWeight: 600 }}>{a.nbRetards ?? 0} Retard(s)</span>
+                            <span style={{ color: '#16a34a', fontWeight: 600 }}>{String(a.nbPresents ?? 0)} Présent(s)</span>
+                            <span style={{ color: '#dc2626', fontWeight: 600 }}>{String(a.nbAbsents ?? 0)} Absent(s)</span>
+                            <span style={{ color: '#d97706', fontWeight: 600 }}>{String(a.nbRetards ?? 0)} Retard(s)</span>
                           </div>
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" style={{ transform: isExpanded ? 'rotate(180deg)' : '', transition: 'transform .2s' }}><polyline points="6 9 12 15 18 9"/></svg>
                         </div>
@@ -859,7 +859,7 @@ export default function ClasseDetailPage() {
                     <select value={cahierForm.chapitreId} onChange={(e) => setCahierForm((f) => ({ ...f, chapitreId: e.target.value }))} style={{ width: '100%', border: `1px solid ${B}`, padding: '8px 10px', fontSize: 12, fontFamily: 'inherit', background: '#fff' }}>
                       <option value="">— Aucun chapitre —</option>
                       {chapitres.map((ch, ci) => (
-                        <option key={ci} value={String(ch.id)}>{ch.numero}. {String(ch.titre)} ({String(ch.matiereNom ?? '')})</option>
+                        <option key={ci} value={String(ch.id)}>{String(ch.numero)}. {String(ch.titre)} ({String(ch.matiereNom ?? '')})</option>
                       ))}
                     </select>
                   </div>
@@ -961,8 +961,8 @@ export default function ClasseDetailPage() {
                       const nextStatut = st === 'NON_COMMENCE' ? 'EN_COURS' : st === 'EN_COURS' ? 'TERMINE' : 'NON_COMMENCE';
                       return (
                         <div key={String(ch.id)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', border: `1px solid ${sc.border}`, background: sc.bg }}>
-                          <span style={{ fontSize: 11, fontWeight: 600, color: '#0f172a', flex: 1 }}>{ch.numero}. {String(ch.titre)}</span>
-                          {ch.matiereNom && <span style={{ fontSize: 9, color: '#7c3aed' }}>{String(ch.matiereNom)}</span>}
+                          <span style={{ fontSize: 11, fontWeight: 600, color: '#0f172a', flex: 1 }}>{String(ch.numero)}. {String(ch.titre)}</span>
+                          {Boolean(ch.matiereNom) && <span style={{ fontSize: 9, color: '#7c3aed' }}>{String(ch.matiereNom)}</span>}
                           <button onClick={async () => {
                             try {
                               await apiClient.patch(`/professeur/chapitres/${ch.id}/statut`, { statut: nextStatut });
@@ -985,7 +985,7 @@ export default function ClasseDetailPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {cahier.map((c, i) => {
                   const chap = (c.chapitre ?? chapitres.find((ch) => String(ch.id) === String(c.chapitreId))) as R | undefined;
-                  const matiereLabel = String((c.cours as R)?.matiere?.libelle ?? (c.cours as R)?.matiere?.nom ?? '');
+                  const matiereLabel = String(((c.cours as R)?.matiere as R)?.libelle ?? ((c.cours as R)?.matiere as R)?.nom ?? '');
                   const dateLabel = (() => { try { return new Date(String(c.dateCours)).toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }); } catch { return '—'; } })();
                   return (
                     <div key={String(c.id ?? i)} style={{ background: '#fff', border: `1px solid ${B}`, padding: '14px 16px' }}>
@@ -994,11 +994,11 @@ export default function ClasseDetailPage() {
                           <span style={{ fontSize: 12, fontWeight: 600, color: '#0f172a' }}>{dateLabel}</span>
                           {matiereLabel && <span style={{ fontSize: 10, fontWeight: 600, color: '#7c3aed', background: '#f5f3ff', padding: '1px 6px', border: '1px solid #ddd6fe' }}>{matiereLabel}</span>}
                         </div>
-                        {chap && <span style={{ fontSize: 9, fontWeight: 600, color: '#2563eb', background: '#eff6ff', padding: '1px 6px' }}>Ch.{chap.numero} {String(chap.titre)}</span>}
+                        {Boolean(chap) && <span style={{ fontSize: 9, fontWeight: 600, color: '#2563eb', background: '#eff6ff', padding: '1px 6px' }}>Ch.{String(chap?.numero ?? '')} {String(chap?.titre ?? '')}</span>}
                       </div>
                       <div style={{ fontSize: 12, color: '#475569', lineHeight: 1.6 }} dangerouslySetInnerHTML={{ __html: renderFormatted(String(c.contenuTraite ?? '')) }} />
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
-                        {c.observations && <div style={{ flex: 1, fontSize: 11, color: '#d97706', padding: '4px 8px', background: '#fffbeb', border: '1px solid #fde68a' }}>Devoirs : {String(c.observations)}</div>}
+                        {Boolean(c.observations) && <div style={{ flex: 1, fontSize: 11, color: '#d97706', padding: '4px 8px', background: '#fffbeb', border: '1px solid #fde68a' }}>Devoirs : {String(c.observations)}</div>}
                         <button onClick={() => {
                           setCahierEditId(String(c.id));
                           setCahierForm({ contenuTraite: String(c.contenuTraite ?? ''), observations: String(c.observations ?? ''), chapitreId: String(c.chapitreId ?? ''), coursSessionKey: '' });
@@ -1077,7 +1077,7 @@ export default function ClasseDetailPage() {
                             <span style={{ fontSize: 11, fontWeight: 600, color: '#0f172a', width: 100 }}>{fmtD(String(a.date ?? a.dateAbsence ?? ''))}</span>
                             <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 6px', background: sc.bg, color: sc.text }}>{type === 'RETARD' ? 'Retard' : 'Absence'}</span>
                             <span style={{ flex: 1, fontSize: 10, color: '#64748b' }}>{String(a.motif ?? '')}</span>
-                            {a.justifiee && <span style={{ fontSize: 9, color: '#16a34a', fontWeight: 600 }}>Justifiée</span>}
+                            {Boolean(a.justifiee) && <span style={{ fontSize: 9, color: '#16a34a', fontWeight: 600 }}>Justifiée</span>}
                           </div>
                         );
                       })}
@@ -1198,7 +1198,7 @@ export default function ClasseDetailPage() {
                             <div style={{ fontSize: 11, color: '#334155', fontWeight: 500 }}>{String(n.typeEvaluation ?? 'Évaluation')}</div>
                             <div style={{ fontSize: 10, color: '#94a3b8' }}>{String(n.trimestre ?? '')} · {fmtD(String(n.createdAt ?? ''))}</div>
                           </div>
-                          {n.commentaire && <div style={{ fontSize: 10, color: '#64748b', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{String(n.commentaire)}</div>}
+                          {Boolean(n.commentaire) && <div style={{ fontSize: 10, color: '#64748b', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{String(n.commentaire)}</div>}
                         </div>
                       );
                     })}

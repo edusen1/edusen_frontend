@@ -109,7 +109,7 @@ export default function EleveReclamationsPage() {
                     <span style={{ fontSize: 10, color: '#94a3b8', marginLeft: 'auto' }}>{f(String(r.createdAt ?? ''))}</span>
                   </div>
                   <div style={{ fontSize: 12, color: '#475569' }}>{String(r.motif ?? '')}</div>
-                  {r.reponse && <div style={{ fontSize: 11, color: '#16a34a', marginTop: 4, padding: '4px 8px', background: '#f0fdf4', border: '1px solid #bbf7d0' }}>Réponse : {String(r.reponse)}</div>}
+                  {Boolean(r.reponse) && <div style={{ fontSize: 11, color: '#16a34a', marginTop: 4, padding: '4px 8px', background: '#f0fdf4', border: '1px solid #bbf7d0' }}>Réponse : {String(r.reponse)}</div>}
                 </div>
               );
             })}

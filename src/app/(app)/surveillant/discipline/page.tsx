@@ -63,7 +63,9 @@ const RAPPORTEUR_TYPES: { value: RapporteurType; label: string }[] = [
   { value: 'PERSONNEL', label: 'Personnel' },
   { value: 'PARENT', label: 'Parent' },
 ];
-type PersonItem = { id: string; firstName?: string; lastName?: string };
+// `matricule` est affiché et sert à la recherche : sans lui dans le type,
+// l'écran compilait en erreur alors que l'API le renvoie bien.
+type PersonItem = { id: string; firstName?: string; lastName?: string; matricule?: string };
 
 const EMPTY_FORM = {
   classeId: '', classeNom: '', eleveId: '', eleveNom: '',

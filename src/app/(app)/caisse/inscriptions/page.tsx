@@ -2,16 +2,14 @@
 
 import { useState } from 'react';
 import { useCaisseInscriptions, useValiderInscription } from '@/hooks/use-query-api';
-import { classeLabel } from '@/lib/display';
+import { classeLabel, personLabel } from '@/lib/display';
+import { correspondPersonne } from '@/lib/recherche';
 
-const STATIC_INSCRIPTIONS = [
-  { id: 'i1', eleve: 'Moussa Diallo', classe: '3ème B', anneeScolaire: '2025-2026', dateInscription: '2025-09-01', frais: 25000, statut: 'EN_ATTENTE' },
-  { id: 'i2', eleve: 'Aminata Sarr', classe: '6ème A', anneeScolaire: '2025-2026', dateInscription: '2025-09-02', frais: 25000, statut: 'VALIDEE' },
-  { id: 'i3', eleve: 'Ibrahima Fall', classe: '4ème B', anneeScolaire: '2025-2026', dateInscription: '2025-09-03', frais: 25000, statut: 'EN_ATTENTE' },
-  { id: 'i4', eleve: 'Fatou Ndiaye', classe: '5ème C', anneeScolaire: '2025-2026', dateInscription: '2025-09-04', frais: 25000, statut: 'EN_ATTENTE' },
-  { id: 'i5', eleve: 'Cheikh Ba', classe: '2nde A', anneeScolaire: '2025-2026', dateInscription: '2025-09-05', frais: 30000, statut: 'VALIDEE' },
-  { id: 'i6', eleve: 'Rokhaya Sow', classe: '3ème A', anneeScolaire: '2025-2026', dateInscription: '2025-09-06', frais: 25000, statut: 'EN_ATTENTE' },
-];
+/**
+ * Les six inscriptions fictives qui servaient de repli ont été retirées :
+ * sans données, l'écran affichait des élèves inventés et des frais qui
+ * n'existent pas, avec des boutons « Valider » agissant sur du vide.
+ */
 
 type FilterKey = 'tous' | 'EN_ATTENTE' | 'VALIDEE';
 
@@ -24,24 +22,28 @@ export default function CaisseInscriptionsPage() {
   const [detail, setDetail] = useState<Record<string, unknown> | null>(null);
 
   const raw = Array.isArray(data) ? data : (data?.inscriptions ?? data?.data ?? []);
-  const inscriptions = (raw as Record<string, unknown>[]).length > 0
-    ? (raw as Record<string, unknown>[]).map((i, idx) => ({
-        id: String(i.id ?? i._id ?? idx),
-        eleve: String(i.eleve ?? i.nomEleve ?? (i.eleve as Record<string, unknown>)?.prenom + ' ' + (i.eleve as Record<string, unknown>)?.nom ?? ''),
-        classe: classeLabel(i.classe, ''),
-        anneeScolaire: String(i.anneeScolaire ?? i.annee ?? '2025-2026'),
-        dateInscription: String(i.dateInscription ?? i.createdAt ?? ''),
-        frais: Number(i.fraisInscription ?? i.frais ?? i.montant ?? 0),
-        statut: String(i.statut ?? 'EN_ATTENTE'),
-      }))
-    : STATIC_INSCRIPTIONS;
+  const inscriptions = (raw as Record<string, unknown>[]).map((i, idx) => ({
+    id: String(i.id ?? i._id ?? idx),
+    // `String(i.eleve)` produisait « [object Object] » : la chaîne `??`
+    // s'arrêtait sur `i.eleve`, qui est un objet et donc jamais nullish.
+    eleve: personLabel(i.eleve ?? i.nomEleve ?? ''),
+    // Objet source conservé pour la recherche par matricule ou téléphone.
+    source: i.eleve ?? null,
+    classe: classeLabel(i.classe, ''),
+    anneeScolaire: String(i.anneeScolaire ?? i.annee ?? ''),
+    dateInscription: String(i.dateInscription ?? i.createdAt ?? ''),
+    frais: Number(i.fraisInscription ?? i.frais ?? i.montant ?? 0),
+    statut: String(i.statut ?? 'EN_ATTENTE'),
+  }));
 
   const enAttente = inscriptions.filter((i) => i.statut === 'EN_ATTENTE').length;
   const validees = inscriptions.filter((i) => i.statut === 'VALIDEE').length;
   const totalFrais = inscriptions.filter((i) => i.statut === 'VALIDEE').reduce((s, i) => s + i.frais, 0);
 
   const filtered = inscriptions.filter((i) => {
-    const matchSearch = !search || i.eleve.toLowerCase().includes(search.toLowerCase()) || i.classe.toLowerCase().includes(search.toLowerCase());
+    // Un caissier identifie un élève par son matricule bien plus sûrement que
+    // par son nom, souvent porté par plusieurs élèves.
+    const matchSearch = correspondPersonne(search, i.source, i.eleve, i.classe);
     const matchFilter = filter === 'tous' || i.statut === filter;
     return matchSearch && matchFilter;
   });

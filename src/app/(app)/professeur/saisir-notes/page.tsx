@@ -3,42 +3,41 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { useProfesseurMesClasses, useProfesseurClasseEleves, useSaisirNotes } from '@/hooks/use-query-api';
+import { asArray } from '@/lib/api-data';
 
-const STATIC_ELEVES = [
-  { id: 'e1', prenom: 'Awa', nom: 'Ndiaye', numero: '04' },
-  { id: 'e2', prenom: 'Cheikh', nom: 'Sarr', numero: '07' },
-  { id: 'e3', prenom: 'Fatou', nom: 'Bâ', numero: '11' },
-  { id: 'e4', prenom: 'Ibrahima', nom: 'Fall', numero: '13' },
-  { id: 'e5', prenom: 'Mariama', nom: 'Diop', numero: '18' },
-  { id: 'e6', prenom: 'Moussa', nom: 'Diallo', numero: '21' },
-  { id: 'e7', prenom: 'Fatou', nom: 'Sall', numero: '24' },
-  { id: 'e8', prenom: 'Aminata', nom: 'Cissé', numero: '28' },
-];
+/**
+ * Les huit élèves fictifs qui servaient de repli ont été retirés : saisir des
+ * notes sur des élèves inventés n'a aucun sens, et rien ne distinguait à l'écran
+ * une classe vide d'une classe réelle.
+ */
 
 type TrimKey = 'T1' | 'T2' | 'T3';
 
 export default function SaisirNotesPage() {
   const { data: classesData } = useProfesseurMesClasses();
-  const rawClasses = Array.isArray(classesData) ? classesData : (classesData?.classes ?? classesData?.classesMatieres ?? []);
+  const rawClasses = asArray(classesData, 'classes', 'classesMatieres');
 
-  const [selectedClasseId, setSelectedClasseId] = useState<string>(
-    rawClasses.length > 0 ? String((rawClasses[0] as Record<string, unknown>)?.id ?? 'c1') : 'c1'
-  );
+  const [selectedClasseIdChoisi, setSelectedClasseId] = useState<string>('');
+  // La première classe sert de valeur initiale, mais seulement une fois les
+  // données arrivées : un identifiant inventé (« c1 ») ne correspond à rien.
+  const selectedClasseId = selectedClasseIdChoisi || String(rawClasses[0]?.id ?? '');
   const [trimestre, setTrimestre] = useState<TrimKey>('T2');
   const [typeEval, setTypeEval] = useState('Devoir n°3');
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [appreciations, setAppreciations] = useState<Record<string, string>>({});
 
-  const selectedClasse = (rawClasses as Record<string, unknown>[]).find((c) => String(c.id) === selectedClasseId);
+  const selectedClasse = rawClasses.find((c) => String(c.id) === selectedClasseId);
   const snClasseObj = selectedClasse?.classe as Record<string, unknown> | undefined;
   const snMatiereObj = selectedClasse?.matiere as Record<string, unknown> | undefined;
-  const classeNom = selectedClasse ? ((selectedClasse.nom ?? snClasseObj?.nom ?? '3ᵉ B') as string) : '3ᵉ B';
-  const matiereNom = selectedClasse ? ((snMatiereObj?.nom ?? selectedClasse.matiere ?? 'Mathématiques') as string) : 'Mathématiques';
-  const matiereId = selectedClasse ? String((selectedClasse.matiereId ?? snMatiereObj?.id ?? 'm1')) : 'm1';
+  // Libellés de repli neutres : « 3ᵉ B » et « Mathématiques » codés en dur
+  // laissaient croire à une classe réelle quand aucune n'était chargée.
+  const classeNom = String(selectedClasse?.nom ?? snClasseObj?.nom ?? '—');
+  const matiereNom = String(snMatiereObj?.libelle ?? snMatiereObj?.nom ?? selectedClasse?.matiere ?? '—');
+  const matiereId = String(selectedClasse?.matiereId ?? snMatiereObj?.id ?? '');
 
   const { data: elevesData } = useProfesseurClasseEleves(selectedClasseId);
-  const rawEleves = Array.isArray(elevesData) ? elevesData : (elevesData?.eleves ?? []);
-  const eleves = rawEleves.length > 0 ? rawEleves : STATIC_ELEVES;
+  // L'endpoint renvoie des inscriptions : l'élève est imbriqué sous `eleve`.
+  const eleves = asArray(elevesData, 'eleves').map((row) => (row.eleve ?? row) as Record<string, unknown>);
 
   const saisirNotes = useSaisirNotes();
 

@@ -2,15 +2,14 @@
 
 import { useState } from 'react';
 import { useProfesseurPaiements } from '@/hooks/use-query-api';
+import { asArray } from '@/lib/api-data';
 
-const STATIC_PAIEMENTS = [
-  { id: 'pp1', reference: 'SAL-2025-09', periode: 'Septembre 2025', dateDebut: '2025-09-01', dateFin: '2025-09-30', montant: 350000, heuresEffectuees: 80, heuresDeduites: 0, statut: 'PAYE', datePaiement: '2025-09-30', mode: 'Virement', motifRejet: '' },
-  { id: 'pp2', reference: 'SAL-2025-10', periode: 'Octobre 2025', dateDebut: '2025-10-01', dateFin: '2025-10-31', montant: 350000, heuresEffectuees: 82, heuresDeduites: 0, statut: 'PAYE', datePaiement: '2025-10-31', mode: 'Virement', motifRejet: '' },
-  { id: 'pp3', reference: 'SAL-2025-11', periode: 'Novembre 2025', dateDebut: '2025-11-01', dateFin: '2025-11-30', montant: 350000, heuresEffectuees: 78, heuresDeduites: 2, statut: 'PAYE', datePaiement: '2025-11-30', mode: 'Virement', motifRejet: '' },
-  { id: 'pp4', reference: 'SAL-2025-12', periode: 'Décembre 2025', dateDebut: '2025-12-01', dateFin: '2025-12-31', montant: 350000, heuresEffectuees: 80, heuresDeduites: 0, statut: 'PAYE', datePaiement: '2025-12-31', mode: 'Virement', motifRejet: '' },
-  { id: 'pp5', reference: 'SAL-2026-01', periode: 'Janvier 2026', dateDebut: '2026-01-01', dateFin: '2026-01-31', montant: 350000, heuresEffectuees: 80, heuresDeduites: 0, statut: 'PAYE', datePaiement: '2026-01-31', mode: 'Virement', motifRejet: '' },
-  { id: 'pp6', reference: 'SAL-2026-02', periode: 'Février 2026', dateDebut: '2026-02-01', dateFin: '2026-02-28', montant: 350000, heuresEffectuees: 76, heuresDeduites: 0, statut: 'EN_ATTENTE', datePaiement: '', mode: '', motifRejet: '' },
-];
+/**
+ * Les six bulletins de salaire fictifs qui servaient de repli ont été retirés.
+ * Ils affichaient 350 000 FCFA mensuels et un historique de paiements complet à
+ * un enseignant qui n'a peut-être jamais été payé par la plateforme — la donnée
+ * la plus sensible qu'on puisse inventer.
+ */
 
 const STATUT_MAP: Record<string, { label: string; bg: string; color: string }> = {
   PAYE: { label: 'Payé', bg: '#dcfce7', color: '#16a34a' },
@@ -39,23 +38,20 @@ export default function ProfesseurPaiementsPage() {
   const { data } = useProfesseurPaiements();
   const [detail, setDetail] = useState<Paiement | null>(null);
 
-  const raw = Array.isArray(data) ? data : (data?.paiements ?? data?.data ?? []);
-  const paiements: Paiement[] = (raw as Record<string, unknown>[]).length > 0
-    ? (raw as Record<string, unknown>[]).map((p, i) => ({
-        id: String(p.id ?? p._id ?? i),
-        reference: String(p.reference ?? p.ref ?? `SAL-${i + 1}`),
-        periode: String(p.periode ?? p.label ?? ''),
-        dateDebut: String(p.dateDebut ?? ''),
-        dateFin: String(p.dateFin ?? ''),
-        montant: Number(p.montant ?? 0),
-        heuresEffectuees: Number(p.heuresEffectuees ?? p.heures ?? 0),
-        heuresDeduites: Number(p.heuresDeduites ?? 0),
-        statut: String(p.statut ?? 'EN_ATTENTE'),
-        datePaiement: String(p.datePaiement ?? p.date ?? ''),
-        mode: String(p.mode ?? ''),
-        motifRejet: String(p.motifRejet ?? ''),
-      }))
-    : STATIC_PAIEMENTS;
+  const paiements: Paiement[] = asArray(data, 'paiements').map((p, i) => ({
+    id: String(p.id ?? p._id ?? i),
+    reference: String(p.reference ?? p.ref ?? `SAL-${i + 1}`),
+    periode: String(p.periode ?? p.label ?? ''),
+    dateDebut: String(p.dateDebut ?? ''),
+    dateFin: String(p.dateFin ?? ''),
+    montant: Number(p.montant ?? 0),
+    heuresEffectuees: Number(p.heuresEffectuees ?? p.heures ?? 0),
+    heuresDeduites: Number(p.heuresDeduites ?? 0),
+    statut: String(p.statut ?? 'EN_ATTENTE'),
+    datePaiement: String(p.datePaiement ?? p.date ?? ''),
+    mode: String(p.mode ?? ''),
+    motifRejet: String(p.motifRejet ?? ''),
+  }));
 
   const totalPercu = paiements.filter((p) => p.statut === 'PAYE' || p.statut === 'payé').reduce((s, p) => s + p.montant, 0);
   const nbPaies = paiements.filter((p) => p.statut === 'PAYE' || p.statut === 'payé').length;

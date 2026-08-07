@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
 import { apiClient } from '@/lib/api/client';
+import { correspondPersonne } from '@/lib/recherche';
 
 const JOURS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
 const HEURES = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00'];
@@ -501,9 +502,11 @@ export default function CoursPage() {
                         })
                       : professeurs;
 
+                    // La recherche portait sur le seul nom affiché. On y ajoute
+                    // matricule, téléphone et spécialité : c'est par le matricule
+                    // qu'un enseignant est identifié de façon certaine.
                     if (profSearch.trim()) {
-                      const q = profSearch.toLowerCase();
-                      filtered = filtered.filter((p) => profName(p).toLowerCase().includes(q));
+                      filtered = filtered.filter((p) => correspondPersonne(profSearch, p, p.specialite));
                     }
 
                     // Pour les classes primaires, mettre le prof responsable en premier

@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { apiClient } from '@/lib/api/client';
 import { formatFirstName, formatLastName } from '@/lib/person-name';
+import { asRecord } from '@/lib/api-data';
 import { useAdminProfesseurs, useAdminMatieres, useCreateProfesseur, useUpdateProfesseur } from '@/hooks/use-query-api';
 
 type ProfItem = Record<string, unknown>;
@@ -267,7 +268,9 @@ export default function ProfesseursPage() {
         await uploadPhoto(String(editItem.id));
       } else {
         const result = await createProfesseur.mutateAsync(payload);
-        const res = ((result as Record<string, unknown>)?.data ?? result) as Record<string, unknown>;
+        // Réponse axios : `AxiosResponse` et `Record<string, unknown>` ne se
+        // recouvrent pas, il faut passer par `unknown`.
+        const res = asRecord(asRecord(result).data ?? result);
         const newId = String(res?.id ?? '');
         const username = String(res?.username ?? '');
         const matricule = String(res?.matricule ?? '');

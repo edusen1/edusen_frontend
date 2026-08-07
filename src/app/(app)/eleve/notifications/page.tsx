@@ -56,7 +56,7 @@ export default function EleveNotificationsPage() {
                     {!isRead && <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#2563eb', marginTop: 5, flexShrink: 0 }} />}
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 13, fontWeight: isRead ? 500 : 700, color: '#0f172a' }}>{String(n.titre ?? '')}</div>
-                      {n.message && <div style={{ fontSize: 12, color: '#64748b', marginTop: 2, lineHeight: 1.4 }}>{String(n.message ?? n.contenu ?? '')}</div>}
+                      {Boolean(n.message) && <div style={{ fontSize: 12, color: '#64748b', marginTop: 2, lineHeight: 1.4 }}>{String(n.message ?? n.contenu ?? '')}</div>}
                       <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 4 }}>{f(String(n.createdAt ?? ''))}</div>
                     </div>
                   </div>

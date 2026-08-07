@@ -93,7 +93,7 @@ export default function ProfDashboardPage() {
                 <div style={{ fontSize: 12, color: '#475569', marginTop: 4 }}>
                   {String((prochainCours.classe as R)?.nom ?? (prochainCours as R).classeNom ?? '—')} · {String(prochainCours.heureDebut ?? '')} — {String(prochainCours.heureFin ?? '')}
                 </div>
-                {((prochainCours.salle as R)?.nom ?? (prochainCours as R).salleNom) && <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>Salle : {String((prochainCours.salle as R)?.nom ?? (prochainCours as R).salleNom)}</div>}
+                {Boolean((prochainCours.salle as R)?.nom ?? (prochainCours as R).salleNom) && <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>Salle : {String((prochainCours.salle as R)?.nom ?? (prochainCours as R).salleNom)}</div>}
               </div>
             ) : (
               <div style={{ fontSize: 12, color: '#94a3b8', fontStyle: 'italic', padding: 10, textAlign: 'center' }}>
@@ -144,7 +144,7 @@ export default function ProfDashboardPage() {
                 return (
                   <Link key={c.id} href={`/professeur/classe/${c.id}`} style={{ background: '#f8fafc', border: `1px solid ${B}`, padding: '10px 12px', textDecoration: 'none' }}>
                     <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{c.nom}</div>
-                    <div style={{ fontSize: 10, color: '#64748b', marginTop: 2 }}>{(c.niveau as R)?.nom ?? ''}</div>
+                    <div style={{ fontSize: 10, color: '#64748b', marginTop: 2 }}>{String((c.niveau as R)?.nom ?? '')}</div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
                       <span style={{ fontSize: 11, color: '#475569' }}>{nb} él.</span>
                       <span style={{ fontSize: 11, fontWeight: 700, color: moyColor }}>{moy > 0 ? `${moy.toFixed(1)}` : '—'}</span>

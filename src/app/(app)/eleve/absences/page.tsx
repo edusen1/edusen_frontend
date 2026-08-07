@@ -77,7 +77,7 @@ export default function EleveAbsencesPage() {
                     <span style={{ fontSize: 12, fontWeight: 600, color: '#0f172a' }}>{f(String(a.date ?? a.dateAbsence ?? a.createdAt ?? ''))}</span>
                     <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', background: type.bg, color: type.color }}>{type.label}</span>
                     <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', background: statut.bg, color: statut.color }}>{statut.label}</span>
-                    {a.motif && <span style={{ flex: 1, fontSize: 11, color: '#64748b' }}>{String(a.motif)}</span>}
+                    {Boolean(a.motif) && <span style={{ flex: 1, fontSize: 11, color: '#64748b' }}>{String(a.motif)}</span>}
                     {String(a.statut) === 'NON_JUSTIFIEE' && !a.justifiee && (
                       <button onClick={() => { setJustifId(String(a.id)); setJustifMotif(''); setJustifFile(null); }}
                         style={{ fontSize: 10, fontWeight: 600, color: '#2563eb', background: '#eff6ff', border: '1px solid #bfdbfe', padding: '3px 8px', cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>

@@ -48,7 +48,9 @@ export default function EleveAccueilPage() {
   const niveauNom = String(((profil.classe as R)?.niveau as R)?.libelle ?? '');
   const matricule = String(profil.matricule ?? '');
   const ecoleNom = String(profil.ecoleNom ?? '');
-  const anneeScolaire = String(profil.anneeAcademique ?? (profil.classe as R)?.anneeAcademique?.libelle ?? '');
+  // Le second niveau d'imbrication doit être transtypé comme le premier,
+  // sinon `anneeAcademique` reste `unknown` et `.libelle` est rejeté.
+  const anneeScolaire = String(profil.anneeAcademique ?? ((profil.classe as R)?.anneeAcademique as R)?.libelle ?? '');
   const dateNaissance = profil.dateNaissance ? new Date(String(profil.dateNaissance)).toLocaleDateString('fr-FR') : '';
   const lieuNaissance = String(profil.lieuNaissance ?? '');
   const qrData = JSON.stringify({ id: String(profil.id ?? user?.id ?? ''), m: matricule, t: user?.tenantId ?? '' });
@@ -168,7 +170,7 @@ export default function EleveAccueilPage() {
                       <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{String(c.titre ?? '')}</div>
                       <span style={{ fontSize: 9, color: '#94a3b8', flexShrink: 0 }}>{f(String(c.envoyeLe ?? c.createdAt ?? ''))}</span>
                     </div>
-                    {c.contenu && <div style={{ fontSize: 12, color: '#64748b', marginTop: 4, lineHeight: 1.5 }}>{String(c.contenu)}</div>}
+                    {Boolean(c.contenu) && <div style={{ fontSize: 12, color: '#64748b', marginTop: 4, lineHeight: 1.5 }}>{String(c.contenu)}</div>}
                   </div>
                 ))}
               </div>

@@ -3,13 +3,13 @@
 import { useState } from 'react';
 import { useCahierTexte, useCreerCahierTexte, useProfesseurMesClasses } from '@/hooks/use-query-api';
 import { classeLabel, entityLabel } from '@/lib/display';
+import { asArray } from '@/lib/api-data';
 
-const STATIC_ENTREES = [
-  { id: 1, date: '2025-06-27', classe: '3ème B', matiere: 'Mathématiques', contenu: 'Révision du théorème de Pythagore. Exercices 5, 6, 7 du manuel p.92. Correction en classe des devoirs.', devoirs: 'Exercice 8 p.93 pour jeudi' },
-  { id: 2, date: '2025-06-26', classe: '4ème A', matiere: 'Mathématiques', contenu: 'Introduction aux fractions. Définition numérateur/dénominateur. Exercices d\'application.', devoirs: '' },
-  { id: 3, date: '2025-06-25', classe: '2nde C', matiere: 'Sciences Physiques', contenu: 'TP — Circuit électrique en série et en dérivation. Observations et mesures de tension.', devoirs: 'Rédiger le compte-rendu du TP pour vendredi' },
-  { id: 4, date: '2025-06-24', classe: '3ème B', matiere: 'Mathématiques', contenu: 'Évaluation de contrôle — Fonctions linéaires et affines.', devoirs: '' },
-];
+/**
+ * Les quatre entrées fictives qui servaient de repli ont été retirées : un
+ * enseignant sans cahier de textes voyait des séances qu'il n'avait jamais
+ * saisies, sur des classes qui ne sont pas les siennes.
+ */
 
 const EMPTY_FORM = { classeId: '', dateCours: '', contenuTraite: '', observations: '' };
 
@@ -20,20 +20,16 @@ export default function CahierDeTextesPage() {
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
 
-  const rawEntrees = Array.isArray(cahierData) ? cahierData : (cahierData?.entrees ?? cahierData?.data ?? []);
-  const entrees = (rawEntrees as Record<string, unknown>[]).length > 0
-    ? (rawEntrees as Record<string, unknown>[]).map((e, i) => ({
-        id: String(e.id ?? e._id ?? i),
-        date: String(e.dateCours ?? e.date ?? ''),
-        classe: classeLabel(e.classe ?? e.className, ''),
-        matiere: entityLabel(e.matiere ?? e.matiereName, ''),
-        contenu: String(e.contenuTraite ?? e.contenu ?? ''),
-        devoirs: String(e.observations ?? e.devoirs ?? ''),
-      }))
-    : STATIC_ENTREES;
+  const entrees = asArray(cahierData, 'entrees').map((e, i) => ({
+    id: String(e.id ?? e._id ?? i),
+    date: String(e.dateCours ?? e.date ?? ''),
+    classe: classeLabel(e.classe ?? e.className, ''),
+    matiere: entityLabel(e.matiere ?? e.matiereName, ''),
+    contenu: String(e.contenuTraite ?? e.contenu ?? ''),
+    devoirs: String(e.observations ?? e.devoirs ?? ''),
+  }));
 
-  const rawClasses = Array.isArray(classesData) ? classesData : (classesData?.classes ?? classesData?.data ?? []);
-  const classes = (rawClasses as Record<string, unknown>[]).map((c) => ({
+  const classes = asArray(classesData, 'classes').map((c) => ({
     id: String(c.id ?? c._id ?? ''),
     nom: classeLabel(c.nom ?? c.className ?? c.classe, ''),
   }));

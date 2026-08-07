@@ -191,7 +191,7 @@ export default function ProgrammesPage() {
         <div style={{ flex: 1, overflow: 'auto', padding: 20 }}>
           {loadingDetail ? <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>Chargement...</div> : (
             <>
-              {detail.description && <div style={{ background: '#fff', border: `1px solid ${B}`, padding: '12px 16px', marginBottom: 16, fontSize: 13, color: '#475569' }}>{detail.description}</div>}
+              {Boolean(detail.description) && <div style={{ background: '#fff', border: `1px solid ${B}`, padding: '12px 16px', marginBottom: 16, fontSize: 13, color: '#475569' }}>{String(detail.description)}</div>}
               {detail.chapitres.length === 0 ? (
                 <div style={{ background: '#fff', border: `1px solid ${B}`, padding: 40, textAlign: 'center', color: '#94a3b8' }}>Aucun chapitre. Cliquez sur &quot;+ Chapitre&quot;.</div>
               ) : (
@@ -207,7 +207,7 @@ export default function ProgrammesPage() {
                           {ch.volumeHoraire && <span>{ch.volumeHoraire}h</span>}
                           {ch.evaluationPrevue && <span style={{ padding: '1px 6px', background: '#fef3c7', color: '#92400e', fontWeight: 600 }}>{ch.typeEvaluation || 'Éval.'}</span>}
                         </div>
-                        {ch.description && <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>{String(ch.description)}</div>}
+                        {Boolean(ch.description) && <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>{String(ch.description)}</div>}
                       </div>
                       <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
                         <button onClick={() => openEditCh(ch)} style={{ width: 28, height: 28, border: `1px solid ${B}`, background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z"/></svg></button>

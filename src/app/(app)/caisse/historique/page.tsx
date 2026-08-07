@@ -3,17 +3,13 @@
 import { useState } from 'react';
 import { useCaissePaiements } from '@/hooks/use-query-api';
 import { formatDateFr, personLabel } from '@/lib/display';
+import { correspondPersonne } from '@/lib/recherche';
 
-const STATIC_HISTORIQUE = [
-  { id: 1, eleve: 'Moussa Diallo', type: 'Scolarité T3', montant: 120000, mode: 'Espèces', date: '2025-06-27', agent: 'Caissier A' },
-  { id: 2, eleve: 'Fatou Sall', type: 'Inscription 2025', montant: 25000, mode: 'Wave', date: '2025-06-27', agent: 'Caissier A' },
-  { id: 3, eleve: 'Aminata Diop', type: 'Scolarité T2', montant: 120000, mode: 'Orange Money', date: '2025-03-01', agent: 'Caissier B' },
-  { id: 4, eleve: 'Ibrahima Ndiaye', type: 'Scolarité T2', montant: 150000, mode: 'Virement', date: '2025-02-28', agent: 'Caissier A' },
-  { id: 5, eleve: 'Aissatou Ba', type: 'Frais examen', montant: 15000, mode: 'Espèces', date: '2025-06-15', agent: 'Caissier B' },
-  { id: 6, eleve: 'Oumar Fall', type: 'Scolarité T1', montant: 110000, mode: 'Espèces', date: '2024-09-15', agent: 'Caissier A' },
-  { id: 7, eleve: 'Rokhaya Sow', type: 'Scolarité T3', montant: 120000, mode: 'Wave', date: '2025-06-25', agent: 'Caissier A' },
-  { id: 8, eleve: 'Mamadou Cissé', type: 'Fournitures', montant: 35000, mode: 'Espèces', date: '2025-06-20', agent: 'Caissier B' },
-];
+/**
+ * Les huit paiements fictifs qui servaient de repli ont été retirés : sur une
+ * caisse vide, l'écran affichait des encaissements inventés — 695 000 FCFA de
+ * recettes imaginaires. Un historique de caisse doit être vide quand il est vide.
+ */
 
 const MODE_COLORS: Record<string, { bg: string; color: string }> = {
   'Espèces': { bg: '#dcfce7', color: '#16a34a' },
@@ -33,21 +29,24 @@ export default function HistoriquePage() {
   const [dateFin, setDateFin] = useState('');
 
   const raw = Array.isArray(data) ? data : (data?.paiements ?? data?.data ?? []);
-  const historique = (raw as Record<string, unknown>[]).length > 0
-    ? (raw as Record<string, unknown>[]).map((p, i) => ({
-        id: String(p.id ?? p._id ?? i),
-        // L'API renvoie un objet élève : `String(objet)` donnait « [object Object] ».
-        eleve: personLabel(p.eleve ?? p.nomEleve ?? p.inscription ?? ''),
-        type: String(p.type ?? p.typePaiement ?? ''),
-        montant: Number(p.montant ?? 0),
-        mode: String(p.mode ?? p.modePaiement ?? ''),
-        date: String(p.datePaiement ?? p.date ?? p.createdAt ?? ''),
-        agent: personLabel(p.agent ?? p.agentCaisse ?? p.creePar ?? ''),
-      }))
-    : STATIC_HISTORIQUE;
+  const historique = (raw as Record<string, unknown>[]).map((p, i) => ({
+    id: String(p.id ?? p._id ?? i),
+    // L'API renvoie un objet élève : `String(objet)` donnait « [object Object] ».
+    eleve: personLabel(p.eleve ?? p.nomEleve ?? p.inscription ?? ''),
+    // Conservé pour la recherche par matricule ou téléphone.
+    source: p.eleve ?? p.inscription ?? null,
+    reference: String(p.reference ?? ''),
+    type: String(p.type ?? p.typePaiement ?? ''),
+    montant: Number(p.montant ?? 0),
+    mode: String(p.mode ?? p.modePaiement ?? ''),
+    date: String(p.datePaiement ?? p.date ?? p.createdAt ?? ''),
+    agent: personLabel(p.agent ?? p.agentCaisse ?? p.creePar ?? ''),
+  }));
 
   const filtered = historique.filter((p) => {
-    const matchSearch = !search || p.eleve.toLowerCase().includes(search.toLowerCase()) || p.type.toLowerCase().includes(search.toLowerCase());
+    // Recherche élargie au matricule, au téléphone et à la référence de reçu —
+    // c'est ce que présente un parent qui conteste ou réclame un paiement.
+    const matchSearch = correspondPersonne(search, p.source, p.eleve, p.type, p.reference);
     const matchMode = !filterMode || p.mode === filterMode;
     const matchDateDebut = !dateDebut || p.date >= dateDebut;
     const matchDateFin = !dateFin || p.date <= dateFin;

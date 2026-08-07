@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { apiClient } from '@/lib/api/client';
 import { formatFirstName, formatLastName } from '@/lib/person-name';
+import { asRecord } from '@/lib/api-data';
 import {
   useAdminPersonnel,
   useCreatePersonnel,
@@ -339,7 +340,9 @@ export default function PersonnelPage() {
         await refreshPersonnelAfterPhoto(editItem, photoUrl);
       } else {
         const result = await createPersonnel.mutateAsync(payload);
-        const res = ((result as Record<string, unknown>)?.data ?? result) as Record<string, unknown>;
+        // La mutation renvoie une réponse axios : on passe par `unknown` car
+        // `AxiosResponse` et `Record<string, unknown>` ne se recouvrent pas.
+        const res = asRecord(asRecord(result).data ?? result);
         const utilisateur = res?.utilisateur as Record<string, unknown> | undefined;
         const createdPersonnel = res as unknown as PersonnelItem;
         const userId = String(utilisateur?.id ?? res?.utilisateurId ?? '');

@@ -113,8 +113,8 @@ export default function EnseignantProfilPage() {
               </div>
               <div style={{ fontSize: 17, fontWeight: 700, color: '#0f172a' }}>{fullName}</div>
               <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>Enseignant</div>
-              {profile.specialite && <div style={{ fontSize: 12, color: '#2563eb', fontWeight: 600, marginTop: 4 }}>{String(profile.specialite)}</div>}
-              {profile.username && <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 6 }}>@{String(profile.username)}</div>}
+              {Boolean(profile.specialite) && <div style={{ fontSize: 12, color: '#2563eb', fontWeight: 600, marginTop: 4 }}>{String(profile.specialite)}</div>}
+              {Boolean(profile.username) && <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 6 }}>@{String(profile.username)}</div>}
             </div>
 
             {/* Infos rapides */}
