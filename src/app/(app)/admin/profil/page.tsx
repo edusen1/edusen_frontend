@@ -95,8 +95,6 @@ export default function AdminProfilPage() {
     setUploadingPhoto(false);
   };
 
-  const sigCanvasRef = useRef<HTMLCanvasElement>(null);
-
   const initials = `${(userInfo?.firstName ?? user?.prenom)?.[0] ?? ''}${(userInfo?.lastName ?? user?.nom)?.[0] ?? ''}`.toUpperCase() || 'U';
   const fullName = userInfo ? `${userInfo.firstName} ${userInfo.lastName}` : user ? `${user.prenom} ${user.nom}` : 'Utilisateur';
   const role = userInfo?.role ?? user?.role ?? '';
