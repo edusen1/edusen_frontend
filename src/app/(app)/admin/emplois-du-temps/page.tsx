@@ -3,7 +3,12 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
 import { apiClient } from '@/lib/api/client';
-import { correspondPersonne } from '@/lib/recherche';
+import { correspondPersonne, normaliser } from '@/lib/recherche';
+import {
+  cycleATrameFixe, genererCreneaux, grilleDuCycle, joursOuvres,
+  type CreneauGenere, type GrilleHoraire,
+} from '@/lib/grille-horaire';
+import { TrameFixe } from '@/components/edt/trame-fixe';
 
 const JOURS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
 const HEURES = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00'];
@@ -64,6 +69,7 @@ export default function CoursPage() {
   const [saving, setSaving] = useState(false);
   const [extraSlots, setExtraSlots] = useState<{ jourSemaine: string; heureDebut: string; heureFin: string }[]>([]);
   const [publishing, setPublishing] = useState(false);
+  const [grilleHoraire, setGrilleHoraire] = useState<GrilleHoraire | null>(null);
 
   // Charger référentiels
   useEffect(() => {
@@ -75,7 +81,9 @@ export default function CoursPage() {
       apiClient.get('/admin/matieres', { params: { size: 500 } }),
       apiClient.get('/admin/professeurs', { params: { size: 500 } }),
       apiClient.get('/admin/salles', { params: { size: 500 } }),
-    ]).then(([anneesR, couranteR, cyclesR, niveauxR, matR, profR, sallesR]) => {
+      // Grille propre à l'école : trame fixe du préscolaire et du primaire.
+      apiClient.get('/admin/configuration/grille-horaire').catch(() => ({ data: null })),
+    ]).then(([anneesR, couranteR, cyclesR, niveauxR, matR, profR, sallesR, grilleR]) => {
       const al = (Array.isArray(anneesR.data) ? anneesR.data : ((anneesR.data as Record<string, unknown>)?.data ?? [])) as AnneeItem[];
       const sorted = [...al].sort((a, b) => b.libelle.localeCompare(a.libelle));
       setAnnees(sorted);
@@ -87,6 +95,7 @@ export default function CoursPage() {
       setMatieres(extract(matR) as MatiereItem[]);
       setProfesseurs(extract(profR) as ProfItem[]);
       setSalles(extract(sallesR) as SalleItem[]);
+      if (grilleR?.data) setGrilleHoraire(grilleR.data as GrilleHoraire);
     }).catch(() => {});
   }, []);
 
@@ -128,6 +137,30 @@ export default function CoursPage() {
   }, [allClasses, filterCycleId, filterNiveauId, filterClasseId]);
 
   const filteredClasseIds = useMemo(() => new Set(filteredClasses.map((c) => c.id)), [filteredClasses]);
+
+  /**
+   * Cycle commun aux classes affichées. La trame fixe n'a de sens que si l'on
+   * regarde un seul cycle : mélanger primaire et lycée dans la même vue
+   * afficherait une grille qui ne vaut que pour une partie des classes.
+   */
+  const cycleAffiche = useMemo(() => {
+    const codes = new Set(
+      filteredClasses.map((c) => normaliser(c.niveau?.cycle?.code ?? c.cycle?.code ?? '').toUpperCase()).filter(Boolean),
+    );
+    return codes.size === 1 ? [...codes][0] : '';
+  }, [filteredClasses]);
+
+  /** `true` quand l'emploi du temps doit suivre la trame de l'école. */
+  const trameFixe = cycleATrameFixe(cycleAffiche);
+  const grilleCycle = useMemo(() => grilleDuCycle(grilleHoraire, cycleAffiche), [grilleHoraire, cycleAffiche]);
+  const joursGrille = useMemo(() => joursOuvres(grilleCycle), [grilleCycle]);
+
+  /** Créneaux de la trame, par jour. */
+  const creneauxParJour = useMemo(() => {
+    const map: Record<string, CreneauGenere[]> = {};
+    for (const jour of joursGrille) map[jour] = genererCreneaux(grilleCycle, jour);
+    return map;
+  }, [grilleCycle, joursGrille]);
 
   // EDT filtrés (par classes filtrées + par prof si filtre actif)
   const filteredEdt = useMemo(() => {
@@ -204,6 +237,28 @@ export default function CoursPage() {
     setEditId(null);
     const nextHeure = heure ? `${String(Math.min(Number(heure.split(':')[0]) + 1, 19)).padStart(2, '0')}:00` : '09:00';
     setForm({ ...EMPTY_FORM, classeId: filterClasseId || (filteredClasses[0]?.id ?? ''), ...(jour ? { jourSemaine: jour } : {}), ...(heure ? { heureDebut: heure, heureFin: nextHeure } : {}) });
+    setExtraSlots([]);
+    setShowModal(true);
+  };
+
+  /**
+   * Ouverture depuis la trame fixe. Le jour, les heures, l'enseignant et la
+   * salle sont déduits : au primaire, l'enseignant responsable de la classe
+   * assure toutes les matières, dans la salle de la classe. Il ne reste donc
+   * que la matière à choisir.
+   */
+  const ouvrirCreneauTrame = (classeId: string, jour: string, creneau: CreneauGenere) => {
+    const classe = classesById.get(classeId) as (ClasseItem & { professeurResponsable?: { id?: string }; professeurResponsableId?: string; salleId?: string }) | undefined;
+    setEditId(null);
+    setForm({
+      ...EMPTY_FORM,
+      classeId,
+      jourSemaine: jour,
+      heureDebut: creneau.heureDebut,
+      heureFin: creneau.heureFin,
+      enseignantId: String(classe?.professeurResponsable?.id ?? classe?.professeurResponsableId ?? ''),
+      salleId: String(classe?.salleId ?? ''),
+    });
     setExtraSlots([]);
     setShowModal(true);
   };
@@ -372,6 +427,19 @@ export default function CoursPage() {
       <div style={{ flex: 1, overflowY: 'auto', padding: '14px 28px 28px' }}>
         {loading ? (
           <div style={{ textAlign: 'center', padding: '60px 0', color: '#94a3b8', fontSize: 13 }}>Chargement…</div>
+        ) : trameFixe ? (
+          /* Trame fixe du préscolaire et du primaire : les créneaux sont connus
+             d'avance, seule la matière reste à choisir. */
+          <TrameFixe
+            jours={joursGrille}
+            creneauxParJour={creneauxParJour}
+            grille={grilleCycle}
+            classes={filteredClasses}
+            edt={filteredEdt}
+            getCreneauInfo={getCreneauInfo}
+            onChoisirMatiere={ouvrirCreneauTrame}
+            onSupprimer={handleDelete}
+          />
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse', background: '#fff', border: '1px solid #e6ebf1', tableLayout: 'fixed' }}>
             <thead>

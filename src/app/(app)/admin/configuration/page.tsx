@@ -3,8 +3,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { apiClient } from '@/lib/api/client';
 import { toast } from 'sonner';
+import { HorairesConfig } from '@/components/config/horaires-config';
 
-type Tab = 'identite' | 'apparence' | 'cycles' | 'annees' | 'batiments' | 'whatsapp' | 'coefficients';
+type Tab = 'identite' | 'apparence' | 'cycles' | 'annees' | 'batiments' | 'horaires' | 'whatsapp' | 'coefficients';
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'identite', label: 'Identité école' },
@@ -12,6 +13,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'cycles', label: 'Cycles & Niveaux' },
   { key: 'annees', label: 'Années académiques' },
   { key: 'batiments', label: 'Bâtiments & Salles' },
+  { key: 'horaires', label: 'Horaires' },
   { key: 'whatsapp', label: 'WhatsApp' },
   { key: 'coefficients', label: 'Coefficients' },
 ];
@@ -1336,6 +1338,9 @@ export default function ConfigurationPage() {
             </div>
           </div>
         )}
+
+        {/* ── HORAIRES ─────────────────────────────────────────────── */}
+        {activeTab === 'horaires' && <HorairesConfig />}
 
         {/* ── WHATSAPP ─────────────────────────────────────────────── */}
         {activeTab === 'whatsapp' && (

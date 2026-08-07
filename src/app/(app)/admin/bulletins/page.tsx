@@ -52,6 +52,12 @@ function getNoteColor(n: number, moyMax = 20): string {
   return '#dc2626';
 }
 
+/**
+ * Abréviations conservées à l'écran (colonne étroite du tableau de notes).
+ * Les seuils doivent rester alignés sur ceux du PDF
+ * (`bulletin-document.service.ts`) : une même moyenne ne peut pas donner deux
+ * appréciations différentes selon le support.
+ */
 function getMention(m: number | null, moyMax = 20): string {
   if (m === null) return '—';
   const v = toBase20(m, moyMax);
