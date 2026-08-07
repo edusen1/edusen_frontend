@@ -29,6 +29,9 @@ interface Emprunt {
   id: string; statut: StatutEmprunt; dateEmprunt: string; dureeJours: number;
   dateRetourPrevue: string; dateRetourReelle?: string | null;
   montantAmende?: number | null; joursRetard?: number;
+  /** Renseigné une fois l'amende encaissée par la caisse. */
+  paiementId?: string | null;
+  typeEmprunteur?: 'ELEVE' | 'ENSEIGNANT';
   ouvrage?: { id: string; titre: string; auteur: string };
   emprunteur?: { id: string; firstName?: string; lastName?: string; matricule?: string; role?: string };
 }
@@ -226,6 +229,17 @@ export default function BibliothequePage() {
     }
   };
 
+  const reglerAmende = async (e: Emprunt) => {
+    if (!confirm(`Encaisser ${e.montantAmende?.toLocaleString('fr-FR')} FCFA pour « ${e.ouvrage?.titre} » ?`)) return;
+    try {
+      await apiClient.post(`/bibliotheque/emprunts/${e.id}/amende/regler`, { modePaiement: 'ESPECES' });
+      toast.success('Amende encaissée — paiement enregistré en caisse');
+      charger();
+    } catch (err) {
+      toast.error((err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Encaissement impossible');
+    }
+  };
+
   const declarerPerte = async (e: Emprunt) => {
     if (!confirm(`Déclarer « ${e.ouvrage?.titre} » perdu ? Une amende sera due par l'emprunteur.`)) return;
     try {
@@ -370,8 +384,9 @@ export default function BibliothequePage() {
                         {e.statut === 'EN_RETARD' && e.joursRetard ? <div style={{ fontSize: 10, color: '#dc2626' }}>{e.joursRetard} j de retard</div> : null}
                       </td>
                       <td style={{ padding: '10px 12px' }}><Badge label={STATUT_LABELS[e.statut]} bg={c.bg} fg={c.fg} /></td>
-                      <td style={{ padding: '10px 12px', fontSize: 12, fontWeight: 700, color: e.montantAmende ? '#dc2626' : '#94a3b8' }}>
+                      <td style={{ padding: '10px 12px', fontSize: 12, fontWeight: 700, color: e.paiementId ? '#16a34a' : e.montantAmende ? '#dc2626' : '#94a3b8' }}>
                         {e.montantAmende ? `${e.montantAmende.toLocaleString('fr-FR')} F` : '—'}
+                        {e.paiementId && <div style={{ fontSize: 10, fontWeight: 400, color: '#16a34a' }}>Réglée</div>}
                       </td>
                       <td style={{ padding: '10px 12px', textAlign: 'right', whiteSpace: 'nowrap' }}>
                         {actif && (
@@ -379,6 +394,11 @@ export default function BibliothequePage() {
                             <button onClick={() => retourner(e)} style={{ ...btnSecondaire, height: 28, padding: '0 10px', fontSize: 11, marginRight: 6 }}>Retour</button>
                             <button onClick={() => declarerPerte(e)} style={{ ...btnSecondaire, height: 28, padding: '0 10px', fontSize: 11, color: '#dc2626' }}>Perte</button>
                           </>
+                        )}
+                        {/* Encaissement réservé aux élèves : la caisse ne connaît
+                            pas les paiements du personnel (cf. reglerAmende). */}
+                        {!!e.montantAmende && !e.paiementId && e.typeEmprunteur === 'ELEVE' && (
+                          <button onClick={() => reglerAmende(e)} style={{ ...btnSecondaire, height: 28, padding: '0 10px', fontSize: 11, color: '#16a34a', marginLeft: 6 }}>Encaisser</button>
                         )}
                       </td>
                     </tr>
