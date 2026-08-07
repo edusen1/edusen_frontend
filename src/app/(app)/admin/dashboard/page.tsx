@@ -15,7 +15,7 @@ function pct(a: number, b: number) { return b > 0 ? Math.round((a / b) * 100) : 
 
 function Bar({ value, max, color, h = 8 }: { value: number; max: number; color: string; h?: number }) {
   const w = max > 0 ? Math.min(100, Math.round((value / max) * 100)) : 0;
-  return <div style={{ background: '#f1f5f9', height: h, borderRadius: h / 2, overflow: 'hidden' }}><div style={{ height: '100%', width: `${w}%`, background: color, borderRadius: h / 2 }} /></div>;
+  return <div style={{ background: '#f1f5f9', height: h, overflow: 'hidden' }}><div style={{ height: '100%', width: `${w}%`, background: color }} /></div>;
 }
 
 function Kpi({ label, value, sub, color, href }: { label: string; value: string | number; sub?: string; color: string; href?: string }) {
@@ -236,7 +236,7 @@ export default function DashboardPage() {
                   return (
                     <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
                       <div style={{ fontSize: 8, color: '#64748b', fontWeight: 600 }}>{m.encaissements > 0 ? fmtS(m.encaissements) : ''}</div>
-                      <div title={fmt(m.encaissements)} style={{ width: '100%', height: h, background: '#16a34a', borderRadius: '2px 2px 0 0', minHeight: m.encaissements > 0 ? 2 : 0 }} />
+                      <div title={fmt(m.encaissements)} style={{ width: '100%', height: h, background: '#16a34a', minHeight: m.encaissements > 0 ? 2 : 0 }} />
                       <span style={{ fontSize: 8, color: '#94a3b8' }}>{MOIS[i]}</span>
                     </div>
                   );
@@ -257,8 +257,8 @@ export default function DashboardPage() {
                     <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
                       <div style={{ fontSize: 8, color: '#64748b', fontWeight: 600 }}>{tot > 0 ? tot : ''}</div>
                       <div style={{ width: '100%', display: 'flex', flexDirection: 'column' }}>
-                        <div style={{ height: hRet, background: '#d97706', borderRadius: '2px 2px 0 0', minHeight: m.retards > 0 ? 1 : 0 }} />
                         <div style={{ height: hAbs, background: '#dc2626', minHeight: m.absences > 0 ? 1 : 0 }} />
+                        <div style={{ height: hRet, background: '#d97706', minHeight: m.retards > 0 ? 1 : 0 }} />
                       </div>
                       <span style={{ fontSize: 8, color: '#94a3b8' }}>{MOIS[i]}</span>
                     </div>
@@ -266,8 +266,8 @@ export default function DashboardPage() {
                 })}
               </div>
               <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}><div style={{ width: 8, height: 8, background: '#dc2626', borderRadius: 1 }} /><span style={{ fontSize: 9, color: '#64748b' }}>Absences</span></div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}><div style={{ width: 8, height: 8, background: '#d97706', borderRadius: 1 }} /><span style={{ fontSize: 9, color: '#64748b' }}>Retards</span></div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}><div style={{ width: 8, height: 8, background: '#dc2626' }} /><span style={{ fontSize: 9, color: '#64748b' }}>Absences</span></div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}><div style={{ width: 8, height: 8, background: '#d97706' }} /><span style={{ fontSize: 9, color: '#64748b' }}>Retards</span></div>
               </div>
             </div>
           </div>
@@ -279,12 +279,12 @@ export default function DashboardPage() {
             <div style={{ fontSize: 12, fontWeight: 700, color: '#0f172a', marginBottom: 14 }}>Taux de présence mensuel — {annee}</div>
             <div style={{ display: 'flex', gap: 3, alignItems: 'flex-end', height: 60 }}>
               {mensuel.map((m, i) => {
-                const h = Math.round(m.tauxPresence * 0.55);
+                const h = Math.round((m.tauxPresence / 100) * 48);
                 const color = m.tauxPresence >= 90 ? '#16a34a' : m.tauxPresence >= 70 ? '#d97706' : '#dc2626';
                 return (
                   <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
                     <div style={{ fontSize: 8, color, fontWeight: 700 }}>{m.tauxPresence > 0 ? `${m.tauxPresence}%` : ''}</div>
-                    <div style={{ width: '100%', height: h, background: color, borderRadius: '2px 2px 0 0', minHeight: m.tauxPresence > 0 ? 2 : 0 }} />
+                    <div style={{ width: '100%', height: h, background: color, minHeight: m.tauxPresence > 0 ? 2 : 0 }} />
                     <span style={{ fontSize: 8, color: '#94a3b8' }}>{MOIS[i]}</span>
                   </div>
                 );
@@ -316,7 +316,7 @@ export default function DashboardPage() {
                   <span style={{ fontSize: 10, color: '#ec4899' }}>Filles — {filles} ({pct(filles, filles + garcons)}%)</span>
                   <span style={{ fontSize: 10, color: '#2563eb' }}>Garçons — {garcons}</span>
                 </div>
-                <div style={{ background: '#f1f5f9', height: 6, borderRadius: 3, overflow: 'hidden', display: 'flex' }}>
+                <div style={{ background: '#f1f5f9', height: 6, overflow: 'hidden', display: 'flex' }}>
                   <div style={{ height: '100%', width: `${pct(filles, filles + garcons)}%`, background: '#ec4899' }} />
                   <div style={{ height: '100%', flex: 1, background: '#2563eb' }} />
                 </div>
