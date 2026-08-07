@@ -727,17 +727,20 @@ export default function ConfigurationPage() {
           <div style={{ fontSize: 17, fontWeight: 700, color: '#0f172a' }}>Configuration</div>
           <div style={{ fontSize: 13, color: '#64748b' }}>Paramètres avancés de l&apos;établissement</div>
         </div>
-        <div style={{ display: 'flex', padding: '0 28px', gap: 0, borderTop: '1px solid #e6ebf1' }}>
+        {/* Une seule ligne : les onglets défilent horizontalement plutôt que de
+            passer à la ligne, ce qui déplaçait tout le contenu vers le bas. */}
+        <div style={{ display: 'flex', padding: '0 28px', gap: 0, borderTop: '1px solid #e6ebf1', overflowX: 'auto', flexWrap: 'nowrap' }}>
           {TABS.map((t) => (
             <button
               key={t.key}
               onClick={() => setActiveTab(t.key)}
               style={{
-                height: 42, padding: '0 18px', border: 'none', background: 'transparent',
+                height: 42, padding: '0 16px', border: 'none', background: 'transparent',
                 fontSize: 13, fontWeight: activeTab === t.key ? 700 : 400,
                 color: activeTab === t.key ? '#2563eb' : '#64748b',
                 borderBottom: activeTab === t.key ? '2px solid #2563eb' : '2px solid transparent',
                 cursor: 'pointer', fontFamily: 'inherit',
+                whiteSpace: 'nowrap', flexShrink: 0,
               }}
             >
               {t.label}
