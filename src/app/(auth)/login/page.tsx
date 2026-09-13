@@ -110,9 +110,9 @@ export default function LoginPage() {
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(15,23,42,.2) 0%, rgba(15,23,42,.82) 100%)' }} />
 
         {/* Logo top-left */}
-        <div style={{ position: 'absolute', left: 0, right: 0, top: 0, padding: '36px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span style={{ width: 40, height: 40, background: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 16, letterSpacing: '-.02em' }}>E</span>
-          <span style={{ color: '#fff', fontWeight: 700, fontSize: 17 }}>Edusen</span>
+        <div style={{ position: 'absolute', left: 0, right: 0, top: 0, padding: '36px' }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="Edusen" style={{ height: 38, objectFit: 'contain', filter: 'brightness(0) invert(1)' }} />
         </div>
 
         {/* Tagline bottom-left */}
