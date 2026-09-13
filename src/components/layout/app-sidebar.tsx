@@ -319,7 +319,7 @@ export function AppSidebar({ onClose, collapsed = false, onToggleCollapse }: { o
             <img src={ecoleLogo} alt="logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
           ) : (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src="/logo.png" alt="Edusen" style={{ width: '100%', height: '100%', objectFit: 'contain', filter: 'brightness(0) invert(1)' }} />
+            <img src="/favicon.png" alt="Edusen" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
           )}
         </div>
         {/* Nom */}

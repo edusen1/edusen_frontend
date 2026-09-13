@@ -7,7 +7,7 @@ export default function LandingPage() {
       <nav style={{ position: 'sticky', top: 0, zIndex: 100, background: 'rgba(255,255,255,.95)', backdropFilter: 'blur(8px)', borderBottom: '1px solid #e6ebf1', height: 64, display: 'flex', alignItems: 'center', padding: '0 48px', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png" alt="Edusen" style={{ height: 40, objectFit: 'contain' }} />
+          <img src="/logo.png" alt="Edusen" style={{ height: 48, objectFit: 'contain' }} />
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <Link href="/login" style={{ height: 40, padding: '0 20px', display: 'inline-flex', alignItems: 'center', border: '1px solid #d9e0e8', background: '#fff', color: '#334155', fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>Se connecter</Link>
@@ -154,7 +154,7 @@ export default function LandingPage() {
             <div>
               <div style={{ marginBottom: 16 }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/logo.png" alt="Edusen" style={{ height: 36, objectFit: 'contain', filter: 'brightness(0) invert(1)' }} />
+                <img src="/logo.png" alt="Edusen" style={{ height: 44, objectFit: 'contain' }} />
               </div>
               <p style={{ fontSize: 13, color: '#64748b', lineHeight: 1.7, maxWidth: 260 }}>Système de gestion scolaire pour les établissements d'Afrique francophone.</p>
             </div>

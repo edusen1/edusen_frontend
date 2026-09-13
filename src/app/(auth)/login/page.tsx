@@ -112,7 +112,7 @@ export default function LoginPage() {
         {/* Logo top-left */}
         <div style={{ position: 'absolute', left: 0, right: 0, top: 0, padding: '36px' }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png" alt="Edusen" style={{ height: 38, objectFit: 'contain', filter: 'brightness(0) invert(1)' }} />
+          <img src="/logo.png" alt="Edusen" style={{ height: 52, objectFit: 'contain' }} />
         </div>
 
         {/* Tagline bottom-left */}
