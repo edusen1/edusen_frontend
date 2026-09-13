@@ -42,10 +42,21 @@ interface Tarifs {
   prixEmprunt: number; abonnementMensuel: number;
 }
 
+interface Abonnement {
+  id: string; dateDebut: string; dateFin: string; moisPayes: number;
+  montant: number; actif: boolean; paiementId?: string | null;
+  abonne?: { id: string; firstName?: string; lastName?: string; matricule?: string; role?: string };
+}
+
 interface Situation {
   nbEnCours: number; nbEnRetard: number; nbPertes: number;
   amendesDues: number; fraisDus: number; peutEmprunter: boolean;
-  abonne: boolean; abonnementJusquau?: string | null; fraisEmpruntApplicable: number;
+  /**
+   * `fraisEmpruntApplicable` est optionnel à dessein : un serveur antérieur à
+   * l'abonnement ne le renvoie pas, et le lire comme un `number` garanti
+   * affichait « Gratuit » alors qu'un prix était bien configuré.
+   */
+  abonne?: boolean; abonnementJusquau?: string | null; fraisEmpruntApplicable?: number;
   ouvragesEnCours: { id: string; titre: string; dateRetourPrevue: string; enRetard: boolean; joursRetard?: number }[];
   pertes: { id: string; titre: string; montantAmende?: number | null }[];
 }
@@ -82,7 +93,11 @@ function lire(d: unknown): Record<string, unknown>[] {
 }
 
 export default function BibliothequePage() {
-  const [onglet, setOnglet] = useState<'catalogue' | 'emprunts'>('catalogue');
+  const [onglet, setOnglet] = useState<'catalogue' | 'emprunts' | 'abonnements'>('catalogue');
+  const [abonnements, setAbonnements] = useState<Abonnement[]>([]);
+  const [modalAbonnement, setModalAbonnement] = useState(false);
+  const [abonneChoisi, setAbonneChoisi] = useState<Emprunteur | null>(null);
+  const [moisAbonnement, setMoisAbonnement] = useState('1');
   const [ouvrages, setOuvrages] = useState<Ouvrage[]>([]);
   const [emprunts, setEmprunts] = useState<Emprunt[]>([]);
   const [tarifs, setTarifs] = useState<Tarifs | null>(null);
@@ -123,9 +138,11 @@ export default function BibliothequePage() {
       apiClient.get('/bibliotheque/ouvrages', { params: { size: 500 } }).catch(() => ({ data: [] })),
       apiClient.get('/bibliotheque/emprunts').catch(() => ({ data: [] })),
       apiClient.get('/bibliotheque/tarifs').catch(() => ({ data: null })),
-    ]).then(([o, e, t]) => {
+      apiClient.get('/bibliotheque/abonnements').catch(() => ({ data: [] })),
+    ]).then(([o, e, t, a]) => {
       setOuvrages(lire(o.data) as unknown as Ouvrage[]);
       setEmprunts(lire(e.data) as unknown as Emprunt[]);
+      setAbonnements(lire(a.data) as unknown as Abonnement[]);
       if (t.data) {
         const tf = t.data as Tarifs;
         setTarifs(tf);
@@ -147,12 +164,27 @@ export default function BibliothequePage() {
     return correspond(recherche, e.ouvrage?.titre, p?.firstName, p?.lastName, p?.matricule);
   }), [emprunts, filtreStatut, recherche]);
 
+  const abonnementsFiltres = useMemo(() => abonnements.filter((a) => {
+    const p = a.abonne;
+    return correspond(recherche, p?.firstName, p?.lastName, p?.matricule);
+  }), [abonnements, recherche]);
+
+  const nbAbonnesActifs = abonnements.filter((a) => a.actif).length;
   const nbRetards = emprunts.filter((e) => e.statut === 'EN_RETARD').length;
   const nbEnCours = emprunts.filter((e) => e.statut === 'EN_COURS' || e.statut === 'EN_RETARD').length;
   const amendesDues = emprunts.filter((e) => e.montantAmende).reduce((s, e) => s + (e.montantAmende ?? 0), 0);
 
   const nomEmprunteur = (e: Emprunt) =>
     `${e.emprunteur?.firstName ?? ''} ${e.emprunteur?.lastName ?? ''}`.trim() || '—';
+
+  /**
+   * Frais annoncés dans le formulaire d'emprunt. L'abonnement l'emporte ; sinon
+   * on affiche le montant du serveur, et à défaut le tarif configuré. Un champ
+   * absent ne doit jamais se traduire par « Gratuit ».
+   */
+  const fraisEmpruntAffiche = situation?.abonne
+    ? 0
+    : situation?.fraisEmpruntApplicable ?? tarifs?.prixEmprunt ?? 0;
 
   // ── Actions ─────────────────────────────────────────────────────
 
@@ -236,22 +268,32 @@ export default function BibliothequePage() {
    * personne n'est pas abonnée au moment où ça compte. On recharge ensuite la
    * situation pour que les frais affichés reflètent l'abonnement.
    */
-  const ouvrirAbonnement = async () => {
-    if (!emprunteur || !tarifs) return;
-    const saisie = prompt(
-      `Abonnement pour ${emprunteur.nom}\nTarif : ${tarifs.abonnementMensuel.toLocaleString('fr-FR')} FCFA / mois\n\nNombre de mois ?`,
-      '1',
-    );
-    if (saisie === null) return;
-    const mois = Math.max(1, Math.min(Number(saisie) || 1, 12));
+  /** Depuis le formulaire d'emprunt : l'abonné est déjà connu. */
+  const ouvrirAbonnement = () => {
+    setAbonneChoisi(emprunteur);
+    setMoisAbonnement('1');
+    setModalAbonnement(true);
+  };
+
+  const souscrireAbonnement = async () => {
+    if (!abonneChoisi) { toast.error('Choisissez un abonné'); return; }
+    const mois = Math.max(1, Math.min(Number(moisAbonnement) || 1, 12));
+    setEnregistrement(true);
     try {
-      await apiClient.post('/bibliotheque/abonnements', { abonneId: emprunteur.id, moisPayes: mois, modePaiement: 'ESPECES' });
+      await apiClient.post('/bibliotheque/abonnements', { abonneId: abonneChoisi.id, moisPayes: mois, modePaiement: 'ESPECES' });
       toast.success(`Abonnement de ${mois} mois enregistré`);
-      const r = await apiClient.get(`/bibliotheque/emprunteurs/${emprunteur.id}/situation`);
-      setSituation(r.data as Situation);
+      setModalAbonnement(false);
+      // Rafraîchir la situation si c'est l'emprunteur du formulaire en cours,
+      // pour que les frais affichés tiennent compte du nouvel abonnement.
+      if (emprunteur && emprunteur.id === abonneChoisi.id) {
+        const r = await apiClient.get(`/bibliotheque/emprunteurs/${emprunteur.id}/situation`);
+        setSituation(r.data as Situation);
+      }
+      charger();
     } catch (err) {
       toast.error((err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Abonnement impossible');
     }
+    setEnregistrement(false);
   };
 
   const reglerAmende = async (e: Emprunt) => {
@@ -297,12 +339,19 @@ export default function BibliothequePage() {
             </div>
           </div>
           <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+            {/* Souscrire sans passer par un emprunt : une personne peut vouloir
+                s'abonner d'abord et emprunter plus tard. */}
+            {tarifs && tarifs.abonnementMensuel > 0 && (
+              <button onClick={() => { setAbonneChoisi(null); setMoisAbonnement('1'); setModalAbonnement(true); }} style={btnSecondaire}>
+                Nouvel abonnement
+              </button>
+            )}
             <button onClick={() => setModalEmprunt(true)} style={btnSecondaire}>Nouvel emprunt</button>
             <button onClick={ouvrirCreation} style={btnPrimaire}>+ Ouvrage</button>
           </div>
         </div>
         <div style={{ display: 'flex', padding: '0 28px', borderTop: `1px solid ${B}` }}>
-          {([['catalogue', 'Catalogue'], ['emprunts', 'Emprunts']] as const).map(([k, label]) => (
+          {([['catalogue', 'Catalogue'], ['emprunts', 'Emprunts'], ['abonnements', 'Abonnements']] as const).map(([k, label]) => (
             <button key={k} onClick={() => setOnglet(k)}
               style={{ height: 42, padding: '0 18px', border: 'none', background: 'transparent', fontSize: 13, fontWeight: onglet === k ? 700 : 400, color: onglet === k ? '#2563eb' : '#64748b', borderBottom: onglet === k ? '2px solid #2563eb' : '2px solid transparent', cursor: 'pointer', fontFamily: 'inherit' }}>
               {label}
@@ -318,6 +367,7 @@ export default function BibliothequePage() {
           { label: 'Exemplaires', valeur: String(ouvrages.reduce((s, o) => s + o.nbExemplaires, 0)), couleur: '#0f172a' },
           { label: 'En cours', valeur: String(nbEnCours), couleur: '#d97706' },
           { label: 'En retard', valeur: String(nbRetards), couleur: nbRetards > 0 ? '#dc2626' : '#16a34a' },
+          { label: 'Abonnés', valeur: String(nbAbonnesActifs), couleur: '#0891b2' },
           { label: 'Amendes', valeur: `${amendesDues.toLocaleString('fr-FR')} F`, couleur: '#7c3aed' },
         ].map((k) => (
           <div key={k.label} style={{ flex: '1 1 130px', background: '#fff', border: `1px solid ${B}`, padding: '12px 16px' }}>
@@ -348,6 +398,42 @@ export default function BibliothequePage() {
       <div style={{ flex: 1, overflowY: 'auto', padding: '14px 28px 28px' }}>
         {chargement ? (
           <div style={{ textAlign: 'center', padding: '60px 0', color: '#94a3b8', fontSize: 13 }}>Chargement…</div>
+        ) : onglet === 'abonnements' ? (
+          abonnementsFiltres.length === 0 ? (
+            <div style={{ background: '#fff', border: `1px solid ${B}`, padding: 40, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>
+              {abonnements.length === 0 ? 'Aucun abonnement souscrit.' : 'Aucun abonnement ne correspond à cette recherche.'}
+            </div>
+          ) : (
+            <table style={{ width: '100%', borderCollapse: 'collapse', background: '#fff', border: `1px solid ${B}` }}>
+              <thead>
+                <tr style={{ background: '#f8fafc' }}>
+                  {['Abonné', 'Type', 'Début', 'Fin', 'Mois', 'Montant', 'Statut'].map((h) => (
+                    <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', borderBottom: `1px solid ${B}` }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {abonnementsFiltres.map((a) => (
+                  <tr key={a.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                    <td style={{ padding: '10px 12px', fontSize: 13, fontWeight: 600, color: '#0f172a' }}>
+                      {`${a.abonne?.firstName ?? ''} ${a.abonne?.lastName ?? ''}`.trim() || '—'}
+                      <div style={{ fontSize: 10, fontWeight: 400, color: '#94a3b8' }}>{a.abonne?.matricule ?? '—'}</div>
+                    </td>
+                    <td style={{ padding: '10px 12px' }}>
+                      <Badge label={a.abonne?.role === 'ELEVE' ? 'Élève' : 'Enseignant'} bg="#f1f5f9" fg="#475569" />
+                    </td>
+                    <td style={{ padding: '10px 12px', fontSize: 12, color: '#64748b' }}>{formatDateFr(a.dateDebut)}</td>
+                    <td style={{ padding: '10px 12px', fontSize: 12, color: a.actif ? '#0f172a' : '#94a3b8' }}>{formatDateFr(a.dateFin)}</td>
+                    <td style={{ padding: '10px 12px', fontSize: 12, color: '#64748b' }}>{a.moisPayes}</td>
+                    <td style={{ padding: '10px 12px', fontSize: 12, fontWeight: 700, color: '#0f172a' }}>{a.montant.toLocaleString('fr-FR')} F</td>
+                    <td style={{ padding: '10px 12px' }}>
+                      <Badge label={a.actif ? 'Actif' : 'Expiré'} bg={a.actif ? '#dcfce7' : '#f1f5f9'} fg={a.actif ? '#16a34a' : '#475569'} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )
         ) : onglet === 'catalogue' ? (
           ouvragesFiltres.length === 0 ? (
             <div style={{ background: '#fff', border: `1px solid ${B}`, padding: 40, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>
@@ -492,6 +578,46 @@ export default function BibliothequePage() {
         </div>
       )}
 
+      {/* Modal abonnement */}
+      {modalAbonnement && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1001 }}>
+          <div style={{ background: '#fff', width: 520, maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ padding: '16px 22px', borderBottom: `1px solid ${B}`, fontSize: 15, fontWeight: 700, color: '#0f172a' }}>
+              Nouvel abonnement
+            </div>
+            <div style={{ padding: 22 }}>
+              <div style={{ marginBottom: 16 }}>
+                <label style={lbl}>Abonné <span style={{ color: '#dc2626' }}>*</span></label>
+                <SelecteurEmprunteur valeur={abonneChoisi} onChange={setAbonneChoisi} />
+              </div>
+              <div>
+                <label style={lbl}>Nombre de mois</label>
+                <input type="number" min={1} max={12} value={moisAbonnement}
+                  onChange={(e) => setMoisAbonnement(e.target.value)} style={{ ...inp, width: 110 }} />
+              </div>
+              {tarifs && (
+                <div style={{ marginTop: 14, padding: '12px 14px', background: '#f8fafc', border: `1px solid ${B}` }}>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: '#0f172a' }}>
+                    {(tarifs.abonnementMensuel * (Number(moisAbonnement) || 1)).toLocaleString('fr-FR')} FCFA
+                  </div>
+                  <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+                    {tarifs.abonnementMensuel.toLocaleString('fr-FR')} F/mois · encaissé immédiatement en caisse.
+                    Une période en cours est prolongée, non remplacée.
+                  </div>
+                </div>
+              )}
+            </div>
+            <div style={{ padding: '14px 22px', borderTop: `1px solid ${B}`, display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button onClick={() => setModalAbonnement(false)} style={btnSecondaire}>Annuler</button>
+              <button onClick={souscrireAbonnement} disabled={enregistrement || !abonneChoisi}
+                style={{ ...btnPrimaire, opacity: enregistrement || !abonneChoisi ? 0.5 : 1 }}>
+                {enregistrement ? 'Enregistrement…' : 'Enregistrer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal emprunt */}
       {modalEmprunt && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
@@ -612,11 +738,11 @@ export default function BibliothequePage() {
                     {[
                       {
                         label: situation?.abonne ? 'Emprunt (abonné)' : 'Emprunt',
-                        // Le montant vient du serveur : c'est lui qui tranche
-                        // l'abonnement, l'écran ne recalcule pas la règle.
-                        valeur: situation
-                          ? (situation.fraisEmpruntApplicable > 0 ? `${situation.fraisEmpruntApplicable.toLocaleString('fr-FR')} F` : 'Gratuit')
-                          : (tarifs.prixEmprunt > 0 ? `${tarifs.prixEmprunt.toLocaleString('fr-FR')} F` : 'Gratuit'),
+                        // Le serveur tranche l'abonnement, mais s'il ne renvoie
+                        // pas le montant on retombe sur le tarif configuré :
+                        // afficher « Gratuit » sur une absence de champ était un
+                        // mensonge, et c'est celui qui a été constaté à l'écran.
+                        valeur: fraisEmpruntAffiche > 0 ? `${fraisEmpruntAffiche.toLocaleString('fr-FR')} F` : 'Gratuit',
                       },
                       { label: 'Retard', valeur: tarifs.penaliteParJour > 0 ? `${tarifs.penaliteParJour.toLocaleString('fr-FR')} F/j` : 'Non facturé' },
                       { label: 'Perte', valeur: `${(ouvrageChoisi?.valeur ?? tarifs.valeurRemplacementDefaut).toLocaleString('fr-FR')} F` },
