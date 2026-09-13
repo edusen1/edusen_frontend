@@ -312,15 +312,14 @@ export function AppSidebar({ onClose, collapsed = false, onToggleCollapse }: { o
         aria-label={onToggleCollapse ? (collapsed ? 'Développer la sidebar' : 'Réduire la sidebar') : undefined}
         style={{ width: '100%', padding: collapsed ? '16px 18px' : '16px 14px', display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'flex-start', gap: 10, border: 'none', borderBottom: '1px solid #1e293b', background: 'transparent', minHeight: 64, cursor: onToggleCollapse ? 'pointer' : 'default', fontFamily: 'inherit', textAlign: 'left' }}
       >
-        {/* Avatar : logo ou initiales */}
+        {/* Avatar : logo école ou logo Edusen */}
         <div style={{ width: 36, height: 36, flexShrink: 0, background: '#1e293b', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderRadius: 6, border: '1px solid #334155' }}>
           {ecoleLogo ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={ecoleLogo} alt="logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
           ) : (
-            <span style={{ color: '#60a5fa', fontWeight: 800, fontSize: 13, letterSpacing: '-0.5px' }}>
-              {displayLabel.slice(0, 3)}
-            </span>
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src="/logo.png" alt="Edusen" style={{ width: '100%', height: '100%', objectFit: 'contain', filter: 'brightness(0) invert(1)' }} />
           )}
         </div>
         {/* Nom */}
