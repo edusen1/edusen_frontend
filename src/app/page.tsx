@@ -154,7 +154,7 @@ export default function LandingPage() {
             <div>
               <div style={{ marginBottom: 16 }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/logo.png" alt="Edusen" style={{ height: 44, objectFit: 'contain' }} />
+                <img src="/logo-white.png" alt="Edusen" style={{ height: 44, objectFit: 'contain' }} />
               </div>
               <p style={{ fontSize: 13, color: '#64748b', lineHeight: 1.7, maxWidth: 260 }}>Système de gestion scolaire pour les établissements d'Afrique francophone.</p>
             </div>
