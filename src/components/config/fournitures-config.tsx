@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { apiClient } from '@/lib/api/client';
 
 const CYCLES_AVEC_SERIE = ['COLLEGE', 'LYCEE', 'SECONDAIRE'];
-const SERIES_LYCEE = ['L1', 'L1A', 'L1B', "L'1", 'L2', 'LA', 'S1', 'S2', 'S3', 'S4', 'S5', 'STEG', 'G', 'T1', 'T2', 'F6'];
+const SERIES = ['L1', 'L1A', 'L1B', "L'1", 'L2', 'LA', 'S1', 'S2', 'S3', 'S4', 'S5', 'STEG', 'G', 'T1', 'T2', 'F6'];
 
 interface Fourniture {
   id: string;
@@ -17,7 +17,7 @@ interface Fourniture {
   serie: string | null;
 }
 
-interface NiveauAvecFournitures {
+interface Niveau {
   id: string;
   libelle: string;
   code: string;
@@ -30,10 +30,10 @@ interface Cycle {
   libelle: string;
   code: string;
   ordre: number;
-  niveaux: NiveauAvecFournitures[];
+  niveaux: Niveau[];
 }
 
-const FORM_VIDE = { nom: '', quantite: '1', description: '', obligatoire: true, ordre: '0', serie: '' };
+const VIDE = { nom: '', quantite: '1', description: '', obligatoire: true, ordre: '0', serie: '' };
 
 const inp: React.CSSProperties = {
   width: '100%', height: 30, border: '1px solid #d9e0e8',
@@ -42,10 +42,11 @@ const inp: React.CSSProperties = {
 
 export function FournituresConfig() {
   const [cycles, setCycles] = useState<Cycle[]>([]);
+  const [cycleId, setCycleId] = useState<string | null>(null);
   const [chargement, setChargement] = useState(true);
-  const [modal, setModal] = useState<{ niveauId: string; cycleCode: string; fourniture?: Fourniture } | null>(null);
-  const [form, setForm] = useState(FORM_VIDE);
-  const [enregistrement, setEnregistrement] = useState(false);
+  const [modal, setModal] = useState<{ niveauId: string; cycleCode: string; item?: Fourniture } | null>(null);
+  const [form, setForm] = useState(VIDE);
+  const [saving, setSaving] = useState(false);
 
   const charger = useCallback(() => {
     setChargement(true);
@@ -53,6 +54,7 @@ export function FournituresConfig() {
       .then((r) => {
         const data: Cycle[] = Array.isArray(r.data) ? r.data : Array.isArray(r.data?.data) ? r.data.data : [];
         setCycles(data);
+        setCycleId((prev) => prev ?? data[0]?.id ?? null);
       })
       .catch(() => toast.error('Impossible de charger les fournitures'))
       .finally(() => setChargement(false));
@@ -60,17 +62,20 @@ export function FournituresConfig() {
 
   useEffect(() => { charger(); }, [charger]);
 
-  const ouvrirCreation = (niveauId: string, cycleCode: string) => { setForm(FORM_VIDE); setModal({ niveauId, cycleCode }); };
+  const cycle = cycles.find((c) => c.id === cycleId) ?? null;
+  const avecSerie = CYCLES_AVEC_SERIE.includes(cycle?.code ?? '');
 
-  const ouvrirEdition = (niveauId: string, cycleCode: string, f: Fourniture) => {
-    setForm({ nom: f.nom, quantite: String(f.quantite), description: f.description ?? '', obligatoire: f.obligatoire, ordre: String(f.ordre), serie: f.serie ?? '' });
-    setModal({ niveauId, cycleCode, fourniture: f });
+  const ouvrir = (niveauId: string, cycleCode: string, item?: Fourniture) => {
+    setForm(item
+      ? { nom: item.nom, quantite: String(item.quantite), description: item.description ?? '', obligatoire: item.obligatoire, ordre: String(item.ordre), serie: item.serie ?? '' }
+      : VIDE
+    );
+    setModal({ niveauId, cycleCode, item });
   };
 
   const enregistrer = async () => {
-    if (!modal) return;
-    if (!form.nom.trim()) { toast.error('Nom requis'); return; }
-    setEnregistrement(true);
+    if (!modal || !form.nom.trim()) { toast.error('Nom requis'); return; }
+    setSaving(true);
     const payload = {
       niveauId: modal.niveauId,
       nom: form.nom.trim(),
@@ -81,8 +86,8 @@ export function FournituresConfig() {
       serie: CYCLES_AVEC_SERIE.includes(modal.cycleCode) ? (form.serie || null) : null,
     };
     try {
-      if (modal.fourniture) {
-        await apiClient.put(`/configuration/fournitures/${modal.fourniture.id}`, payload);
+      if (modal.item) {
+        await apiClient.put(`/configuration/fournitures/${modal.item.id}`, payload);
         toast.success('Fourniture modifi\u00e9e');
       } else {
         await apiClient.post('/configuration/fournitures', payload);
@@ -91,7 +96,7 @@ export function FournituresConfig() {
       setModal(null);
       charger();
     } catch { toast.error('Enregistrement impossible'); }
-    setEnregistrement(false);
+    setSaving(false);
   };
 
   const supprimer = async (id: string, nom: string) => {
@@ -104,106 +109,118 @@ export function FournituresConfig() {
   };
 
   if (chargement) return <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Chargement\u2026</div>;
+  if (cycles.length === 0) return <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Aucun cycle configur\u00e9.</div>;
 
-  if (cycles.length === 0) {
-    return <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Aucun niveau configur\u00e9. Cr\u00e9ez d&apos;abord des cycles et niveaux.</div>;
-  }
+  const cols = avecSerie ? '1fr 60px 72px 90px 1fr 110px' : '1fr 60px 90px 1fr 110px';
+  const headers = avecSerie ? ['Article', 'Qt\u00e9', 'S\u00e9rie', 'Obligatoire', 'Remarque', ''] : ['Article', 'Qt\u00e9', 'Obligatoire', 'Remarque', ''];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
-      {cycles.map((cycle) => {
-        const avecSerie = CYCLES_AVEC_SERIE.includes(cycle.code);
-        const niveaux = cycle.niveaux ?? [];
+    <div>
+      {/* ── Onglets cycles ── */}
+      <div style={{ display: 'flex', borderBottom: '2px solid #e6ebf1', marginBottom: 24 }}>
+        {cycles.map((c) => {
+          const total = (c.niveaux ?? []).reduce((s, n) => s + (n.fournitures ?? []).length, 0);
+          const actif = c.id === cycleId;
+          return (
+            <button key={c.id} onClick={() => setCycleId(c.id)} style={{
+              height: 38, padding: '0 18px', border: 'none', background: 'none', fontFamily: 'inherit',
+              fontSize: 13, fontWeight: actif ? 700 : 500,
+              color: actif ? '#2563eb' : '#64748b',
+              borderBottom: actif ? '2px solid #2563eb' : '2px solid transparent',
+              marginBottom: -2, cursor: 'pointer', whiteSpace: 'nowrap',
+            }}>
+              {c.libelle}
+              {total > 0 && (
+                <span style={{ marginLeft: 6, fontSize: 11, background: actif ? '#dbeafe' : '#f1f5f9', color: actif ? '#2563eb' : '#64748b', padding: '1px 6px', fontWeight: 700 }}>
+                  {total}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
 
-        return (
-          <div key={cycle.id}>
-            {/* En-t\u00eate cycle */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-              <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.08em' }}>{cycle.libelle}</span>
-              <div style={{ flex: 1, height: 1, background: '#e6ebf1' }} />
-            </div>
-
-            {/* Niveaux du cycle */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {niveaux.map((niveau) => {
-                const fournitures = niveau.fournitures ?? [];
-                return (
-                  <div key={niveau.id} style={{ background: '#fff', border: '1px solid #e6ebf1' }}>
-                    {/* En-t\u00eate niveau */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 18px', borderBottom: '1px solid #e6ebf1' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{niveau.libelle}</span>
-                        <span style={{ fontSize: 11, color: '#64748b', background: '#f1f5f9', padding: '1px 7px', fontWeight: 600 }}>{niveau.code}</span>
-                        {fournitures.length > 0 && (
-                          <span style={{ fontSize: 11, background: '#eff6ff', color: '#2563eb', padding: '1px 7px', fontWeight: 700 }}>
-                            {fournitures.length} article{fournitures.length > 1 ? 's' : ''}
-                          </span>
-                        )}
-                      </div>
-                      <button
-                        onClick={() => ouvrirCreation(niveau.id, cycle.code)}
-                        style={{ height: 28, padding: '0 10px', border: 'none', background: '#2563eb', color: '#fff', fontSize: 12, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' }}>
-                        + Ajouter
-                      </button>
-                    </div>
-
-                    {/* Tableau fournitures */}
-                    {fournitures.length === 0 ? (
-                      <div style={{ padding: '12px 18px', color: '#94a3b8', fontSize: 12 }}>
-                        Aucune fourniture \u2014 cliquez sur \u00ab\u00a0+ Ajouter\u00a0\u00bb pour en cr\u00e9er.
-                      </div>
-                    ) : (
-                      <>
-                        <div style={{ display: 'grid', gridTemplateColumns: avecSerie ? '1fr 60px 75px 90px 1fr 100px' : '1fr 60px 90px 1fr 100px', padding: '7px 18px', background: '#f8fafc', borderBottom: '1px solid #e6ebf1' }}>
-                          {(avecSerie ? ['Article', 'Qt\u00e9', 'S\u00e9rie', 'Obligatoire', 'Remarque', ''] : ['Article', 'Qt\u00e9', 'Obligatoire', 'Remarque', '']).map((h) => (
-                            <span key={h} style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.04em' }}>{h}</span>
-                          ))}
-                        </div>
-                        {fournitures.map((f, i) => (
-                          <div key={f.id} style={{
-                            display: 'grid', gridTemplateColumns: avecSerie ? '1fr 60px 75px 90px 1fr 100px' : '1fr 60px 90px 1fr 100px',
-                            padding: '9px 18px', alignItems: 'center',
-                            borderBottom: i < fournitures.length - 1 ? '1px solid #f1f5f9' : 'none',
-                          }}>
-                            <span style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{f.nom}</span>
-                            <span style={{ fontSize: 13, color: '#334155' }}>{f.quantite}</span>
-                            {avecSerie && (
-                              <span style={{ fontSize: 11, color: f.serie ? '#7c3aed' : '#94a3b8', background: f.serie ? '#f5f3ff' : '#f1f5f9', padding: '1px 6px', width: 'fit-content', fontWeight: 600 }}>
-                                {f.serie ?? 'Toutes'}
-                              </span>
-                            )}
-                            <span style={{ fontSize: 11, fontWeight: 700, color: f.obligatoire ? '#16a34a' : '#64748b', background: f.obligatoire ? '#dcfce7' : '#f1f5f9', padding: '1px 6px', width: 'fit-content' }}>
-                              {f.obligatoire ? 'Obligatoire' : 'Facultatif'}
-                            </span>
-                            <span style={{ fontSize: 12, color: '#64748b' }}>{f.description ?? '\u2014'}</span>
-                            <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                              <button onClick={() => ouvrirEdition(niveau.id, cycle.code, f)}
-                                style={{ height: 26, padding: '0 9px', fontSize: 11, fontWeight: 600, color: '#2563eb', border: '1px solid #bfdbfe', background: '#eff6ff', cursor: 'pointer', fontFamily: 'inherit' }}>
-                                Modifier
-                              </button>
-                              <button onClick={() => void supprimer(f.id, f.nom)}
-                                style={{ height: 26, padding: '0 9px', fontSize: 11, fontWeight: 600, color: '#dc2626', border: '1px solid #fecaca', background: '#fff1f2', cursor: 'pointer', fontFamily: 'inherit' }}>
-                                Supprimer
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </>
+      {/* ── Niveaux du cycle actif ── */}
+      {cycle && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {(cycle.niveaux ?? []).map((niveau) => {
+            const fours = niveau.fournitures ?? [];
+            return (
+              <div key={niveau.id} style={{ border: '1px solid #e6ebf1', background: '#fff' }}>
+                {/* En-t\u00eate niveau */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 18px', borderBottom: '1px solid #e6ebf1' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{niveau.libelle}</span>
+                    <span style={{ fontSize: 11, color: '#64748b', background: '#f1f5f9', padding: '1px 7px', fontWeight: 600 }}>{niveau.code}</span>
+                    {fours.length > 0 && (
+                      <span style={{ fontSize: 11, background: '#eff6ff', color: '#2563eb', padding: '1px 7px', fontWeight: 700 }}>
+                        {fours.length} article{fours.length > 1 ? 's' : ''}
+                      </span>
                     )}
                   </div>
-                );
-              })}
-            </div>
-          </div>
-        );
-      })}
+                  <button onClick={() => ouvrir(niveau.id, cycle.code)}
+                    style={{ height: 28, padding: '0 11px', border: 'none', background: '#2563eb', color: '#fff', fontSize: 12, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' }}>
+                    + Ajouter
+                  </button>
+                </div>
 
-      {/* Modal ajout / \u00e9dition */}
+                {/* Liste des fournitures */}
+                {fours.length === 0 ? (
+                  <div style={{ padding: '13px 18px', color: '#94a3b8', fontSize: 12 }}>
+                    Aucune fourniture pour ce niveau.
+                  </div>
+                ) : (
+                  <>
+                    {/* En-t\u00eate colonnes */}
+                    <div style={{ display: 'grid', gridTemplateColumns: cols, padding: '7px 18px', background: '#f8fafc', borderBottom: '1px solid #e6ebf1' }}>
+                      {headers.map((h) => (
+                        <span key={h} style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.05em' }}>{h}</span>
+                      ))}
+                    </div>
+                    {/* Lignes */}
+                    {fours.map((f, i) => (
+                      <div key={f.id} style={{
+                        display: 'grid', gridTemplateColumns: cols,
+                        padding: '9px 18px', alignItems: 'center',
+                        borderBottom: i < fours.length - 1 ? '1px solid #f1f5f9' : 'none',
+                      }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{f.nom}</span>
+                        <span style={{ fontSize: 13, color: '#334155' }}>{f.quantite}</span>
+                        {avecSerie && (
+                          <span style={{ fontSize: 11, fontWeight: 600, color: f.serie ? '#7c3aed' : '#94a3b8', background: f.serie ? '#f5f3ff' : '#f1f5f9', padding: '1px 6px', width: 'fit-content' }}>
+                            {f.serie ?? 'Toutes'}
+                          </span>
+                        )}
+                        <span style={{ fontSize: 11, fontWeight: 700, color: f.obligatoire ? '#16a34a' : '#64748b', background: f.obligatoire ? '#dcfce7' : '#f1f5f9', padding: '1px 6px', width: 'fit-content' }}>
+                          {f.obligatoire ? 'Obligatoire' : 'Facultatif'}
+                        </span>
+                        <span style={{ fontSize: 12, color: '#64748b' }}>{f.description ?? '\u2014'}</span>
+                        <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                          <button onClick={() => ouvrir(niveau.id, cycle.code, f)}
+                            style={{ height: 26, padding: '0 9px', fontSize: 11, fontWeight: 600, color: '#2563eb', border: '1px solid #bfdbfe', background: '#eff6ff', cursor: 'pointer', fontFamily: 'inherit' }}>
+                            Modifier
+                          </button>
+                          <button onClick={() => void supprimer(f.id, f.nom)}
+                            style={{ height: 26, padding: '0 9px', fontSize: 11, fontWeight: 600, color: '#dc2626', border: '1px solid #fecaca', background: '#fff1f2', cursor: 'pointer', fontFamily: 'inherit' }}>
+                            Supprimer
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── Modal ── */}
       {modal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div style={{ background: '#fff', width: 460 }}>
             <div style={{ padding: '14px 20px', borderBottom: '1px solid #e6ebf1', fontSize: 14, fontWeight: 700, color: '#0f172a' }}>
-              {modal.fourniture ? 'Modifier la fourniture' : 'Ajouter une fourniture'}
+              {modal.item ? 'Modifier la fourniture' : 'Ajouter une fourniture'}
             </div>
             <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div>
@@ -226,9 +243,9 @@ export function FournituresConfig() {
                   <select value={form.serie} onChange={(e) => setForm((f) => ({ ...f, serie: e.target.value }))}
                     style={{ ...inp, height: 30, background: '#fff' }}>
                     <option value="">Toutes les s\u00e9ries</option>
-                    {SERIES_LYCEE.map((s) => <option key={s} value={s}>{s}</option>)}
+                    {SERIES.map((s) => <option key={s} value={s}>{s}</option>)}
                   </select>
-                  <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>Laisser vide pour une fourniture commune \u00e0 toutes les s\u00e9ries.</div>
+                  <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>Laisser vide = fourniture commune \u00e0 toutes les s\u00e9ries.</div>
                 </div>
               )}
               <div>
@@ -236,9 +253,7 @@ export function FournituresConfig() {
                 <input value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} placeholder="ex. Couverture bleue" style={inp} />
               </div>
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                <input type="checkbox" checked={form.obligatoire}
-                  onChange={(e) => setForm((f) => ({ ...f, obligatoire: e.target.checked }))}
-                  style={{ width: 15, height: 15 }} />
+                <input type="checkbox" checked={form.obligatoire} onChange={(e) => setForm((f) => ({ ...f, obligatoire: e.target.checked }))} style={{ width: 15, height: 15 }} />
                 <span style={{ fontSize: 13, color: '#334155' }}>Obligatoire</span>
               </label>
             </div>
@@ -247,9 +262,9 @@ export function FournituresConfig() {
                 style={{ height: 32, padding: '0 14px', border: '1px solid #d9e0e8', background: '#fff', color: '#334155', fontSize: 12, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' }}>
                 Annuler
               </button>
-              <button onClick={() => void enregistrer()} disabled={enregistrement}
-                style={{ height: 32, padding: '0 16px', border: 'none', background: '#2563eb', color: '#fff', fontSize: 12, fontWeight: 600, fontFamily: 'inherit', cursor: enregistrement ? 'wait' : 'pointer', opacity: enregistrement ? 0.7 : 1 }}>
-                {enregistrement ? 'Enregistrement\u2026' : modal.fourniture ? 'Modifier' : 'Ajouter'}
+              <button onClick={() => void enregistrer()} disabled={saving}
+                style={{ height: 32, padding: '0 16px', border: 'none', background: '#2563eb', color: '#fff', fontSize: 12, fontWeight: 600, fontFamily: 'inherit', cursor: saving ? 'wait' : 'pointer', opacity: saving ? 0.7 : 1 }}>
+                {saving ? 'Enregistrement\u2026' : modal.item ? 'Modifier' : 'Ajouter'}
               </button>
             </div>
           </div>
