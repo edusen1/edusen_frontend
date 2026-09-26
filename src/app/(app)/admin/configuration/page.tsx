@@ -5,8 +5,9 @@ import { apiClient } from '@/lib/api/client';
 import { toast } from 'sonner';
 import { HorairesConfig } from '@/components/config/horaires-config';
 import { BibliothequeConfig } from '@/components/config/bibliotheque-config';
+import { FournituresConfig } from '@/components/config/fournitures-config';
 
-type Tab = 'identite' | 'apparence' | 'cycles' | 'annees' | 'batiments' | 'horaires' | 'bibliotheque' | 'whatsapp' | 'coefficients';
+type Tab = 'identite' | 'apparence' | 'cycles' | 'annees' | 'batiments' | 'horaires' | 'fournitures' | 'bibliotheque' | 'whatsapp' | 'coefficients';
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'identite', label: 'Identité école' },
@@ -15,6 +16,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'annees', label: 'Années académiques' },
   { key: 'batiments', label: 'Bâtiments & Salles' },
   { key: 'horaires', label: 'Horaires' },
+  { key: 'fournitures', label: 'Fournitures' },
   { key: 'bibliotheque', label: 'Bibliothèque' },
   { key: 'whatsapp', label: 'WhatsApp' },
   { key: 'coefficients', label: 'Coefficients' },
@@ -74,7 +76,9 @@ type FraisItem = { sectionId?: string; section: string; niveau: string; inscript
 
 type CoefNiveau = { id: string; nom: string };
 type CoefMatiere = { id: string; libelle: string };
-type CoefRow = { id: string; niveauId?: string; matiere?: { libelle?: string }; niveau?: { id?: string; libelle?: string; nom?: string }; coefficient?: number };
+type CoefRow = { id: string; niveauId?: string; serie?: string | null; matiere?: { libelle?: string }; niveau?: { id?: string; libelle?: string; nom?: string }; coefficient?: number };
+
+const SERIES_LYCEE = ['L1', 'L1A', 'L1B', "L'1", 'L2', 'LA', 'S1', 'S2', 'S3', 'S4', 'S5', 'STEG', 'G', 'T1', 'T2', 'F6'];
 
 function getDevise(paysCode: string): string {
   return PAYS_LIST.find((p) => p.code === paysCode)?.symbole ?? 'MRU';
@@ -697,7 +701,7 @@ export default function ConfigurationPage() {
   const [coefMatieres, setCoefMatieres] = useState<CoefMatiere[]>([]);
   const [coefRows, setCoefRows] = useState<CoefRow[]>([]);
   const [loadingCoefRows, setLoadingCoefRows] = useState(false);
-  const [assignForm, setAssignForm] = useState({ matiereId: '', coefficient: '1', volumeHoraire: '1' });
+  const [assignForm, setAssignForm] = useState({ matiereId: '', serie: '', coefficient: '1', volumeHoraire: '1' });
   const [savingAssign, setSavingAssign] = useState(false);
   const [editCoefs, setEditCoefs] = useState<Record<string, number>>({});
 
@@ -734,13 +738,22 @@ export default function ConfigurationPage() {
     }
     setSavingAssign(true);
     try {
-      await apiClient.post('/admin/matieres-niveaux', {
+      const payload: {
+        niveauId: string;
+        matiereId: string;
+        coefficient: number;
+        serie?: string;
+      } = {
         niveauId: selectedNiveauId,
         matiereId: assignForm.matiereId,
         coefficient: Number(assignForm.coefficient) || 1,
-      });
+      };
+      if (assignForm.serie) {
+        payload.serie = assignForm.serie;
+      }
+      await apiClient.post('/admin/matieres-niveaux', payload);
       toast.success('Matière assignée au niveau');
-      setAssignForm({ matiereId: '', coefficient: '1', volumeHoraire: '1' });
+      setAssignForm({ matiereId: '', serie: '', coefficient: '1', volumeHoraire: '1' });
       await refreshCoefRows();
     } catch {
       toast.error("Erreur lors de l'assignation");
@@ -1423,6 +1436,9 @@ export default function ConfigurationPage() {
         {/* ── HORAIRES ─────────────────────────────────────────────── */}
         {activeTab === 'horaires' && <HorairesConfig />}
 
+        {/* ── FOURNITURES ──────────────────────────────────────────── */}
+        {activeTab === 'fournitures' && <FournituresConfig />}
+
         {/* ── BIBLIOTHÈQUE ─────────────────────────────────────────── */}
         {activeTab === 'bibliotheque' && <BibliothequeConfig />}
 
@@ -1563,7 +1579,7 @@ export default function ConfigurationPage() {
               <div style={{ fontSize: 14, fontWeight: 700, color: '#0f172a', marginBottom: 18, paddingBottom: 14, borderBottom: '1px solid #e6ebf1' }}>
                 Assigner une matière à un niveau
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 80px 80px auto', gap: 12, alignItems: 'flex-end' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 80px 120px auto', gap: 12, alignItems: 'flex-end' }}>
                 <div>
                   <label style={lbl()}>Niveau *</label>
                   <select value={selectedNiveauId} onChange={(e) => setSelectedNiveauId(e.target.value)} style={{ ...inp() }}>
@@ -1581,6 +1597,13 @@ export default function ConfigurationPage() {
                 <div>
                   <label style={lbl()}>Coeff.</label>
                   <input type="number" value={assignForm.coefficient} onChange={(e) => setAssignForm((f) => ({ ...f, coefficient: e.target.value }))} style={inp()} min={1} max={10} />
+                </div>
+                <div>
+                  <label style={lbl()}>Série</label>
+                  <select value={assignForm.serie} onChange={(e) => setAssignForm((f) => ({ ...f, serie: e.target.value }))} style={{ ...inp() }}>
+                    <option value="">Général</option>
+                    {SERIES_LYCEE.map((serie) => <option key={serie} value={serie}>{serie}</option>)}
+                  </select>
                 </div>
                 <button onClick={handleAssign} disabled={savingAssign} style={{ height: 38, padding: '0 18px', border: 'none', background: '#2563eb', color: '#fff', fontSize: 13, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer', opacity: savingAssign ? 0.7 : 1, whiteSpace: 'nowrap' }}>
                   {savingAssign ? '…' : 'Assigner'}
@@ -1610,8 +1633,9 @@ export default function ConfigurationPage() {
                       <span style={{ fontSize: 11, color: '#64748b' }}>{rows.length} matière(s)</span>
                     </div>
                     {rows.map((r, idx) => (
-                      <div key={r.id} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 72px', padding: '10px 20px', borderBottom: idx < rows.length - 1 ? '1px solid #f1f5f9' : '1px solid #e6ebf1', alignItems: 'center' }}>
+                      <div key={r.id} style={{ display: 'grid', gridTemplateColumns: '1fr 90px 80px 72px', gap: 10, padding: '10px 20px', borderBottom: idx < rows.length - 1 ? '1px solid #f1f5f9' : '1px solid #e6ebf1', alignItems: 'center' }}>
                         <span style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{r.matiere?.libelle ?? '—'}</span>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: r.serie ? '#7c3aed' : '#64748b', background: r.serie ? '#f5f3ff' : '#f8fafc', border: `1px solid ${r.serie ? '#ddd6fe' : '#e2e8f0'}`, padding: '3px 8px', width: 'fit-content' }}>{r.serie ?? 'Général'}</span>
                         <input type="number" value={getEditCoef(r.id, r.coefficient ?? 1)}
                           onChange={(e) => setEditCoefs((prev) => ({ ...prev, [r.id]: Number(e.target.value) }))}
                           onBlur={() => handleSaveCoef(r.id, getEditCoef(r.id, r.coefficient ?? 1))}

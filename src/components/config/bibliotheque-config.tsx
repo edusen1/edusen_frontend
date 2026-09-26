@@ -22,12 +22,13 @@ interface Tarifs {
   valeurRemplacementDefaut: number;
   prixEmprunt: number;
   abonnementMensuel: number;
+  abonnementAnnuel: number;
 }
 
 const DEFAUTS: Tarifs = {
   dureeJoursDefaut: 14, dureeJoursMax: 60,
   penaliteParJour: 100, penaliteMax: 5000, valeurRemplacementDefaut: 10000,
-  prixEmprunt: 0, abonnementMensuel: 0,
+  prixEmprunt: 0, abonnementMensuel: 0, abonnementAnnuel: 0,
 };
 
 const inp: React.CSSProperties = { width: '100%', height: 36, border: `1px solid ${B}`, padding: '0 10px', fontSize: 13, fontFamily: 'inherit', boxSizing: 'border-box' };
@@ -93,13 +94,24 @@ export function BibliothequeConfig() {
           <div>
             <label style={lbl}>Abonnement mensuel (FCFA)</label>
             <input type="number" min={0} value={tarifs.abonnementMensuel} onChange={(e) => modifier('abonnementMensuel', e.target.value)} style={inp} />
-            <div style={aide}>Dispense des frais par emprunt. 0 = aucun abonnement proposé.</div>
+            <div style={aide}>Dispense des frais par emprunt. 0 = non proposé.</div>
+          </div>
+          <div>
+            <label style={lbl}>Abonnement annuel (FCFA)</label>
+            <input type="number" min={0} value={tarifs.abonnementAnnuel} onChange={(e) => modifier('abonnementAnnuel', e.target.value)} style={inp} />
+            <div style={aide}>Forfait 12 mois. 0 = non proposé.</div>
           </div>
         </div>
         {tarifs.prixEmprunt > 0 && tarifs.abonnementMensuel > 0 && (
           <div style={{ marginTop: 14, padding: '10px 12px', background: '#f8fafc', border: `1px solid ${B}`, fontSize: 12, color: '#475569' }}>
-            L&apos;abonnement devient avantageux à partir de{' '}
+            L&apos;abonnement mensuel devient avantageux à partir de{' '}
             <strong>{Math.ceil(tarifs.abonnementMensuel / tarifs.prixEmprunt)} emprunts</strong> par mois.
+          </div>
+        )}
+        {tarifs.abonnementMensuel > 0 && tarifs.abonnementAnnuel > 0 && (
+          <div style={{ marginTop: 8, padding: '10px 12px', background: '#f8fafc', border: `1px solid ${B}`, fontSize: 12, color: '#475569' }}>
+            L&apos;annuel est avantageux par rapport au mensuel à partir de{' '}
+            <strong>{Math.ceil(tarifs.abonnementAnnuel / tarifs.abonnementMensuel)} mois</strong> d&apos;abonnement.
           </div>
         )}
       </div>

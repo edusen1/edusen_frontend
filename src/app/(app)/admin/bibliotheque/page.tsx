@@ -39,7 +39,7 @@ interface Emprunt {
 interface Tarifs {
   dureeJoursDefaut: number; dureeJoursMax: number;
   penaliteParJour: number; penaliteMax: number; valeurRemplacementDefaut: number;
-  prixEmprunt: number; abonnementMensuel: number;
+  prixEmprunt: number; abonnementMensuel: number; abonnementAnnuel: number;
 }
 
 interface Abonnement {
@@ -98,6 +98,7 @@ export default function BibliothequePage() {
   const [modalAbonnement, setModalAbonnement] = useState(false);
   const [abonneChoisi, setAbonneChoisi] = useState<Emprunteur | null>(null);
   const [moisAbonnement, setMoisAbonnement] = useState('1');
+  const [typeAbonnement, setTypeAbonnement] = useState<'MENSUEL' | 'ANNUEL'>('MENSUEL');
   const [ouvrages, setOuvrages] = useState<Ouvrage[]>([]);
   const [emprunts, setEmprunts] = useState<Emprunt[]>([]);
   const [tarifs, setTarifs] = useState<Tarifs | null>(null);
@@ -277,11 +278,12 @@ export default function BibliothequePage() {
 
   const souscrireAbonnement = async () => {
     if (!abonneChoisi) { toast.error('Choisissez un abonné'); return; }
-    const mois = Math.max(1, Math.min(Number(moisAbonnement) || 1, 12));
+    const mois = typeAbonnement === 'ANNUEL' ? 12 : Math.max(1, Math.min(Number(moisAbonnement) || 1, 12));
     setEnregistrement(true);
     try {
-      await apiClient.post('/bibliotheque/abonnements', { abonneId: abonneChoisi.id, moisPayes: mois, modePaiement: 'ESPECES' });
-      toast.success(`Abonnement de ${mois} mois enregistré`);
+      await apiClient.post('/bibliotheque/abonnements', { abonneId: abonneChoisi.id, moisPayes: mois, typeAbonnement, modePaiement: 'ESPECES' });
+      const label = typeAbonnement === 'ANNUEL' ? 'Abonnement annuel enregistré' : `Abonnement de ${mois} mois enregistré`;
+      toast.success(label);
       setModalAbonnement(false);
       // Rafraîchir la situation si c'est l'emprunteur du formulaire en cours,
       // pour que les frais affichés tiennent compte du nouvel abonnement.
@@ -341,8 +343,8 @@ export default function BibliothequePage() {
           <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
             {/* Souscrire sans passer par un emprunt : une personne peut vouloir
                 s'abonner d'abord et emprunter plus tard. */}
-            {tarifs && tarifs.abonnementMensuel > 0 && (
-              <button onClick={() => { setAbonneChoisi(null); setMoisAbonnement('1'); setModalAbonnement(true); }} style={btnSecondaire}>
+            {tarifs && (tarifs.abonnementMensuel > 0 || tarifs.abonnementAnnuel > 0) && (
+              <button onClick={() => { setAbonneChoisi(null); setMoisAbonnement('1'); setTypeAbonnement(tarifs.abonnementMensuel > 0 ? 'MENSUEL' : 'ANNUEL'); setModalAbonnement(true); }} style={btnSecondaire}>
                 Nouvel abonnement
               </button>
             )}
@@ -590,19 +592,44 @@ export default function BibliothequePage() {
                 <label style={lbl}>Abonné <span style={{ color: '#dc2626' }}>*</span></label>
                 <SelecteurEmprunteur valeur={abonneChoisi} onChange={setAbonneChoisi} />
               </div>
-              <div>
-                <label style={lbl}>Nombre de mois</label>
-                <input type="number" min={1} max={12} value={moisAbonnement}
-                  onChange={(e) => setMoisAbonnement(e.target.value)} style={{ ...inp, width: 110 }} />
-              </div>
+
+              {/* Choix du type */}
+              {tarifs && tarifs.abonnementMensuel > 0 && tarifs.abonnementAnnuel > 0 && (
+                <div style={{ marginBottom: 16 }}>
+                  <label style={lbl}>Type d&apos;abonnement</label>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {(['MENSUEL', 'ANNUEL'] as const).map((t) => (
+                      <button key={t} onClick={() => setTypeAbonnement(t)}
+                        style={{ flex: 1, height: 36, border: `1px solid ${typeAbonnement === t ? '#2563eb' : B}`, background: typeAbonnement === t ? '#eff6ff' : '#fff', color: typeAbonnement === t ? '#2563eb' : '#334155', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' }}>
+                        {t === 'MENSUEL' ? 'Mensuel' : 'Annuel (12 mois)'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {typeAbonnement === 'MENSUEL' && (
+                <div style={{ marginBottom: 14 }}>
+                  <label style={lbl}>Nombre de mois</label>
+                  <input type="number" min={1} max={12} value={moisAbonnement}
+                    onChange={(e) => setMoisAbonnement(e.target.value)} style={{ ...inp, width: 110 }} />
+                </div>
+              )}
+
               {tarifs && (
-                <div style={{ marginTop: 14, padding: '12px 14px', background: '#f8fafc', border: `1px solid ${B}` }}>
+                <div style={{ padding: '12px 14px', background: '#f8fafc', border: `1px solid ${B}` }}>
                   <div style={{ fontSize: 18, fontWeight: 800, color: '#0f172a' }}>
-                    {(tarifs.abonnementMensuel * (Number(moisAbonnement) || 1)).toLocaleString('fr-FR')} FCFA
+                    {typeAbonnement === 'ANNUEL'
+                      ? tarifs.abonnementAnnuel.toLocaleString('fr-FR')
+                      : (tarifs.abonnementMensuel * (Number(moisAbonnement) || 1)).toLocaleString('fr-FR')
+                    } FCFA
                   </div>
                   <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
-                    {tarifs.abonnementMensuel.toLocaleString('fr-FR')} F/mois · encaissé immédiatement en caisse.
-                    Une période en cours est prolongée, non remplacée.
+                    {typeAbonnement === 'ANNUEL'
+                      ? 'Forfait annuel (12 mois) · encaissé immédiatement en caisse.'
+                      : `${tarifs.abonnementMensuel.toLocaleString('fr-FR')} F/mois · encaissé immédiatement en caisse.`
+                    }
+                    {' '}Une période en cours est prolongée, non remplacée.
                   </div>
                 </div>
               )}
