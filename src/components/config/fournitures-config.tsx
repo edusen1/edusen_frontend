@@ -124,7 +124,7 @@ export function FournituresConfig() {
             {/* Onglets cycles */}
       <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid #e6ebf1', marginBottom: 20 }}>
         {cycles.map((c) => {
-          const totalArticles = c.niveaux.reduce((s, n) => s + n.fournitures.length, 0);
+          const totalArticles = (c.niveaux ?? []).reduce((s, n) => s + (n.fournitures ?? []).length, 0);
           return (
             <button key={c.id} onClick={() => setCycleActif(c.id)}
               style={{
@@ -148,7 +148,7 @@ export function FournituresConfig() {
       {/* Niveaux du cycle actif */}
       {cycleActuel && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {cycleActuel.niveaux.map((niveau) => (
+          {(cycleActuel.niveaux ?? []).map((niveau) => (
             <div key={niveau.id} style={{ background: '#fff', border: '1px solid #e6ebf1' }}>
               {/* En-tête carte */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', borderBottom: '1px solid #e6ebf1' }}>
@@ -169,7 +169,7 @@ export function FournituresConfig() {
               </div>
 
               {/* Tableau fournitures */}
-              {niveau.fournitures.length === 0 ? (
+              {(niveau.fournitures ?? []).length === 0 ? (
                 <div style={{ padding: '20px 20px', color: '#94a3b8', fontSize: 12 }}>
                   Aucune fourniture — cliquez sur « + Ajouter » pour en créer.
                 </div>
@@ -180,7 +180,7 @@ export function FournituresConfig() {
                       <span key={h} style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.04em' }}>{h}</span>
                     ))}
                   </div>
-                  {niveau.fournitures.map((f, i) => (
+                  {(niveau.fournitures ?? []).map((f, i) => (
                     <div key={f.id} style={{
                       display: 'grid', gridTemplateColumns: avecSerie ? '1fr 70px 80px 90px 1fr 100px' : '1fr 70px 90px 1fr 100px',
                       padding: '10px 20px', alignItems: 'center',
