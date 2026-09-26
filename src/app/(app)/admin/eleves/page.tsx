@@ -9,7 +9,7 @@ import { formatFirstName, formatLastName } from '@/lib/person-name';
 import { useCreateEleve, useUpdateEleve } from '@/hooks/use-query-api';
 
 type EleveItem = Record<string, unknown>;
-type ClasseItem = { id: string; nom: string };
+type ClasseItem = { id: string; nom: string; serie?: string | null };
 type ParentItem = { id: string; firstName?: string; lastName?: string; prenom?: string; nom?: string; telephone?: string; email?: string };
 type Credentials = { username: string; password: string } | null;
 
@@ -84,6 +84,12 @@ function parentLabel(p: ParentItem): string {
   const first = p.firstName ?? p.prenom ?? '';
   const last  = p.lastName  ?? p.nom   ?? '';
   return `${first} ${last}`.trim();
+}
+
+function classeAvecSerie(classe?: { nom?: string; serie?: string | null } | null): string {
+  const nom = String(classe?.nom ?? '');
+  const serie = String(classe?.serie ?? '').trim();
+  return serie ? `${nom} ${serie}` : nom;
 }
 
 function dateInputValue(value: unknown): string {
@@ -712,7 +718,7 @@ export default function ElevesAdminPage() {
         </div>
         <select value={filterClasse} onChange={(e) => setFilterClasse(e.target.value)} style={{ height: 38, border: '1px solid #e2e8f0', background: '#fff', padding: '0 12px', fontSize: 13, color: '#0f172a', fontFamily: 'inherit' }}>
           <option value="">Toutes les classes</option>
-          {classes.map((c) => <option key={c.id} value={c.id}>{c.nom}</option>)}
+          {classes.map((c) => <option key={c.id} value={c.id}>{classeAvecSerie(c)}</option>)}
         </select>
         <select value={filterStatut} onChange={(e) => setFilterStatut(e.target.value)} style={{ height: 38, border: '1px solid #e2e8f0', background: '#fff', padding: '0 12px', fontSize: 13, color: '#0f172a', fontFamily: 'inherit' }}>
           <option value="">Tous les statuts</option>
@@ -738,7 +744,7 @@ export default function ElevesAdminPage() {
               const nom     = String(e.nom     ?? e.lastName  ?? '');
               const matricule = String(e.matricule ?? '');
               const classeRaw = e.classe as Record<string, unknown> | undefined;
-              const classeNom = classeRaw ? String(classeRaw.nom ?? '') : String(e.classeNom ?? '—');
+              const classeNom = classeRaw ? classeAvecSerie(classeRaw) : String(e.classeNom ?? '—');
               const elevParents = e.elevParents as Array<{ parent: ParentItem }> | undefined;
               const parentRaw = elevParents?.[0]?.parent ?? (e.parent as ParentItem | undefined);
               const parentNom = parentRaw ? parentLabel(parentRaw) : '—';
@@ -1045,7 +1051,7 @@ export default function ElevesAdminPage() {
         const photoUrl  = String(e.photoUrl ?? '');
         const initials  = ((prenom[0] ?? '') + (nom[0] ?? '')).toUpperCase();
         const classeRaw = e.classe as Record<string, unknown> | undefined;
-        const classeNom = classeRaw ? String(classeRaw.nom ?? '') : String(e.classeNom ?? '');
+        const classeNom = classeRaw ? classeAvecSerie(classeRaw) : String(e.classeNom ?? '');
         const elevParents = e.elevParents as Array<{ parent: ParentItem }> | undefined;
         const parents = elevParents?.map((ep) => ep.parent) ?? [];
         const genre = String(e.genre ?? '');
@@ -1253,7 +1259,7 @@ export default function ElevesAdminPage() {
                   style={{ height: 38, width: '100%', border: '1px solid #d9e0e8', padding: '0 12px', fontSize: 13, color: '#0f172a', fontFamily: 'inherit', background: '#fff', boxSizing: 'border-box' }}
                 >
                   <option value="">-- Sélectionner une classe --</option>
-                  {classes.map((c) => <option key={c.id} value={c.id}>{c.nom}</option>)}
+                  {classes.map((c) => <option key={c.id} value={c.id}>{classeAvecSerie(c)}</option>)}
                 </select>
               </div>
               {!anneeCouranteId && (

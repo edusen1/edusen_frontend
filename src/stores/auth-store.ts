@@ -7,6 +7,9 @@ interface AuthState {
   setSession: (session: AuthSession) => void;
   clearSession: () => void;
   user: SessionUser | null;
+  ecoleNom: string;
+  ecoleLogo: string;
+  setEcoleIdentite: (nom: string, logoUrl: string) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -14,8 +17,11 @@ export const useAuthStore = create<AuthState>()(
     (set) => ({
       session: null,
       user: null,
+      ecoleNom: '',
+      ecoleLogo: '',
       setSession: (session) => set({ session, user: session.user }),
-      clearSession: () => set({ session: null, user: null }),
+      clearSession: () => set({ session: null, user: null, ecoleNom: '', ecoleLogo: '' }),
+      setEcoleIdentite: (nom, logoUrl) => set({ ecoleNom: nom, ecoleLogo: logoUrl }),
     }),
     { name: 'noura-auth' }
   )

@@ -11,6 +11,7 @@ import Link from 'next/link';
 
 import { useAuthStore } from '@/stores/auth-store';
 import { authApi } from '@/lib/api/endpoints';
+import { apiClient } from '@/lib/api/client';
 import { decodeJwt } from '@/lib/auth/decode';
 import type { UserRole } from '@/types/auth';
 
@@ -24,7 +25,7 @@ type LoginForm = z.infer<typeof loginSchema>;
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const { setSession } = useAuthStore();
+  const { setSession, setEcoleIdentite } = useAuthStore();
   const router = useRouter();
 
   const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>({
@@ -66,6 +67,13 @@ export default function LoginPage() {
       });
       const role = payload.role as string;
 
+      // Précharger l'identité école pour éviter le flash "NS" dans la sidebar
+      if (role !== 'SUPER_ADMIN' && role !== 'GESTIONNAIRE') {
+        apiClient.get('/configuration/ecole-identite')
+          .then((r) => setEcoleIdentite(r.data?.nom ?? '', r.data?.logoUrl ?? ''))
+          .catch(() => {});
+      }
+
       // Force password change on first login
       if (passwordChangeRequired) {
         router.push('/change-password');
@@ -103,7 +111,7 @@ export default function LoginPage() {
       <div style={{ position: 'relative', background: '#0f172a' }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src="https://images.unsplash.com/photo-1577896851231-70ef18881754?w=900&q=80"
+          src="/login-bg.jpg"
           alt="École"
           style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
         />

@@ -10,7 +10,7 @@ import { useAuthStore } from '@/stores/auth-store';
 type InscItem = {
   id: string; eleveId: string; classeId: string; anneeAcademiqueId: string;
   statut: string; fraisInscription?: number | null; numeroInscription?: string; cardUrl?: string | null; cardImageUrl?: string | null; cardPdfUrl?: string | null;
-  classe?: { id: string; nom: string };
+  classe?: { id: string; nom: string; serie?: string | null };
   anneeAcademique?: { id: string; libelle: string };
   eleve?: { id: string; firstName: string; lastName: string; matricule?: string; photoUrl?: string };
   // enriched on frontend
@@ -19,11 +19,11 @@ type InscItem = {
   _reduction?: { pourcentage: number; statut: string } | null;
 };
 type EleveResult = { id: string; firstName: string; lastName: string; matricule?: string; photoUrl?: string | null };
-type ClasseItem  = { id: string; nom: string; effectifMax?: number; effectifActuel?: number; nbEleves?: number; placesRestantes?: number; niveau?: { nom: string; cycle?: { nom: string } } };
+type ClasseItem  = { id: string; nom: string; serie?: string | null; effectifMax?: number; effectifActuel?: number; nbEleves?: number; placesRestantes?: number; niveau?: { nom: string; cycle?: { nom: string } } };
 type FraisConfig = { section: string; niveau: string; inscription: number; mensualite: number; nbMois: number };
 type AnneeItem   = { id: string; libelle: string };
 type Suggestion  = {
-  lastInscription: null | { statut?: string; classe: { nom: string }; niveau: { libelle: string; moyennePassage?: number }; anneeAcademique?: { libelle: string } };
+  lastInscription: null | { statut?: string; classe: { nom: string; serie?: string | null }; niveau: { libelle: string; moyennePassage?: number }; anneeAcademique?: { libelle: string } };
   moyenne: number | null; peutPasser: boolean;
   nextNiveau?: null | { id: string; libelle: string };
   classesDisponibles: ClasseItem[];
@@ -55,7 +55,7 @@ type DemandeReduction = {
   eleve?: { id: string; firstName: string; lastName: string; matricule?: string; photoUrl?: string | null };
   demandeParUser?: { id: string; firstName: string; lastName: string; email?: string | null; role: string };
   traiteParUser?: { id: string; firstName: string; lastName: string } | null;
-  inscription?: { id: string; numeroInscription: string; classe?: { nom: string } } | null;
+  inscription?: { id: string; numeroInscription: string; classe?: { nom: string; serie?: string | null } } | null;
 };
 type DemandePassage = {
   id: string; eleveId: string; classeDestId: string; motif?: string | null; motifRefus?: string | null;
@@ -75,6 +75,11 @@ const STATUT_INSC: Record<string, { label: string; bg: string; color: string }> 
   INACTIF:   { label: 'Inactif',   bg: '#f1f5f9', color: '#64748b' },
   TERMINE:   { label: 'Terminé',   bg: '#f1f5f9', color: '#64748b' },
 };
+function classeAvecSerie(classe?: { nom?: string; serie?: string | null } | null): string {
+  const nom = String(classe?.nom ?? '');
+  const serie = String(classe?.serie ?? '').trim();
+  return serie ? `${nom} ${serie}` : nom;
+}
 const STATUT_PAI: Record<string, { label: string; bg: string; color: string }> = {
   VALIDE:     { label: 'Payé',       bg: '#dcfce7', color: '#16a34a' },
   EN_ATTENTE: { label: 'En attente', bg: '#fef3c7', color: '#d97706' },
@@ -1111,7 +1116,7 @@ export default function ScolaritePage() {
             </select>
             <select value={paiClasseId} onChange={e => setPaiClasseId(e.target.value)} style={{ height: 38, border: '1px solid #e2e8f0', background: '#fff', padding: '0 12px', fontSize: 13, fontFamily: 'inherit' }}>
               <option value="">Toutes classes</option>
-              {allClasses.map(c => <option key={c.id} value={c.id}>{c.nom}</option>)}
+              {allClasses.map(c => <option key={c.id} value={c.id}>{classeAvecSerie(c)}</option>)}
             </select>
           </div>
           {/* Table */}
@@ -1381,7 +1386,7 @@ export default function ScolaritePage() {
                 <div style={{ background: '#f8fafc', border: '1px solid #e6ebf1', padding: '10px 12px', margin: '10px 0 16px', fontSize: 12, color: '#475569' }}>
                   {suggestion.lastInscription ? (
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
-                      <span>Dernière classe : <strong>{suggestion.lastInscription.classe.nom}</strong></span>
+                      <span>Dernière classe : <strong>{classeAvecSerie(suggestion.lastInscription.classe)}</strong></span>
                       {suggestion.lastInscription.statut === 'EXCLU' && <span style={{ color: '#dc2626', fontWeight: 700 }}>Exclu</span>}
                       {suggestion.moyenne != null && <span>Moy. : <strong style={{ color: suggestion.peutPasser ? '#16a34a' : '#dc2626' }}>{suggestion.moyenne.toFixed(2)}</strong></span>}
                       {suggestion.peutPasser ? <span style={{ color: '#16a34a', fontWeight: 700 }}>✓ Peut passer</span> : suggestion.nextNiveau && <span style={{ color: '#dc2626', fontWeight: 700 }}>Passage soumis à validation admin</span>}
@@ -1401,7 +1406,7 @@ export default function ScolaritePage() {
                     {classesSuggestion.map(c => {
                       const places = c.placesRestantes ?? (c.effectifMax ? c.effectifMax - (c.nbEleves ?? 0) : null);
                       const placesTxt = places !== null ? ` — ${places} place(s) restante(s)` : '';
-                      return <option key={c.id} value={c.id}>{c.nom}{placesTxt}</option>;
+                      return <option key={c.id} value={c.id}>{classeAvecSerie(c)}{placesTxt}</option>;
                     })}
                   </select>
                   {errTxt(inscErrors.classe)}
@@ -1568,7 +1573,7 @@ export default function ScolaritePage() {
                 <option value="">Sélectionner...</option>
                 {allClasses.filter(c => c.id !== transferTarget.classeId).map(c => {
                       const places = c.placesRestantes ?? (c.effectifMax ? c.effectifMax - (c.nbEleves ?? 0) : null);
-                      return <option key={c.id} value={c.id}>{c.nom}{places !== null ? ` (${places} places)` : ''}</option>;
+                      return <option key={c.id} value={c.id}>{classeAvecSerie(c)}{places !== null ? ` (${places} places)` : ''}</option>;
                     })}
               </select>
             </div>

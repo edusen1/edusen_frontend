@@ -230,7 +230,7 @@ const sectionsByRole: Record<UserRole, NavSection[]> = {
 export function AppSidebar({ onClose, collapsed = false, onToggleCollapse }: { onClose?: () => void; collapsed?: boolean; onToggleCollapse?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, clearSession } = useAuthStore();
+  const { user, clearSession, ecoleNom: storedNom, ecoleLogo: storedLogo, setEcoleIdentite } = useAuthStore();
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => { setHydrated(true); }, []);
   const role = (user?.role ?? 'ADMIN') as UserRole;
@@ -245,8 +245,8 @@ export function AppSidebar({ onClose, collapsed = false, onToggleCollapse }: { o
   // ou un gestionnaire — ces rôles n'ont pas de page dédiée.
   const profilHref = profilHrefMap[user?.role ?? ''] ?? '/profil';
 
-  const [ecoleNom, setEcoleNom] = useState('');
-  const [ecoleLogo, setEcoleLogo] = useState('');
+  const [ecoleNom, setEcoleNom] = useState(storedNom);
+  const [ecoleLogo, setEcoleLogo] = useState(storedLogo);
   const [badges, setBadges] = useState<Record<string, number>>({});
 
   // Mark feature as seen when user visits a page with a badge
@@ -269,8 +269,11 @@ export function AppSidebar({ onClose, collapsed = false, onToggleCollapse }: { o
   useEffect(() => {
     apiClient.get('/configuration/ecole-identite')
       .then((res) => {
-        setEcoleNom(res.data?.nom ?? '');
-        setEcoleLogo(res.data?.logoUrl ?? '');
+        const nom = res.data?.nom ?? '';
+        const logoUrl = res.data?.logoUrl ?? '';
+        setEcoleNom(nom);
+        setEcoleLogo(logoUrl);
+        setEcoleIdentite(nom, logoUrl);
       })
       .catch(() => {});
 
@@ -290,8 +293,11 @@ export function AppSidebar({ onClose, collapsed = false, onToggleCollapse }: { o
 
     const handler = (e: Event) => {
       const detail = (e as CustomEvent<{ nom?: string; logoUrl?: string }>).detail;
+      const nom = detail?.nom ?? ecoleNom;
+      const logoUrl = detail?.logoUrl ?? ecoleLogo;
       if (detail?.nom !== undefined) setEcoleNom(detail.nom);
       if (detail?.logoUrl !== undefined) setEcoleLogo(detail.logoUrl);
+      setEcoleIdentite(nom, logoUrl);
     };
     window.addEventListener('ecole-config-updated', handler);
     return () => window.removeEventListener('ecole-config-updated', handler);

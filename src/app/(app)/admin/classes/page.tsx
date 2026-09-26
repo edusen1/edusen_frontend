@@ -8,6 +8,8 @@ import { normaliser } from '@/lib/recherche';
 
 const CYCLES_PRESCOLAIRE = ['PRESCOLAIRE', 'MATERNELLE', 'CRECHE'];
 const CYCLES_PRIMAIRE = ['PRIMAIRE', 'ELEMENTAIRE'];
+const CYCLES_LYCEE = ['LYCEE', 'SECONDAIRE'];
+const SERIES_LYCEE = ['L1', 'L1A', 'L1B', "L'1", 'L2', 'LA', 'S1', 'S2', 'S3', 'S4', 'S5', 'STEG', 'G', 'T1', 'T2', 'F6'];
 
 /**
  * `/admin/configuration/niveaux` expose le cycle sous `section` (« Lycée »,
@@ -37,6 +39,14 @@ function cycleDuNiveau(niveau?: NiveauItem): string {
 function salleApplicable(cycleCode: string): boolean {
   if (!cycleCode) return true; // niveau non encore choisi : on n'anticipe pas
   return [...CYCLES_PRESCOLAIRE, ...CYCLES_PRIMAIRE].includes(cycleCode);
+}
+function serieApplicable(cycleCode: string): boolean {
+  return CYCLES_LYCEE.includes(cycleCode);
+}
+function classeAvecSerie(c: Record<string, unknown>): string {
+  const nom = String(c.nom ?? '');
+  const serie = String(c.serie ?? '').trim();
+  return serie ? `${nom} ${serie}` : nom;
 }
 type ClasseItem = Record<string, unknown>;
 type AnneeItem = { id: string; libelle: string; active?: boolean; actif?: boolean };
@@ -128,7 +138,7 @@ export default function ClassesPage() {
   const [selectedEleveReport, setSelectedEleveReport] = useState<EleveReport | null>(null);
   const [loadingEleveReport, setLoadingEleveReport] = useState(false);
   const [loadingEleves, setLoadingEleves] = useState(false);
-  const [form, setForm] = useState({ nom: '', niveauId: '', effectifMax: '', professeurResponsableId: '', salleId: '' });
+  const [form, setForm] = useState({ nom: '', niveauId: '', serie: '', effectifMax: '', professeurResponsableId: '', salleId: '' });
 
   const fetchClasses = (anneeId: string) => {
     const params = anneeId ? { anneeId } : {};
@@ -189,6 +199,7 @@ export default function ClassesPage() {
   /** Cycle du niveau actuellement choisi dans le formulaire. */
   const cycleFormulaire = cycleDuNiveau(niveaux.find((n) => n.id === form.niveauId));
   const salleVisible = salleApplicable(cycleFormulaire);
+  const serieVisible = serieApplicable(cycleFormulaire);
 
   const cycleParClasseId = useMemo(() => {
     const map: Record<string, string> = {};
@@ -210,7 +221,7 @@ export default function ClassesPage() {
 
   const openCreate = () => {
     setEditItem(null);
-    setForm({ nom: '', niveauId: '', effectifMax: '', professeurResponsableId: '', salleId: '' });
+    setForm({ nom: '', niveauId: '', serie: '', effectifMax: '', professeurResponsableId: '', salleId: '' });
     setShowModal(true);
   };
 
@@ -220,6 +231,7 @@ export default function ClassesPage() {
     setForm({
       nom: (c.nom ?? '') as string,
       niveauId: (c.niveauId ?? (c.niveau as Record<string, unknown> | undefined)?.id ?? '') as string,
+      serie: String(c.serie ?? ''),
       effectifMax: String(c.effectifMax ?? ''),
       professeurResponsableId: String(profObj?.id ?? c.professeurResponsableId ?? ''),
       salleId: String(c.salleId ?? ''),
@@ -243,6 +255,7 @@ export default function ClassesPage() {
       ...(salleVisible
         ? (form.salleId ? { salleId: form.salleId } : editItem ? { salleId: null } : {})
         : (editItem ? { salleId: null } : {})),
+      ...(serieVisible ? { serie: form.serie || null } : editItem ? { serie: null } : {}),
       ...(!editItem ? { anneeAcademiqueId: selectedAnneeId } : {}),
     };
     try {
@@ -364,7 +377,6 @@ export default function ClassesPage() {
             </div>
           ) : filtered.map((c) => {
             const id = String(c.id);
-            const nom = (c.nom ?? '') as string;
             const niveauObj = c.niveau as Record<string, unknown> | undefined;
             const niveauLabel = (niveauObj?.libelle ?? niveauObj?.nom ?? '') as string;
             const cycleObj = c.cycle as Record<string, unknown> | undefined;
@@ -381,7 +393,7 @@ export default function ClassesPage() {
               <div key={id} onClick={() => openDetails(c)} style={{ background: '#fff', border: '1px solid #e6ebf1', padding: '20px', cursor: 'pointer' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
                   <div>
-                    <div style={{ fontSize: 18, fontWeight: 800, color: '#0f172a', letterSpacing: '-.01em' }}>{nom}</div>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: '#0f172a', letterSpacing: '-.01em' }}>{classeAvecSerie(c)}</div>
                     <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>{niveauLabel}</div>
                   </div>
                   {cycleLabel && <span style={{ fontSize: 11, fontWeight: 700, color: '#2563eb', background: '#eff6ff', padding: '3px 9px' }}>{cycleLabel}</span>}
@@ -437,11 +449,20 @@ export default function ClassesPage() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
               <div>
                 <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 5 }}>Niveau <span style={{ color: '#dc2626' }}>*</span></label>
-                <select value={form.niveauId} onChange={(e) => setForm((f) => ({ ...f, niveauId: e.target.value, professeurResponsableId: '' }))} style={{ width: '100%', height: 38, border: '1px solid #d9e0e8', padding: '0 12px', fontSize: 13, fontFamily: 'inherit', background: '#fff' }}>
+                <select value={form.niveauId} onChange={(e) => setForm((f) => ({ ...f, niveauId: e.target.value, serie: serieApplicable(cycleDuNiveau(niveaux.find((n) => n.id === e.target.value))) ? f.serie : '', professeurResponsableId: '' }))} style={{ width: '100%', height: 38, border: '1px solid #d9e0e8', padding: '0 12px', fontSize: 13, fontFamily: 'inherit', background: '#fff' }}>
                   <option value="">-- Selectionner --</option>
                   {niveaux.map((n) => <option key={n.id} value={n.id}>{n.nom}</option>)}
                 </select>
               </div>
+              {serieVisible && (
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 5 }}>Série</label>
+                  <select value={form.serie} onChange={(e) => setForm((f) => ({ ...f, serie: e.target.value }))} style={{ width: '100%', height: 38, border: '1px solid #d9e0e8', padding: '0 12px', fontSize: 13, fontFamily: 'inherit', background: '#fff' }}>
+                    <option value="">-- Aucune --</option>
+                    {SERIES_LYCEE.map((serie) => <option key={serie} value={serie}>{serie}</option>)}
+                  </select>
+                </div>
+              )}
               <div>
                 <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 5 }}>Effectif max</label>
                 <input type="number" value={form.effectifMax} onChange={(e) => setForm((f) => ({ ...f, effectifMax: e.target.value }))} placeholder="50" min={1} style={{ width: '100%', height: 38, border: '1px solid #d9e0e8', padding: '0 12px', fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
