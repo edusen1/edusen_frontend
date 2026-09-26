@@ -66,8 +66,8 @@ export default function LoginPage() {
       });
       const role = payload.role as string;
 
-      // Force password change on first login (except ADMIN for now)
-      if (passwordChangeRequired && role !== 'ADMIN') {
+      // Force password change on first login
+      if (passwordChangeRequired) {
         router.push('/change-password');
         return;
       }
