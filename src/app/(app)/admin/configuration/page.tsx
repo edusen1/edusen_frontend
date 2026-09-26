@@ -10,16 +10,20 @@ import { FournituresConfig } from '@/components/config/fournitures-config';
 type Tab = 'identite' | 'apparence' | 'cycles' | 'annees' | 'batiments' | 'horaires' | 'fournitures' | 'bibliotheque' | 'whatsapp' | 'coefficients';
 
 const TABS: { key: Tab; label: string }[] = [
-  { key: 'identite', label: 'Identité école' },
-  { key: 'apparence', label: 'Apparence' },
-  { key: 'cycles', label: 'Cycles & Niveaux' },
-  { key: 'annees', label: 'Années académiques' },
-  { key: 'batiments', label: 'Bâtiments & Salles' },
-  { key: 'horaires', label: 'Horaires' },
-  { key: 'fournitures', label: 'Fournitures' },
-  { key: 'bibliotheque', label: 'Bibliothèque' },
-  { key: 'whatsapp', label: 'WhatsApp' },
+  // Général
+  { key: 'identite',     label: 'Identité école' },
+  { key: 'apparence',    label: 'Apparence' },
+  // Académique
+  { key: 'cycles',       label: 'Cycles & Niveaux' },
+  { key: 'annees',       label: 'Années académiques' },
   { key: 'coefficients', label: 'Coefficients' },
+  { key: 'fournitures',  label: 'Fournitures' },
+  // Infrastructure
+  { key: 'batiments',    label: 'Bâtiments & Salles' },
+  { key: 'horaires',     label: 'Horaires' },
+  // Services
+  { key: 'bibliotheque', label: 'Bibliothèque' },
+  { key: 'whatsapp',     label: 'WhatsApp' },
 ];
 
 const PAYS_LIST = [
