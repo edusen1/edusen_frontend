@@ -43,7 +43,6 @@ const inp: React.CSSProperties = {
 export function FournituresConfig() {
   const [cycles, setCycles] = useState<Cycle[]>([]);
   const [chargement, setChargement] = useState(true);
-  const [cycleActif, setCycleActif] = useState<string | null>(null);
   const [modal, setModal] = useState<{ niveauId: string; cycleCode: string; fourniture?: Fourniture } | null>(null);
   const [form, setForm] = useState(FORM_VIDE);
   const [enregistrement, setEnregistrement] = useState(false);
@@ -54,16 +53,12 @@ export function FournituresConfig() {
       .then((r) => {
         const data: Cycle[] = Array.isArray(r.data) ? r.data : Array.isArray(r.data?.data) ? r.data.data : [];
         setCycles(data);
-        if (data.length > 0) setCycleActif((prev) => prev ?? data[0].id);
       })
       .catch(() => toast.error('Impossible de charger les fournitures'))
       .finally(() => setChargement(false));
   }, []);
 
   useEffect(() => { charger(); }, [charger]);
-
-  const cycleActuel = cycles.find((c) => c.id === cycleActif) ?? null;
-  const avecSerie = CYCLES_AVEC_SERIE.includes(cycleActuel?.code ?? '');
 
   const ouvrirCreation = (niveauId: string, cycleCode: string) => { setForm(FORM_VIDE); setModal({ niveauId, cycleCode }); };
 
@@ -88,10 +83,10 @@ export function FournituresConfig() {
     try {
       if (modal.fourniture) {
         await apiClient.put(`/configuration/fournitures/${modal.fourniture.id}`, payload);
-        toast.success('Fourniture modifiée');
+        toast.success('Fourniture modifi\u00e9e');
       } else {
         await apiClient.post('/configuration/fournitures', payload);
-        toast.success('Fourniture ajoutée');
+        toast.success('Fourniture ajout\u00e9e');
       }
       setModal(null);
       charger();
@@ -100,118 +95,110 @@ export function FournituresConfig() {
   };
 
   const supprimer = async (id: string, nom: string) => {
-    if (!confirm(`Supprimer « ${nom} » ?`)) return;
+    if (!confirm(`Supprimer \u00ab ${nom} \u00bb ?`)) return;
     try {
       await apiClient.delete(`/configuration/fournitures/${id}`);
-      toast.success('Fourniture supprimée');
+      toast.success('Fourniture supprim\u00e9e');
       charger();
     } catch { toast.error('Suppression impossible'); }
   };
 
-  if (chargement) return <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Chargement…</div>;
+  if (chargement) return <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Chargement\u2026</div>;
 
   if (cycles.length === 0) {
-    return <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Aucun niveau configuré. Créez d&apos;abord des cycles et niveaux.</div>;
+    return <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Aucun niveau configur\u00e9. Cr\u00e9ez d&apos;abord des cycles et niveaux.</div>;
   }
 
   return (
-    <div>
-      {/* Onglets cycles */}
-      <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid #e6ebf1', marginBottom: 20 }}>
-        {cycles.map((c) => {
-          const totalArticles = (c.niveaux ?? []).reduce((s, n) => s + (n.fournitures ?? []).length, 0);
-          return (
-            <button key={c.id} onClick={() => setCycleActif(c.id)}
-              style={{
-                height: 36, padding: '0 16px', border: 'none', background: 'none', fontFamily: 'inherit',
-                fontSize: 13, fontWeight: cycleActif === c.id ? 700 : 400,
-                color: cycleActif === c.id ? '#2563eb' : '#64748b',
-                borderBottom: cycleActif === c.id ? '2px solid #2563eb' : '2px solid transparent',
-                cursor: 'pointer', whiteSpace: 'nowrap',
-              }}>
-              {c.libelle}
-              {totalArticles > 0 && (
-                <span style={{ marginLeft: 6, fontSize: 11, background: '#eff6ff', color: '#2563eb', padding: '1px 6px', fontWeight: 700 }}>
-                  {totalArticles}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+      {cycles.map((cycle) => {
+        const avecSerie = CYCLES_AVEC_SERIE.includes(cycle.code);
+        const niveaux = cycle.niveaux ?? [];
 
-      {/* Niveaux du cycle actif */}
-      {cycleActuel && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {(cycleActuel.niveaux ?? []).map((niveau) => (
-            <div key={niveau.id} style={{ background: '#fff', border: '1px solid #e6ebf1' }}>
-              {/* En-tête carte */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', borderBottom: '1px solid #e6ebf1' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{niveau.libelle}</span>
-                  <span style={{ fontSize: 11, color: '#64748b', background: '#f1f5f9', padding: '2px 8px', fontWeight: 600 }}>{niveau.code}</span>
-                  {niveau.fournitures.length > 0 && (
-                    <span style={{ fontSize: 11, background: '#eff6ff', color: '#2563eb', padding: '2px 7px', fontWeight: 700 }}>
-                      {niveau.fournitures.length} article{niveau.fournitures.length > 1 ? 's' : ''}
-                    </span>
-                  )}
-                </div>
-                <button
-                  onClick={() => ouvrirCreation(niveau.id, cycleActuel.code)}
-                  style={{ height: 30, padding: '0 12px', border: 'none', background: '#2563eb', color: '#fff', fontSize: 12, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' }}>
-                  + Ajouter
-                </button>
-              </div>
-
-              {/* Tableau fournitures */}
-              {(niveau.fournitures ?? []).length === 0 ? (
-                <div style={{ padding: '20px 20px', color: '#94a3b8', fontSize: 12 }}>
-                  Aucune fourniture — cliquez sur « + Ajouter » pour en créer.
-                </div>
-              ) : (
-                <>
-                  <div style={{ display: 'grid', gridTemplateColumns: avecSerie ? '1fr 70px 80px 90px 1fr 100px' : '1fr 70px 90px 1fr 100px', padding: '8px 20px', background: '#f8fafc', borderBottom: '1px solid #e6ebf1' }}>
-                    {(avecSerie ? ['Article', 'Qté', 'Série', 'Obligatoire', 'Remarque', ''] : ['Article', 'Qté', 'Obligatoire', 'Remarque', '']).map((h) => (
-                      <span key={h} style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.04em' }}>{h}</span>
-                    ))}
-                  </div>
-                  {(niveau.fournitures ?? []).map((f, i) => (
-                    <div key={f.id} style={{
-                      display: 'grid', gridTemplateColumns: avecSerie ? '1fr 70px 80px 90px 1fr 100px' : '1fr 70px 90px 1fr 100px',
-                      padding: '10px 20px', alignItems: 'center',
-                      borderBottom: i < niveau.fournitures.length - 1 ? '1px solid #f1f5f9' : 'none',
-                    }}>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{f.nom}</span>
-                      <span style={{ fontSize: 13, color: '#334155' }}>{f.quantite}</span>
-                      {avecSerie && (
-                        <span style={{ fontSize: 11, color: f.serie ? '#7c3aed' : '#94a3b8', background: f.serie ? '#f5f3ff' : '#f1f5f9', padding: '2px 7px', width: 'fit-content', fontWeight: 600 }}>
-                          {f.serie ?? 'Toutes'}
-                        </span>
-                      )}
-                      <span style={{ fontSize: 11, fontWeight: 700, color: f.obligatoire ? '#16a34a' : '#64748b', background: f.obligatoire ? '#dcfce7' : '#f1f5f9', padding: '2px 7px', width: 'fit-content' }}>
-                        {f.obligatoire ? 'Obligatoire' : 'Facultatif'}
-                      </span>
-                      <span style={{ fontSize: 12, color: '#64748b' }}>{f.description ?? '—'}</span>
-                      <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                        <button onClick={() => ouvrirEdition(niveau.id, cycleActuel.code, f)}
-                          style={{ height: 28, padding: '0 10px', fontSize: 11, fontWeight: 600, color: '#2563eb', border: '1px solid #bfdbfe', background: '#eff6ff', cursor: 'pointer', fontFamily: 'inherit' }}>
-                          Modifier
-                        </button>
-                        <button onClick={() => void supprimer(f.id, f.nom)}
-                          style={{ height: 28, padding: '0 10px', fontSize: 11, fontWeight: 600, color: '#dc2626', border: '1px solid #fecaca', background: '#fff1f2', cursor: 'pointer', fontFamily: 'inherit' }}>
-                          Supprimer
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </>
-              )}
+        return (
+          <div key={cycle.id}>
+            {/* En-t\u00eate cycle */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.08em' }}>{cycle.libelle}</span>
+              <div style={{ flex: 1, height: 1, background: '#e6ebf1' }} />
             </div>
-          ))}
-        </div>
-      )}
 
-      {/* Modal ajout / édition */}
+            {/* Niveaux du cycle */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {niveaux.map((niveau) => {
+                const fournitures = niveau.fournitures ?? [];
+                return (
+                  <div key={niveau.id} style={{ background: '#fff', border: '1px solid #e6ebf1' }}>
+                    {/* En-t\u00eate niveau */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 18px', borderBottom: '1px solid #e6ebf1' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{niveau.libelle}</span>
+                        <span style={{ fontSize: 11, color: '#64748b', background: '#f1f5f9', padding: '1px 7px', fontWeight: 600 }}>{niveau.code}</span>
+                        {fournitures.length > 0 && (
+                          <span style={{ fontSize: 11, background: '#eff6ff', color: '#2563eb', padding: '1px 7px', fontWeight: 700 }}>
+                            {fournitures.length} article{fournitures.length > 1 ? 's' : ''}
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => ouvrirCreation(niveau.id, cycle.code)}
+                        style={{ height: 28, padding: '0 10px', border: 'none', background: '#2563eb', color: '#fff', fontSize: 12, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' }}>
+                        + Ajouter
+                      </button>
+                    </div>
+
+                    {/* Tableau fournitures */}
+                    {fournitures.length === 0 ? (
+                      <div style={{ padding: '12px 18px', color: '#94a3b8', fontSize: 12 }}>
+                        Aucune fourniture \u2014 cliquez sur \u00ab\u00a0+ Ajouter\u00a0\u00bb pour en cr\u00e9er.
+                      </div>
+                    ) : (
+                      <>
+                        <div style={{ display: 'grid', gridTemplateColumns: avecSerie ? '1fr 60px 75px 90px 1fr 100px' : '1fr 60px 90px 1fr 100px', padding: '7px 18px', background: '#f8fafc', borderBottom: '1px solid #e6ebf1' }}>
+                          {(avecSerie ? ['Article', 'Qt\u00e9', 'S\u00e9rie', 'Obligatoire', 'Remarque', ''] : ['Article', 'Qt\u00e9', 'Obligatoire', 'Remarque', '']).map((h) => (
+                            <span key={h} style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.04em' }}>{h}</span>
+                          ))}
+                        </div>
+                        {fournitures.map((f, i) => (
+                          <div key={f.id} style={{
+                            display: 'grid', gridTemplateColumns: avecSerie ? '1fr 60px 75px 90px 1fr 100px' : '1fr 60px 90px 1fr 100px',
+                            padding: '9px 18px', alignItems: 'center',
+                            borderBottom: i < fournitures.length - 1 ? '1px solid #f1f5f9' : 'none',
+                          }}>
+                            <span style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{f.nom}</span>
+                            <span style={{ fontSize: 13, color: '#334155' }}>{f.quantite}</span>
+                            {avecSerie && (
+                              <span style={{ fontSize: 11, color: f.serie ? '#7c3aed' : '#94a3b8', background: f.serie ? '#f5f3ff' : '#f1f5f9', padding: '1px 6px', width: 'fit-content', fontWeight: 600 }}>
+                                {f.serie ?? 'Toutes'}
+                              </span>
+                            )}
+                            <span style={{ fontSize: 11, fontWeight: 700, color: f.obligatoire ? '#16a34a' : '#64748b', background: f.obligatoire ? '#dcfce7' : '#f1f5f9', padding: '1px 6px', width: 'fit-content' }}>
+                              {f.obligatoire ? 'Obligatoire' : 'Facultatif'}
+                            </span>
+                            <span style={{ fontSize: 12, color: '#64748b' }}>{f.description ?? '\u2014'}</span>
+                            <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                              <button onClick={() => ouvrirEdition(niveau.id, cycle.code, f)}
+                                style={{ height: 26, padding: '0 9px', fontSize: 11, fontWeight: 600, color: '#2563eb', border: '1px solid #bfdbfe', background: '#eff6ff', cursor: 'pointer', fontFamily: 'inherit' }}>
+                                Modifier
+                              </button>
+                              <button onClick={() => void supprimer(f.id, f.nom)}
+                                style={{ height: 26, padding: '0 9px', fontSize: 11, fontWeight: 600, color: '#dc2626', border: '1px solid #fecaca', background: '#fff1f2', cursor: 'pointer', fontFamily: 'inherit' }}>
+                                Supprimer
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+
+      {/* Modal ajout / \u00e9dition */}
       {modal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div style={{ background: '#fff', width: 460 }}>
@@ -225,7 +212,7 @@ export function FournituresConfig() {
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 5 }}>Quantité</label>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 5 }}>Quantit\u00e9</label>
                   <input type="number" min={1} value={form.quantite} onChange={(e) => setForm((f) => ({ ...f, quantite: e.target.value }))} style={inp} />
                 </div>
                 <div>
@@ -235,13 +222,13 @@ export function FournituresConfig() {
               </div>
               {CYCLES_AVEC_SERIE.includes(modal.cycleCode) && (
                 <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 5 }}>Série (optionnel)</label>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 5 }}>S\u00e9rie (optionnel)</label>
                   <select value={form.serie} onChange={(e) => setForm((f) => ({ ...f, serie: e.target.value }))}
                     style={{ ...inp, height: 30, background: '#fff' }}>
-                    <option value="">Toutes les séries</option>
+                    <option value="">Toutes les s\u00e9ries</option>
                     {SERIES_LYCEE.map((s) => <option key={s} value={s}>{s}</option>)}
                   </select>
-                  <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>Laisser vide pour une fourniture commune à toutes les séries.</div>
+                  <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>Laisser vide pour une fourniture commune \u00e0 toutes les s\u00e9ries.</div>
                 </div>
               )}
               <div>
@@ -262,7 +249,7 @@ export function FournituresConfig() {
               </button>
               <button onClick={() => void enregistrer()} disabled={enregistrement}
                 style={{ height: 32, padding: '0 16px', border: 'none', background: '#2563eb', color: '#fff', fontSize: 12, fontWeight: 600, fontFamily: 'inherit', cursor: enregistrement ? 'wait' : 'pointer', opacity: enregistrement ? 0.7 : 1 }}>
-                {enregistrement ? 'Enregistrement…' : modal.fourniture ? 'Modifier' : 'Ajouter'}
+                {enregistrement ? 'Enregistrement\u2026' : modal.fourniture ? 'Modifier' : 'Ajouter'}
               </button>
             </div>
           </div>
