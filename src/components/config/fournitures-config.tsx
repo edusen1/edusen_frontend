@@ -88,10 +88,10 @@ export function FournituresConfig() {
     try {
       if (modal.item) {
         await apiClient.put(`/configuration/fournitures/${modal.item.id}`, payload);
-        toast.success('Fourniture modifi\u00e9e');
+        toast.success('Fourniture modifiée');
       } else {
         await apiClient.post('/configuration/fournitures', payload);
-        toast.success('Fourniture ajout\u00e9e');
+        toast.success('Fourniture ajoutée');
       }
       setModal(null);
       charger();
@@ -100,19 +100,19 @@ export function FournituresConfig() {
   };
 
   const supprimer = async (id: string, nom: string) => {
-    if (!confirm(`Supprimer \u00ab ${nom} \u00bb ?`)) return;
+    if (!confirm(`Supprimer « ${nom} » ?`)) return;
     try {
       await apiClient.delete(`/configuration/fournitures/${id}`);
-      toast.success('Fourniture supprim\u00e9e');
+      toast.success('Fourniture supprimée');
       charger();
     } catch { toast.error('Suppression impossible'); }
   };
 
-  if (chargement) return <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Chargement\u2026</div>;
-  if (cycles.length === 0) return <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Aucun cycle configur\u00e9.</div>;
+  if (chargement) return <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Chargement…</div>;
+  if (cycles.length === 0) return <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Aucun cycle configuré.</div>;
 
   const cols = avecSerie ? '1fr 60px 72px 90px 1fr 110px' : '1fr 60px 90px 1fr 110px';
-  const headers = avecSerie ? ['Article', 'Qt\u00e9', 'S\u00e9rie', 'Obligatoire', 'Remarque', ''] : ['Article', 'Qt\u00e9', 'Obligatoire', 'Remarque', ''];
+  const headers = avecSerie ? ['Article', 'Qté', 'Série', 'Obligatoire', 'Remarque', ''] : ['Article', 'Qté', 'Obligatoire', 'Remarque', ''];
 
   return (
     <div>
@@ -147,7 +147,7 @@ export function FournituresConfig() {
             const fours = niveau.fournitures ?? [];
             return (
               <div key={niveau.id} style={{ border: '1px solid #e6ebf1', background: '#fff' }}>
-                {/* En-t\u00eate niveau */}
+                {/* En-tête niveau */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 18px', borderBottom: '1px solid #e6ebf1' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{niveau.libelle}</span>
@@ -171,7 +171,7 @@ export function FournituresConfig() {
                   </div>
                 ) : (
                   <>
-                    {/* En-t\u00eate colonnes */}
+                    {/* En-tête colonnes */}
                     <div style={{ display: 'grid', gridTemplateColumns: cols, padding: '7px 18px', background: '#f8fafc', borderBottom: '1px solid #e6ebf1' }}>
                       {headers.map((h) => (
                         <span key={h} style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.05em' }}>{h}</span>
@@ -194,7 +194,7 @@ export function FournituresConfig() {
                         <span style={{ fontSize: 11, fontWeight: 700, color: f.obligatoire ? '#16a34a' : '#64748b', background: f.obligatoire ? '#dcfce7' : '#f1f5f9', padding: '1px 6px', width: 'fit-content' }}>
                           {f.obligatoire ? 'Obligatoire' : 'Facultatif'}
                         </span>
-                        <span style={{ fontSize: 12, color: '#64748b' }}>{f.description ?? '\u2014'}</span>
+                        <span style={{ fontSize: 12, color: '#64748b' }}>{f.description ?? '—'}</span>
                         <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
                           <button onClick={() => ouvrir(niveau.id, cycle.code, f)}
                             style={{ height: 26, padding: '0 9px', fontSize: 11, fontWeight: 600, color: '#2563eb', border: '1px solid #bfdbfe', background: '#eff6ff', cursor: 'pointer', fontFamily: 'inherit' }}>
@@ -229,7 +229,7 @@ export function FournituresConfig() {
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 5 }}>Quantit\u00e9</label>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 5 }}>Quantité</label>
                   <input type="number" min={1} value={form.quantite} onChange={(e) => setForm((f) => ({ ...f, quantite: e.target.value }))} style={inp} />
                 </div>
                 <div>
@@ -239,13 +239,13 @@ export function FournituresConfig() {
               </div>
               {CYCLES_AVEC_SERIE.includes(modal.cycleCode) && (
                 <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 5 }}>S\u00e9rie (optionnel)</label>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 5 }}>Série (optionnel)</label>
                   <select value={form.serie} onChange={(e) => setForm((f) => ({ ...f, serie: e.target.value }))}
                     style={{ ...inp, height: 30, background: '#fff' }}>
-                    <option value="">Toutes les s\u00e9ries</option>
+                    <option value="">Toutes les séries</option>
                     {SERIES.map((s) => <option key={s} value={s}>{s}</option>)}
                   </select>
-                  <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>Laisser vide = fourniture commune \u00e0 toutes les s\u00e9ries.</div>
+                  <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>Laisser vide = fourniture commune à toutes les séries.</div>
                 </div>
               )}
               <div>
@@ -264,7 +264,7 @@ export function FournituresConfig() {
               </button>
               <button onClick={() => void enregistrer()} disabled={saving}
                 style={{ height: 32, padding: '0 16px', border: 'none', background: '#2563eb', color: '#fff', fontSize: 12, fontWeight: 600, fontFamily: 'inherit', cursor: saving ? 'wait' : 'pointer', opacity: saving ? 0.7 : 1 }}>
-                {saving ? 'Enregistrement\u2026' : modal.item ? 'Modifier' : 'Ajouter'}
+                {saving ? 'Enregistrement…' : modal.item ? 'Modifier' : 'Ajouter'}
               </button>
             </div>
           </div>
