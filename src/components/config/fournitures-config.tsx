@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { apiClient } from '@/lib/api/client';
 
 const CYCLES_AVEC_SERIE = ['COLLEGE', 'LYCEE', 'SECONDAIRE'];
-const SERIES = ['L1', 'L1A', 'L1B', "L'1", 'L2', 'LA', 'S1', 'S2', 'S3', 'S4', 'S5', 'STEG', 'G', 'T1', 'T2', 'F6'];
+const SERIES = ['L1', "L'1", 'L2', 'S1', 'S2', 'S3', 'S4', 'S5', 'STEG', 'T1', 'T2', 'F6'];
 
 interface Fourniture {
   id: string;
