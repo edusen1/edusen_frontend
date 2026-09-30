@@ -9,6 +9,7 @@ import { apiClient } from '@/lib/api/client';
 
 const SIDEBAR_W = 264;
 const SIDEBAR_COLLAPSED_W = 72;
+const WEB_ROLES: UserRole[] = ['SUPER_ADMIN', 'GESTIONNAIRE', 'ADMIN', 'ENSEIGNANT', 'CAISSIER', 'COMPTABLE', 'SURVEILLANT', 'RH'];
 
 function schoolInitials(nom: string): string {
   return nom
@@ -235,6 +236,9 @@ export function AppSidebar({ onClose, collapsed = false, onToggleCollapse }: { o
   useEffect(() => { setHydrated(true); }, []);
   const role = (user?.role ?? 'ADMIN') as UserRole;
   const sections = sectionsByRole[role] ?? adminSections;
+  const webRoles = (user?.allRoles ?? []).filter((candidate): candidate is UserRole =>
+    WEB_ROLES.includes(candidate as UserRole),
+  );
 
   const initials = `${user?.prenom?.[0] ?? ''}${user?.nom?.[0] ?? ''}` || 'NS';
   const fullName = user ? `${user.prenom} ${user.nom}` : 'Utilisateur';
@@ -347,7 +351,7 @@ export function AppSidebar({ onClose, collapsed = false, onToggleCollapse }: { o
       </button>
 
       {/* Role switcher */}
-      {!collapsed && (user?.allRoles?.length ?? 0) > 1 && (
+      {!collapsed && webRoles.length > 1 && (
         <div style={{ padding: '8px 10px', borderBottom: '1px solid #1e293b' }}>
           <select
             value={role}
@@ -368,7 +372,7 @@ export function AppSidebar({ onClose, collapsed = false, onToggleCollapse }: { o
             }}
             style={{ width: '100%', height: 30, background: '#1e293b', border: '1px solid #334155', color: '#f1f5f9', fontSize: 11, fontWeight: 600, fontFamily: 'inherit', padding: '0 8px', cursor: 'pointer' }}
           >
-            {user!.allRoles!.map((r) => (
+            {webRoles.map((r) => (
               <option key={r} value={r}>{r}</option>
             ))}
           </select>

@@ -21,6 +21,7 @@ const loginSchema = z.object({
 });
 
 type LoginForm = z.infer<typeof loginSchema>;
+const WEB_TENANT_ROLES: UserRole[] = ['ADMIN', 'ENSEIGNANT', 'CAISSIER', 'COMPTABLE', 'SURVEILLANT', 'RH'];
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
@@ -38,7 +39,8 @@ export default function LoginPage() {
       const res = await authApi.login(data);
       const resData = res.data?.data ?? res.data;
       const { accessToken, refreshToken, passwordChangeRequired } = resData;
-      const payload = decodeJwt(accessToken);
+      let effectiveAccessToken = accessToken;
+      let payload = decodeJwt(accessToken);
 
       // Les comptes plateforme ne se connectent pas sur le front tenant :
       // leur espace est l'application `edusen_plateforme`. Aucune session n'est
@@ -51,8 +53,21 @@ export default function LoginPage() {
         return;
       }
 
+      const allRoles = (payload.allRoles as UserRole[]) ?? [(payload.role as UserRole) ?? 'ADMIN'];
+      const preferredWebRole = allRoles.find((role) => WEB_TENANT_ROLES.includes(role));
+      if (preferredWebRole && preferredWebRole !== payload.role) {
+        const switchRes = await apiClient.post('/v1/auth/switch-role', { role: preferredWebRole }, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        const switchedToken = (switchRes.data as { accessToken?: string })?.accessToken;
+        if (switchedToken) {
+          effectiveAccessToken = switchedToken;
+          payload = decodeJwt(switchedToken);
+        }
+      }
+
       setSession({
-        accessToken,
+        accessToken: effectiveAccessToken,
         refreshToken,
         expiresAt: ((payload.exp as number) ?? 0) * 1000,
         user: {

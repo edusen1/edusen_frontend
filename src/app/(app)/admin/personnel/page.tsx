@@ -56,6 +56,7 @@ type AbsencePersonnelItem = {
 };
 
 const TYPES_PERSONNEL: { value: string; label: string; color: string; bg: string; needsSection: boolean }[] = [
+  { value: 'ENSEIGNANT', label: 'Enseignant', color: '#0369a1', bg: '#e0f2fe', needsSection: false },
   { value: 'SURVEILLANT_GENERAL', label: 'Surveillant Général', color: '#d97706', bg: '#fef3c7', needsSection: false },
   { value: 'SURVEILLANT', label: 'Surveillant', color: '#b45309', bg: '#fef9c3', needsSection: true },
   { value: 'SECRETAIRE_SURVEILLANT', label: 'Secrétaire Surv.', color: '#92400e', bg: '#fef3c7', needsSection: true },
