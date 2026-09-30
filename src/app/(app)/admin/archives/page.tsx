@@ -19,6 +19,14 @@ type ArchiveRow = {
   details?: Record<string, unknown>;
 };
 
+type ArchiveDetailResponse = {
+  content: Record<string, unknown>[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+};
+
 const TYPE_LABELS: Record<ArchiveType, string> = {
   ANNEE_SCOLAIRE: 'Année scolaire',
   BULLETIN: 'Bulletins',
@@ -55,6 +63,13 @@ function asEntries(value: unknown): DetailEntry[] {
 
 function asNumber(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function displayValue(value: unknown) {
+  if (value === null || value === undefined || value === '') return '—';
+  if (typeof value === 'number') return value.toLocaleString('fr-FR');
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(value)) return formatDate(value);
+  return String(value);
 }
 
 function TypeMark({ type }: { type: ArchiveType }) {
@@ -116,6 +131,11 @@ export default function ArchivesPage() {
   const [yearFilter, setYearFilter] = useState('TOUTES');
   const [search, setSearch] = useState('');
   const [detail, setDetail] = useState<ArchiveRow | null>(null);
+  const [detailData, setDetailData] = useState<ArchiveDetailResponse | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState('');
+  const [detailSearch, setDetailSearch] = useState('');
+  const [detailPage, setDetailPage] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -135,6 +155,36 @@ export default function ArchivesPage() {
     void load();
     return () => { cancelled = true; };
   }, []);
+
+  useEffect(() => {
+    if (!detail) return;
+    let cancelled = false;
+    const archiveId = detail.id;
+    async function loadDetails() {
+      setDetailLoading(true);
+      setDetailError('');
+      try {
+        const response = await apiClient.get(`/admin/archives/${archiveId}`, {
+          params: { page: detailPage, size: 10, search: detailSearch.trim() || undefined },
+        });
+        if (!cancelled) setDetailData(response.data as ArchiveDetailResponse);
+      } catch {
+        if (!cancelled) setDetailError('Impossible de charger le détail de cette archive.');
+      } finally {
+        if (!cancelled) setDetailLoading(false);
+      }
+    }
+    void loadDetails();
+    return () => { cancelled = true; };
+  }, [detail, detailPage, detailSearch]);
+
+  function openDetail(row: ArchiveRow) {
+    setDetail(row);
+    setDetailData(null);
+    setDetailError('');
+    setDetailSearch('');
+    setDetailPage(0);
+  }
 
   const years = useMemo(() => [...new Set(rows.map((row) => row.anneeScolaire))].sort().reverse(), [rows]);
 
@@ -226,7 +276,7 @@ export default function ArchivesPage() {
                       {row.statut && <span>Statut : {row.statut}</span>}
                     </div>
                   </div>
-                  <button onClick={() => setDetail(row)} style={{ height: 30, padding: '0 12px', border: '1px solid #e2e8f0', background: '#fff', color: '#475569', fontSize: 12, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' }}>
+                  <button onClick={() => openDetail(row)} style={{ height: 30, padding: '0 12px', border: '1px solid #e2e8f0', background: '#fff', color: '#475569', fontSize: 12, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' }}>
                     Détails
                   </button>
                 </div>
@@ -238,12 +288,12 @@ export default function ArchivesPage() {
 
       {detail && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.42)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-          <div style={{ background: '#fff', width: 480, boxShadow: '0 20px 60px rgba(15,23,42,.22)' }}>
+          <div style={{ background: '#fff', width: 'min(980px, 96vw)', maxHeight: '92vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 60px rgba(15,23,42,.22)' }}>
             <div style={{ padding: '18px 22px', borderBottom: '1px solid #e6ebf1', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontWeight: 700, fontSize: 15 }}>Détail de l&apos;archive</span>
               <button onClick={() => setDetail(null)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#94a3b8' }}>×</button>
             </div>
-            <div style={{ padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 12, overflow: 'auto' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <TypeMark type={detail.type} />
                 <div>
@@ -296,6 +346,70 @@ export default function ArchivesPage() {
                   )}
                 </div>
               )}
+              <div style={{ border: '1px solid #e2e8f0', background: '#fff' }}>
+                <div style={{ padding: 12, borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 800, color: '#0f172a' }}>Lignes archivées</div>
+                    <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{detailData?.totalElements?.toLocaleString('fr-FR') ?? 0} élément(s)</div>
+                  </div>
+                  <input
+                    value={detailSearch}
+                    onChange={(event) => { setDetailSearch(event.target.value); setDetailPage(0); }}
+                    placeholder="Rechercher dans le détail"
+                    style={{ height: 32, width: 240, border: '1px solid #e2e8f0', padding: '0 10px', fontSize: 12, fontFamily: 'inherit' }}
+                  />
+                </div>
+                {detailError && <div style={{ padding: 16, color: '#991b1b', background: '#fef2f2', fontSize: 12 }}>{detailError}</div>}
+                {detailLoading ? (
+                  <div style={{ padding: 22, color: '#94a3b8', fontSize: 12, textAlign: 'center' }}>Chargement du détail...</div>
+                ) : !detailData || detailData.content.length === 0 ? (
+                  <div style={{ padding: 22, color: '#94a3b8', fontSize: 12, textAlign: 'center' }}>Aucune ligne trouvée</div>
+                ) : (
+                  <>
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                        <thead>
+                          <tr style={{ background: '#f8fafc', color: '#64748b', textAlign: 'left' }}>
+                            {(detail.type === 'PAIEMENT'
+                              ? ['reference', 'eleve', 'matricule', 'montant', 'typePaiement', 'modePaiement', 'statut', 'dateReference']
+                              : detail.type === 'BULLETIN'
+                                ? ['eleve', 'matricule', 'classe', 'serie', 'trimestre', 'statut', 'moyenne', 'rang', 'document']
+                                : ['numeroInscription', 'eleve', 'matricule', 'classe', 'serie', 'statut', 'fraisInscription', 'dateReference']
+                            ).map((column) => (
+                              <th key={column} style={{ padding: '9px 10px', borderBottom: '1px solid #e2e8f0', fontWeight: 800, whiteSpace: 'nowrap' }}>{column}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {detailData.content.map((row, index) => (
+                            <tr key={String(row.id ?? index)}>
+                              {(detail.type === 'PAIEMENT'
+                                ? ['reference', 'eleve', 'matricule', 'montant', 'typePaiement', 'modePaiement', 'statut', 'dateReference']
+                                : detail.type === 'BULLETIN'
+                                  ? ['eleve', 'matricule', 'classe', 'serie', 'trimestre', 'statut', 'moyenne', 'rang', 'document']
+                                  : ['numeroInscription', 'eleve', 'matricule', 'classe', 'serie', 'statut', 'fraisInscription', 'dateReference']
+                              ).map((column) => (
+                                <td key={column} style={{ padding: '9px 10px', borderBottom: '1px solid #f1f5f9', color: '#475569', whiteSpace: 'nowrap' }}>
+                                  {column === 'montant' || column === 'fraisInscription'
+                                    ? formatMoney(asNumber(row[column]))
+                                    : displayValue(row[column])}
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div style={{ padding: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #e2e8f0', fontSize: 12, color: '#64748b' }}>
+                      <span>Page {detailData.page + 1} / {Math.max(1, detailData.totalPages)}</span>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button disabled={detailPage <= 0} onClick={() => setDetailPage((page) => Math.max(0, page - 1))} style={{ border: '1px solid #e2e8f0', background: detailPage <= 0 ? '#f8fafc' : '#fff', color: '#475569', padding: '6px 10px', fontSize: 12, cursor: detailPage <= 0 ? 'not-allowed' : 'pointer' }}>Précédent</button>
+                        <button disabled={detailData.page + 1 >= detailData.totalPages} onClick={() => setDetailPage((page) => page + 1)} style={{ border: '1px solid #e2e8f0', background: detailData.page + 1 >= detailData.totalPages ? '#f8fafc' : '#fff', color: '#475569', padding: '6px 10px', fontSize: 12, cursor: detailData.page + 1 >= detailData.totalPages ? 'not-allowed' : 'pointer' }}>Suivant</button>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
             <div style={{ padding: '14px 22px', borderTop: '1px solid #e6ebf1', display: 'flex', justifyContent: 'flex-end' }}>
               <button onClick={() => setDetail(null)} style={{ border: '1px solid #e2e8f0', background: '#fff', color: '#475569', padding: '8px 16px', fontWeight: 600, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>Fermer</button>
