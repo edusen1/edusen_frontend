@@ -76,7 +76,8 @@ export default function EncaissementPage() {
       date: form.date,
       statut: 'VALIDE',
     });
-    setLastReference((result as Record<string, unknown>)?.reference as string ?? null);
+    const payload = ('data' in result ? result.data : result) as Record<string, unknown>;
+    setLastReference(payload.reference as string ?? null);
     setForm(EMPTY_FORM);
   };
 

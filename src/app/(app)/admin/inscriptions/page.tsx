@@ -169,6 +169,24 @@ async function printSchoolCard(inscriptionId?: string | null) {
     toast.error('Carte scolaire introuvable');
   }
 }
+async function printFournitures(inscriptionId?: string | null) {
+  if (!inscriptionId) { toast.error('Inscription introuvable'); return; }
+  const target = window.open('', '_blank');
+  try {
+    const res = await apiClient.post(`/admin/inscriptions/${inscriptionId}/fournitures-pdf`);
+    const data = res.data as { fournituresPdfUrl?: string | null; url?: string | null };
+    const url = data.fournituresPdfUrl ?? data.url;
+    if (url) openPreparedUrl(target, url);
+    else {
+      target?.close();
+      toast.error('PDF fournitures introuvable');
+    }
+  } catch (err: unknown) {
+    target?.close();
+    const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+    toast.error(message ?? 'Impossible de générer les fournitures');
+  }
+}
 function inp(error?: boolean, extra?: React.CSSProperties): React.CSSProperties {
   return { height: 38, width: '100%', border: `1px solid ${error ? '#f87171' : '#d9e0e8'}`, padding: '0 12px', fontSize: 13, color: '#0f172a', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box', background: error ? '#fff5f5' : '#fff', ...extra };
 }
@@ -1058,14 +1076,15 @@ export default function ScolaritePage() {
                         <span style={{ fontSize: 11, fontWeight: 700, color: st.color, background: st.bg, padding: '3px 8px', display: 'inline-block' }}>{st.label}</span>
                         {/* Actions */}
                         <div onClick={(e) => e.stopPropagation()} style={{ position: 'relative' }}>
-                          <button onMouseDown={(event) => { event.stopPropagation(); event.nativeEvent.stopImmediatePropagation?.(); }} onClick={(event) => toggleActionMenu(`insc-${ins.id}`, event, 124)} style={{ height: 28, minWidth: 34, border: '1px solid #dbe4ef', background: '#fff', color: '#475569', fontSize: 16, fontWeight: 800, cursor: 'pointer', lineHeight: 1 }}>⋯</button>
+                          <button onMouseDown={(event) => { event.stopPropagation(); event.nativeEvent.stopImmediatePropagation?.(); }} onClick={(event) => toggleActionMenu(`insc-${ins.id}`, event, 150)} style={{ height: 28, minWidth: 34, border: '1px solid #dbe4ef', background: '#fff', color: '#475569', fontSize: 16, fontWeight: 800, cursor: 'pointer', lineHeight: 1 }}>⋯</button>
                           {openActionMenu === `insc-${ins.id}` && (
-                            <div style={actionMenuStyle(124)} onMouseDown={(event) => event.stopPropagation()} onClick={(event) => event.stopPropagation()}>
+                            <div style={actionMenuStyle(150)} onMouseDown={(event) => event.stopPropagation()} onClick={(event) => event.stopPropagation()}>
                               <button onClick={() => { setOpenActionMenu(null); setTransferTarget(ins); setNewClasseId(''); }} style={{ width: '100%', height: 30, border: 'none', background: '#fff', color: '#334155', textAlign: 'left', padding: '0 10px', fontSize: 12, fontFamily: 'inherit', cursor: 'pointer' }}>Transférer</button>
                               {!['ACTIF', 'EXCLU', 'INACTIF'].includes(ins.statut) && (
                                 <button onClick={() => { setOpenActionMenu(null); handleReactiver(ins); }} style={{ width: '100%', height: 30, border: 'none', background: '#fff', color: '#16a34a', textAlign: 'left', padding: '0 10px', fontSize: 12, fontFamily: 'inherit', cursor: 'pointer' }}>Réactiver</button>
                               )}
                               <button onMouseDown={(event) => { event.preventDefault(); event.stopPropagation(); event.nativeEvent.stopImmediatePropagation?.(); setOpenActionMenu(null); printSchoolCard(ins.id); }} style={{ width: '100%', height: 30, border: 'none', background: '#fff', color: '#7c3aed', textAlign: 'left', padding: '0 10px', fontSize: 12, fontFamily: 'inherit', cursor: 'pointer' }}>Imprimer carte</button>
+                              <button onMouseDown={(event) => { event.preventDefault(); event.stopPropagation(); event.nativeEvent.stopImmediatePropagation?.(); setOpenActionMenu(null); printFournitures(ins.id); }} style={{ width: '100%', height: 30, border: 'none', background: '#f0fdf4', color: '#15803d', textAlign: 'left', padding: '0 10px', fontSize: 12, fontFamily: 'inherit', cursor: 'pointer' }}>Imprimer fournitures</button>
                               {ins._paymentId && <button onMouseDown={(event) => { event.preventDefault(); event.stopPropagation(); event.nativeEvent.stopImmediatePropagation?.(); setOpenActionMenu(null); printPaymentReceipt(ins._paymentId); }} style={{ width: '100%', height: 30, border: 'none', background: '#eff6ff', color: '#2563eb', textAlign: 'left', padding: '0 10px', fontSize: 12, fontFamily: 'inherit', cursor: 'pointer' }}>Imprimer reçu</button>}
                               {reste != null && reste > 0 && <button onMouseDown={(event) => { event.preventDefault(); event.stopPropagation(); event.nativeEvent.stopImmediatePropagation?.(); setOpenActionMenu(null); setDebtTarget({ inscription: ins, montant: reste }); }} style={{ width: '100%', height: 30, border: 'none', background: '#fff7ed', color: '#c2410c', textAlign: 'left', padding: '0 10px', fontSize: 12, fontFamily: 'inherit', cursor: 'pointer' }}>Payer dette</button>}
                             </div>
