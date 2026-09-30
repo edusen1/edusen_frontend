@@ -7,10 +7,10 @@ import { extractApiMessage } from '@/hooks/use-query-api';
 
 type R = Record<string, unknown>;
 type Programme = R & { id: string; titre: string; niveauNom: string; matiereNom: string; statut: string; nbChapitres: number; anneeAcademique?: { libelle: string } };
-type Chapitre = R & { id: string; numero: number; titre: string; dateLimite: string; periode: string; volumeHoraire?: number; evaluationPrevue?: boolean; typeEvaluation?: string };
+type Chapitre = R & { id: string; numero: number; titre: string; dateLimite?: string | null; periode: string; volumeHoraire?: number };
 type ProgDetail = Programme & { chapitres: Chapitre[] };
 type CahierTexte = { id: string; dateCours: string; enseignantNom?: string; classeNom?: string; contenuTraite: string; observations?: string };
-type ChapAvancement = { id: string; numero: number; titre: string; dateLimite: string; periode: string; traite: boolean; enRetard: boolean; joursRetard: number; nbSeances: number; statut?: string; cahiersTexte?: CahierTexte[] };
+type ChapAvancement = { id: string; numero: number; titre: string; dateLimite?: string | null; periode: string; traite: boolean; enRetard: boolean; joursRetard: number; nbSeances: number; statut?: string; cahiersTexte?: CahierTexte[] };
 type ProgAvancement = { programmeId: string; niveauNom: string; matiereNom: string; annee: string; totalChapitres: number; chapitresTraites: number; pourcentage: number; chapitresEnRetard: number; chapitres: ChapAvancement[] };
 
 type TabKey = 'programmes' | 'avancement';
@@ -18,7 +18,7 @@ const B = '#e6ebf1';
 const STATUT_COLORS: Record<string, { bg: string; text: string }> = { BROUILLON: { bg: '#f1f5f9', text: '#64748b' }, VALIDE: { bg: '#f0fdf4', text: '#16a34a' }, EN_COURS: { bg: '#eff6ff', text: '#2563eb' }, TERMINE: { bg: '#f8fafc', text: '#475569' } };
 const STATUT_LABELS: Record<string, string> = { BROUILLON: 'Brouillon', VALIDE: 'Validé', EN_COURS: 'En cours', TERMINE: 'Terminé' };
 const PERIODE_LABELS: Record<string, string> = { TRIMESTRE_1: 'T1', TRIMESTRE_2: 'T2', TRIMESTRE_3: 'T3', SEMESTRE_1: 'S1', SEMESTRE_2: 'S2' };
-function fmtD(v: string) { try { return new Date(v).toLocaleDateString('fr-FR'); } catch { return v; } }
+function fmtD(v?: string | null) { if (!v) return '—'; try { return new Date(v).toLocaleDateString('fr-FR'); } catch { return v; } }
 function pctColor(p: number) { return p >= 80 ? '#16a34a' : p >= 50 ? '#d97706' : '#dc2626'; }
 function Bar({ value, max, color, h = 8 }: { value: number; max: number; color: string; h?: number }) {
   const w = max > 0 ? Math.min(100, Math.round((value / max) * 100)) : 0;
@@ -26,7 +26,7 @@ function Bar({ value, max, color, h = 8 }: { value: number; max: number; color: 
 }
 
 const EMPTY_PROG = { titre: '', description: '', niveauId: '', matiereId: '', anneeAcademiqueId: '' };
-const EMPTY_CH = { titre: '', description: '', objectifs: '', competences: '', ressources: '', prerequis: '', periode: 'TRIMESTRE_1', dateLimite: '', volumeHoraire: '', nbSeances: '', evaluationPrevue: false, typeEvaluation: '' };
+const EMPTY_CH = { titre: '', description: '', objectifs: '', competences: '', ressources: '', prerequis: '', periode: 'TRIMESTRE_1', dateLimite: '', volumeHoraire: '', nbSeances: '' };
 
 export default function ProgrammesPage() {
   const [tab, setTab] = useState<TabKey>('programmes');
@@ -155,13 +155,13 @@ export default function ProgrammesPage() {
   }
 
   function openAddCh() { setEditChId(null); setChForm({ ...EMPTY_CH, periode: defaultPeriode() }); setShowChModal(true); }
-  function openEditCh(ch: Chapitre) { setEditChId(ch.id); setChForm({ titre: ch.titre, description: String(ch.description ?? ''), objectifs: String(ch.objectifs ?? ''), competences: String(ch.competences ?? ''), ressources: String(ch.ressources ?? ''), prerequis: String(ch.prerequis ?? ''), periode: ch.periode, dateLimite: ch.dateLimite?.slice(0, 10) ?? '', volumeHoraire: String(ch.volumeHoraire ?? ''), nbSeances: String(ch.nbSeances ?? ''), evaluationPrevue: Boolean(ch.evaluationPrevue), typeEvaluation: String(ch.typeEvaluation ?? '') }); setShowChModal(true); }
+  function openEditCh(ch: Chapitre) { setEditChId(ch.id); setChForm({ titre: ch.titre, description: String(ch.description ?? ''), objectifs: String(ch.objectifs ?? ''), competences: String(ch.competences ?? ''), ressources: String(ch.ressources ?? ''), prerequis: String(ch.prerequis ?? ''), periode: ch.periode, dateLimite: ch.dateLimite?.slice(0, 10) ?? '', volumeHoraire: String(ch.volumeHoraire ?? ''), nbSeances: String(ch.nbSeances ?? '') }); setShowChModal(true); }
 
   async function handleSaveCh() {
     if (!detail) return;
-    if (!chForm.titre.trim() || !chForm.dateLimite) { toast.error('Titre et date limite requis'); return; }
+    if (!chForm.titre.trim()) { toast.error('Titre requis'); return; }
     setSavingCh(true);
-    const body = { ...chForm, volumeHoraire: chForm.volumeHoraire ? Number(chForm.volumeHoraire) : null, nbSeances: chForm.nbSeances ? Number(chForm.nbSeances) : null };
+    const body = { ...chForm, dateLimite: chForm.dateLimite || null, volumeHoraire: chForm.volumeHoraire ? Number(chForm.volumeHoraire) : null, nbSeances: chForm.nbSeances ? Number(chForm.nbSeances) : null };
     try {
       if (editChId) { await apiClient.patch(`/admin/programmes/${detail.id}/chapitres/${editChId}`, body); }
       else { await apiClient.post(`/admin/programmes/${detail.id}/chapitres`, body); }
@@ -203,9 +203,8 @@ export default function ProgrammesPage() {
                         <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', marginBottom: 3 }}>{ch.titre}</div>
                         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', fontSize: 10, color: '#64748b' }}>
                           <span style={{ padding: '1px 6px', background: '#eff6ff', color: '#2563eb', fontWeight: 600 }}>{PERIODE_LABELS[ch.periode] ?? ch.periode}</span>
-                          <span>Avant le {fmtD(ch.dateLimite)}</span>
+                          {ch.dateLimite && <span>Avant le {fmtD(ch.dateLimite)}</span>}
                           {ch.volumeHoraire && <span>{ch.volumeHoraire}h</span>}
-                          {ch.evaluationPrevue && <span style={{ padding: '1px 6px', background: '#fef3c7', color: '#92400e', fontWeight: 600 }}>{ch.typeEvaluation || 'Éval.'}</span>}
                         </div>
                         {Boolean(ch.description) && <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>{String(ch.description)}</div>}
                       </div>
@@ -241,7 +240,7 @@ export default function ProgrammesPage() {
                       );
                     })()}
                   </select></div>
-                  <div style={{ flex: 1 }}><label style={{ fontSize: 11, fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>Date limite *</label><input type="date" value={chForm.dateLimite} onChange={(e) => setChForm((f) => ({ ...f, dateLimite: e.target.value }))} style={{ width: '100%', border: `1px solid ${B}`, padding: '8px 10px', fontSize: 13, fontFamily: 'inherit' }} /></div>
+                  <div style={{ flex: 1 }}><label style={{ fontSize: 11, fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>Date limite</label><input type="date" value={chForm.dateLimite} onChange={(e) => setChForm((f) => ({ ...f, dateLimite: e.target.value }))} style={{ width: '100%', border: `1px solid ${B}`, padding: '8px 10px', fontSize: 13, fontFamily: 'inherit' }} /></div>
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <div style={{ flex: 1 }}><label style={{ fontSize: 11, fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>Volume horaire</label><input type="number" value={chForm.volumeHoraire} onChange={(e) => setChForm((f) => ({ ...f, volumeHoraire: e.target.value }))} placeholder="6" style={{ width: '100%', border: `1px solid ${B}`, padding: '8px 10px', fontSize: 13, fontFamily: 'inherit' }} /></div>
@@ -250,10 +249,6 @@ export default function ProgrammesPage() {
                 <div><label style={{ fontSize: 11, fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>Description</label><textarea value={chForm.description} onChange={(e) => setChForm((f) => ({ ...f, description: e.target.value }))} rows={2} style={{ width: '100%', border: `1px solid ${B}`, padding: '8px 10px', fontSize: 13, fontFamily: 'inherit', resize: 'vertical' }} /></div>
                 <div><label style={{ fontSize: 11, fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>Objectifs pédagogiques</label><textarea value={chForm.objectifs} onChange={(e) => setChForm((f) => ({ ...f, objectifs: e.target.value }))} rows={2} style={{ width: '100%', border: `1px solid ${B}`, padding: '8px 10px', fontSize: 13, fontFamily: 'inherit', resize: 'vertical' }} /></div>
                 <div><label style={{ fontSize: 11, fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>Prérequis</label><input value={chForm.prerequis} onChange={(e) => setChForm((f) => ({ ...f, prerequis: e.target.value }))} placeholder="Ex: Maîtriser les fractions" style={{ width: '100%', border: `1px solid ${B}`, padding: '8px 10px', fontSize: 13, fontFamily: 'inherit' }} /></div>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}><input type="checkbox" checked={chForm.evaluationPrevue} onChange={(e) => setChForm((f) => ({ ...f, evaluationPrevue: e.target.checked }))} style={{ accentColor: '#2563eb' }} /><span style={{ fontSize: 12, fontWeight: 600, color: '#334155' }}>Évaluation prévue</span></label>
-                  {chForm.evaluationPrevue && <select value={chForm.typeEvaluation} onChange={(e) => setChForm((f) => ({ ...f, typeEvaluation: e.target.value }))} style={{ border: `1px solid ${B}`, padding: '4px 8px', fontSize: 12, fontFamily: 'inherit', background: '#fff' }}><option value="">Type</option><option value="DS">DS</option><option value="COMPOSITION">Composition</option><option value="EXERCICE">Exercice</option><option value="PROJET">Projet</option></select>}
-                </div>
               </div>
               <div style={{ padding: '12px 20px', borderTop: `1px solid ${B}`, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                 <button onClick={() => setShowChModal(false)} style={{ height: 34, padding: '0 16px', border: `1px solid ${B}`, background: '#fff', color: '#334155', fontSize: 12, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' }}>Annuler</button>
@@ -439,7 +434,7 @@ export default function ProgrammesPage() {
                                       </div>
                                       <div style={{ flex: 1, fontSize: 11, color: '#334155', fontWeight: ch.enRetard ? 600 : 400 }}>{ch.titre}</div>
                                       {ch.statut && ch.statut !== 'NON_COMMENCE' && <span style={{ fontSize: 9, fontWeight: 600, padding: '1px 5px', background: ch.statut === 'TERMINE' ? '#f0fdf4' : '#fffbeb', color: ch.statut === 'TERMINE' ? '#16a34a' : '#d97706', border: `1px solid ${ch.statut === 'TERMINE' ? '#bbf7d0' : '#fde68a'}` }}>{ch.statut === 'TERMINE' ? 'Terminé' : 'En cours'}</span>}
-                                      <div style={{ fontSize: 10, color: '#94a3b8' }}>Avant le {fmtD(ch.dateLimite)}</div>
+                                      {ch.dateLimite && <div style={{ fontSize: 10, color: '#94a3b8' }}>Avant le {fmtD(ch.dateLimite)}</div>}
                                       {ch.enRetard && <span style={{ fontSize: 9, color: '#dc2626', fontWeight: 700 }}>-{ch.joursRetard}j</span>}
                                       {cahiers.length > 0 && <span style={{ fontSize: 9, color: '#16a34a', fontWeight: 600 }}>{cahiers.length} séance(s)</span>}
                                       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" style={{ transform: chExpanded ? 'rotate(180deg)' : '', transition: 'transform .2s' }}><polyline points="6 9 12 15 18 9"/></svg>
