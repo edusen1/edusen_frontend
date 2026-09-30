@@ -1,220 +1,304 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { apiClient } from '@/lib/api/client';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-type TypeArchive = 'ELEVE' | 'CLASSE' | 'ANNEE_SCOLAIRE' | 'BULLETIN' | 'DOCUMENT' | 'PAIEMENT';
+type ArchiveType = 'ANNEE_SCOLAIRE' | 'BULLETIN' | 'PAIEMENT';
+type DetailEntry = { label: string; total: number };
 
-interface Archive {
+type ArchiveRow = {
   id: string;
-  type: TypeArchive;
+  type: ArchiveType;
   titre: string;
   description: string;
   anneeScolaire: string;
-  dateArchivage: string;
-  archiviePar: string;
-  taille: string;
-  nbElements?: number;
-  restaurable: boolean;
+  dateReference?: string;
+  nbElements: number;
+  montant?: number;
+  statut?: string;
+  details?: Record<string, unknown>;
+};
+
+const TYPE_LABELS: Record<ArchiveType, string> = {
+  ANNEE_SCOLAIRE: 'Année scolaire',
+  BULLETIN: 'Bulletins',
+  PAIEMENT: 'Paiements',
+};
+
+const TYPE_COLORS: Record<ArchiveType, string> = {
+  ANNEE_SCOLAIRE: '#0f172a',
+  BULLETIN: '#16a34a',
+  PAIEMENT: '#d97706',
+};
+
+function formatDate(value?: string) {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return date.toLocaleDateString('fr-FR');
 }
 
-// ─── Données statiques ────────────────────────────────────────────────────────
-const ARCHIVES_INIT: Archive[] = [
-  { id: 'a1', type: 'ANNEE_SCOLAIRE', titre: 'Année scolaire 2023-2024', description: 'Archivage complet de l\'année scolaire 2023-2024 : élèves, notes, bulletins, paiements, absences.', anneeScolaire: '2023-2024', dateArchivage: '2024-08-31', archiviePar: 'Amadou DIALLO', taille: '4.2 Go', nbElements: 812, restaurable: false },
-  { id: 'a2', type: 'ANNEE_SCOLAIRE', titre: 'Année scolaire 2022-2023', description: 'Archivage complet de l\'année scolaire 2022-2023.', anneeScolaire: '2022-2023', dateArchivage: '2023-09-01', archiviePar: 'Amadou DIALLO', taille: '3.8 Go', nbElements: 774, restaurable: false },
-  { id: 'a3', type: 'BULLETIN', titre: 'Bulletins T1 2024-2025', description: 'Bulletins du 1er trimestre 2024-2025 — 847 élèves', anneeScolaire: '2024-2025', dateArchivage: '2025-01-15', archiviePar: 'Fatou SOW', taille: '125 Mo', nbElements: 847, restaurable: true },
-  { id: 'a4', type: 'BULLETIN', titre: 'Bulletins T2 2024-2025', description: 'Bulletins du 2ème trimestre 2024-2025 — 847 élèves', anneeScolaire: '2024-2025', dateArchivage: '2025-04-10', archiviePar: 'Fatou SOW', taille: '127 Mo', nbElements: 847, restaurable: true },
-  { id: 'a5', type: 'ELEVE', titre: 'Élèves diplômés — BAC 2024', description: 'Dossiers des 87 élèves ayant obtenu leur baccalauréat en 2024.', anneeScolaire: '2023-2024', dateArchivage: '2024-07-15', archiviePar: 'Fatou SOW', taille: '56 Mo', nbElements: 87, restaurable: true },
-  { id: 'a6', type: 'CLASSE', titre: 'Classes Terminale 2023-2024', description: 'Données complètes des 3 classes de Terminale de l\'année 2023-2024.', anneeScolaire: '2023-2024', dateArchivage: '2024-08-31', archiviePar: 'Amadou DIALLO', taille: '18 Mo', nbElements: 3, restaurable: false },
-  { id: 'a7', type: 'PAIEMENT', titre: 'Paiements 2022-2023', description: 'Historique complet des paiements de frais scolaires 2022-2023.', anneeScolaire: '2022-2023', dateArchivage: '2023-09-01', archiviePar: 'Aïssatou KANE', taille: '2.3 Mo', nbElements: 2840, restaurable: false },
-  { id: 'a8', type: 'DOCUMENT', titre: 'Documents officiels 2022-2023', description: 'Arrêtés, circulaires et conventions de l\'année 2022-2023.', anneeScolaire: '2022-2023', dateArchivage: '2023-09-05', archiviePar: 'Amadou DIALLO', taille: '85 Mo', nbElements: 24, restaurable: true },
-];
+function formatMoney(value?: number) {
+  if (!value) return '0 F';
+  return `${value.toLocaleString('fr-FR')} F`;
+}
 
-const TYPE_LABELS: Record<TypeArchive, string> = { ELEVE: 'Élèves', CLASSE: 'Classes', ANNEE_SCOLAIRE: 'Année scolaire', BULLETIN: 'Bulletins', DOCUMENT: 'Documents', PAIEMENT: 'Paiements' };
-const TYPE_COLORS: Record<TypeArchive, string> = { ELEVE: '#2563eb', CLASSE: '#7c3aed', ANNEE_SCOLAIRE: '#0f172a', BULLETIN: '#16a34a', DOCUMENT: '#0369a1', PAIEMENT: '#d97706' };
-const TYPE_ICONS: Record<TypeArchive, string> = { ELEVE: '👤', CLASSE: '🏫', ANNEE_SCOLAIRE: '📅', BULLETIN: '📄', DOCUMENT: '📁', PAIEMENT: '💰' };
+function asEntries(value: unknown): DetailEntry[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((entry): entry is DetailEntry => {
+    return !!entry
+      && typeof entry === 'object'
+      && typeof (entry as DetailEntry).label === 'string'
+      && typeof (entry as DetailEntry).total === 'number';
+  });
+}
 
-function Badge({ label, color }: { label: string; color: string }) {
-  return <span style={{ background: color + '18', color, border: `1px solid ${color}40`, borderRadius: 4, padding: '2px 8px', fontSize: 11, fontWeight: 600 }}>{label}</span>;
+function asNumber(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function TypeMark({ type }: { type: ArchiveType }) {
+  const color = TYPE_COLORS[type];
+  return (
+    <span
+      aria-hidden
+      style={{
+        width: 34,
+        height: 34,
+        border: `1px solid ${color}30`,
+        background: `${color}12`,
+        color,
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0,
+      }}
+    >
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        {type === 'ANNEE_SCOLAIRE' && <><path d="M3 4h18v16H3z" /><path d="M8 2v4M16 2v4M3 9h18" /></>}
+        {type === 'BULLETIN' && <><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6M8 13h8M8 17h5" /></>}
+        {type === 'PAIEMENT' && <><rect x="2" y="5" width="20" height="14" rx="2" /><path d="M2 10h20M7 15h4" /></>}
+      </svg>
+    </span>
+  );
+}
+
+function Badge({ children, color = '#475569' }: { children: React.ReactNode; color?: string }) {
+  return (
+    <span style={{ background: `${color}12`, border: `1px solid ${color}30`, color, padding: '2px 8px', fontSize: 11, fontWeight: 700 }}>
+      {children}
+    </span>
+  );
+}
+
+function DetailList({ title, items }: { title: string; items: DetailEntry[] }) {
+  if (items.length === 0) return null;
+  return (
+    <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: 10 }}>
+      <div style={{ fontSize: 11, fontWeight: 800, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>{title}</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+        {items.slice(0, 6).map((item) => (
+          <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', gap: 14, fontSize: 12, color: '#475569' }}>
+            <span>{item.label}</span>
+            <strong>{item.total.toLocaleString('fr-FR')}</strong>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export default function ArchivesPage() {
-  const [archives, setArchives] = useState<Archive[]>(ARCHIVES_INIT);
-  const [filtreType, setFiltreType] = useState('TOUS');
-  const [filtreAnnee, setFiltreAnnee] = useState('TOUTES');
-  const [recherche, setRecherche] = useState('');
-  const [detail, setDetail] = useState<Archive | null>(null);
+  const [rows, setRows] = useState<ArchiveRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [typeFilter, setTypeFilter] = useState<'TOUS' | ArchiveType>('TOUS');
+  const [yearFilter, setYearFilter] = useState('TOUTES');
+  const [search, setSearch] = useState('');
+  const [detail, setDetail] = useState<ArchiveRow | null>(null);
 
-  const annees = [...new Set(archives.map(a => a.anneeScolaire))].sort().reverse();
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      setError('');
+      try {
+        const response = await apiClient.get('/admin/archives');
+        const content = Array.isArray(response.data?.content) ? response.data.content as ArchiveRow[] : [];
+        if (!cancelled) setRows(content);
+      } catch {
+        if (!cancelled) setError('Impossible de charger les archives.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    void load();
+    return () => { cancelled = true; };
+  }, []);
 
-  const filtered = archives.filter(a => {
-    if (filtreType !== 'TOUS' && a.type !== filtreType) return false;
-    if (filtreAnnee !== 'TOUTES' && a.anneeScolaire !== filtreAnnee) return false;
-    const q = recherche.toLowerCase();
-    if (q && !a.titre.toLowerCase().includes(q) && !a.description.toLowerCase().includes(q)) return false;
-    return true;
-  });
+  const years = useMemo(() => [...new Set(rows.map((row) => row.anneeScolaire))].sort().reverse(), [rows]);
 
-  function handleRestaurer(id: string) {
-    const a = archives.find(x => x.id === id);
-    if (!a?.restaurable) { alert('Cette archive ne peut pas être restaurée depuis l\'interface. Contactez l\'administrateur système.'); return; }
-    if (!confirm('Restaurer cette archive ? Les données seront réintégrées dans le système actuel.')) return;
-    alert('Restauration lancée. Vous serez notifié lorsqu\'elle sera terminée.');
-  }
+  const filtered = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return rows.filter((row) => {
+      if (typeFilter !== 'TOUS' && row.type !== typeFilter) return false;
+      if (yearFilter !== 'TOUTES' && row.anneeScolaire !== yearFilter) return false;
+      if (query && !`${row.titre} ${row.description} ${row.anneeScolaire}`.toLowerCase().includes(query)) return false;
+      return true;
+    });
+  }, [rows, search, typeFilter, yearFilter]);
 
-  function handleTelecharger(id: string) {
-    alert('Génération du fichier d\'export en cours... Vous serez notifié quand il sera prêt.');
-  }
-
-  const totalTaille = archives.length; // simplified
   const stats = {
-    total: archives.length,
-    anneesScolaires: archives.filter(a => a.type === 'ANNEE_SCOLAIRE').length,
-    bulletins: archives.filter(a => a.type === 'BULLETIN').reduce((s, a) => s + (a.nbElements || 0), 0),
-    restaurables: archives.filter(a => a.restaurable).length,
+    total: rows.length,
+    annees: rows.filter((row) => row.type === 'ANNEE_SCOLAIRE').length,
+    bulletins: rows.filter((row) => row.type === 'BULLETIN').reduce((sum, row) => sum + row.nbElements, 0),
+    paiements: rows.filter((row) => row.type === 'PAIEMENT').reduce((sum, row) => sum + row.nbElements, 0),
   };
 
   return (
     <div style={{ background: '#f5f7fa', minHeight: '100%', paddingBottom: 40 }}>
-      <div style={{ background: '#fff', borderBottom: '1px solid #e6ebf1', padding: '18px 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ background: '#fff', borderBottom: '1px solid #e6ebf1', padding: '18px 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
         <div>
           <div style={{ fontSize: 17, fontWeight: 700, color: '#0f172a' }}>Archives</div>
-          <div style={{ fontSize: 13, color: '#64748b', marginTop: 2 }}>Données archivées des années scolaires passées — lecture et restauration</div>
+          <div style={{ fontSize: 13, color: '#64748b', marginTop: 2 }}>Consultation des données historiques disponibles</div>
         </div>
-        <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 6, padding: '8px 14px', fontSize: 12, color: '#991b1b' }}>
-          Zone protégée — lecture seule sauf restauration explicite
+        <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', padding: '8px 14px', fontSize: 12, color: '#475569' }}>
+          Lecture seule
         </div>
       </div>
 
       <div style={{ padding: '20px 28px 0' }}>
-        {/* KPIs */}
-        <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
-          {[{ label: 'Archives totales', value: stats.total, color: '#0f172a' }, { label: 'Années scolaires', value: stats.anneesScolaires, color: '#475569' }, { label: 'Bulletins archivés', value: stats.bulletins.toLocaleString('fr-FR'), color: '#16a34a' }, { label: 'Restaurables', value: stats.restaurables, color: '#2563eb' }].map(k => (
-            <div key={k.label} style={{ background: '#fff', border: '1px solid #e6ebf1', padding: '14px 18px', flex: 1 }}>
-              <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 4 }}>{k.label}</div>
-              <div style={{ fontSize: 22, fontWeight: 800, color: k.color }}>{k.value}</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 10, marginBottom: 18 }}>
+          {[
+            { label: 'Archives', value: stats.total, color: '#0f172a' },
+            { label: 'Années clôturées', value: stats.annees, color: '#475569' },
+            { label: 'Bulletins', value: stats.bulletins.toLocaleString('fr-FR'), color: '#16a34a' },
+            { label: 'Paiements', value: stats.paiements.toLocaleString('fr-FR'), color: '#d97706' },
+          ].map((item) => (
+            <div key={item.label} style={{ background: '#fff', border: '1px solid #e6ebf1', padding: '14px 18px' }}>
+              <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 4 }}>{item.label}</div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: item.color }}>{item.value}</div>
             </div>
           ))}
         </div>
 
-        {/* Info */}
-        <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 6, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: '#1e40af' }}>
-          Les archives sont conservées selon la politique de rétention légale en vigueur (7 ans minimum pour les documents financiers, 10 ans pour les dossiers scolaires).
+        <div style={{ background: '#fff', border: '1px solid #e6ebf1', padding: 14, marginBottom: 14 }}>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Rechercher une archive" style={{ height: 36, border: '1px solid #e2e8f0', padding: '0 12px', fontSize: 13, flex: 1, fontFamily: 'inherit' }} />
+            <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value as 'TOUS' | ArchiveType)} style={{ height: 36, border: '1px solid #e2e8f0', background: '#fff', padding: '0 10px', fontSize: 13, fontFamily: 'inherit' }}>
+              <option value="TOUS">Tous les types</option>
+              {(Object.keys(TYPE_LABELS) as ArchiveType[]).map((type) => <option key={type} value={type}>{TYPE_LABELS[type]}</option>)}
+            </select>
+            <select value={yearFilter} onChange={(event) => setYearFilter(event.target.value)} style={{ height: 36, border: '1px solid #e2e8f0', background: '#fff', padding: '0 10px', fontSize: 13, fontFamily: 'inherit' }}>
+              <option value="TOUTES">Toutes les années</option>
+              {years.map((year) => <option key={year} value={year}>{year}</option>)}
+            </select>
+            <div style={{ fontSize: 12, color: '#64748b', minWidth: 90, textAlign: 'right' }}>{filtered.length} résultat(s)</div>
+          </div>
         </div>
 
-        {/* Filtres */}
-        <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
-          <input value={recherche} onChange={e => setRecherche(e.target.value)} placeholder="Rechercher dans les archives..." style={{ border: '1px solid #e2e8f0', borderRadius: 6, padding: '7px 12px', fontSize: 13, flex: 1 }} />
-          <select value={filtreType} onChange={e => setFiltreType(e.target.value)} style={{ border: '1px solid #e2e8f0', borderRadius: 6, padding: '7px 12px', fontSize: 13, background: '#fff' }}>
-            <option value="TOUS">Tous les types</option>
-            {(Object.keys(TYPE_LABELS) as TypeArchive[]).map(t => <option key={t} value={t}>{TYPE_LABELS[t]}</option>)}
-          </select>
-          <select value={filtreAnnee} onChange={e => setFiltreAnnee(e.target.value)} style={{ border: '1px solid #e2e8f0', borderRadius: 6, padding: '7px 12px', fontSize: 13, background: '#fff' }}>
-            <option value="TOUTES">Toutes les années</option>
-            {annees.map(a => <option key={a} value={a}>{a}</option>)}
-          </select>
-          <div style={{ display: 'flex', alignItems: 'center', fontSize: 13, color: '#64748b' }}>{filtered.length} archive(s)</div>
-        </div>
+        {error && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b', padding: 16, fontSize: 13 }}>{error}</div>}
 
-        {/* Liste */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {filtered.length === 0 && (
-            <div style={{ background: '#fff', border: '1px solid #e6ebf1', padding: '32px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Aucune archive trouvée</div>
-          )}
-          {filtered.map(a => (
-            <div key={a.id} style={{ background: '#fff', border: '1px solid #e6ebf1', padding: '14px 18px' }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-                <div style={{ width: 44, height: 44, background: TYPE_COLORS[a.type] + '15', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>
-                  {TYPE_ICONS[a.type]}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5, flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: '#0f172a' }}>{a.titre}</span>
-                    <Badge label={TYPE_LABELS[a.type]} color={TYPE_COLORS[a.type]} />
-                    <Badge label={a.anneeScolaire} color="#475569" />
-                    {a.restaurable && <Badge label="Restaurable" color="#2563eb" />}
+        {loading ? (
+          <div style={{ background: '#fff', border: '1px solid #e6ebf1', padding: 40, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Chargement des archives...</div>
+        ) : filtered.length === 0 ? (
+          <div style={{ background: '#fff', border: '1px solid #e6ebf1', padding: 40, textAlign: 'center' }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: '#0f172a', marginBottom: 6 }}>Aucune archive disponible</div>
+            <div style={{ fontSize: 13, color: '#64748b' }}>Les archives apparaîtront ici dès que des années clôturées, bulletins ou paiements historiques seront disponibles.</div>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {filtered.map((row) => (
+              <div key={row.id} style={{ background: '#fff', border: '1px solid #e6ebf1', padding: '14px 18px' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                  <TypeMark type={row.type} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>{row.titre}</span>
+                      <Badge color={TYPE_COLORS[row.type]}>{TYPE_LABELS[row.type]}</Badge>
+                      <Badge>{row.anneeScolaire}</Badge>
+                    </div>
+                    <div style={{ fontSize: 12, color: '#64748b', marginBottom: 6 }}>{row.description}</div>
+                    <div style={{ display: 'flex', gap: 16, fontSize: 11, color: '#94a3b8', flexWrap: 'wrap' }}>
+                      <span>{row.nbElements.toLocaleString('fr-FR')} élément(s)</span>
+                      {row.montant !== undefined && <span>{formatMoney(row.montant)}</span>}
+                      <span>Référence : {formatDate(row.dateReference)}</span>
+                      {row.statut && <span>Statut : {row.statut}</span>}
+                    </div>
                   </div>
-                  <div style={{ fontSize: 12, color: '#64748b', marginBottom: 5 }}>{a.description}</div>
-                  <div style={{ display: 'flex', gap: 16, fontSize: 11, color: '#94a3b8' }}>
-                    <span>Archivé le {new Date(a.dateArchivage).toLocaleDateString('fr-FR')}</span>
-                    <span>Par {a.archiviePar}</span>
-                    {a.nbElements !== undefined && <span>{a.nbElements.toLocaleString('fr-FR')} élément(s)</span>}
-                    <span>{a.taille}</span>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                  <button onClick={() => handleTelecharger(a.id)} style={{ background: '#f1f5f9', border: '1px solid #e2e8f0', color: '#475569', borderRadius: 5, padding: '5px 10px', fontSize: 12, cursor: 'pointer' }}>
-                    Exporter
-                  </button>
-                  {a.restaurable && (
-                    <button onClick={() => handleRestaurer(a.id)} style={{ background: '#eff6ff', border: '1px solid #bfdbfe', color: '#2563eb', borderRadius: 5, padding: '5px 10px', fontSize: 12, cursor: 'pointer' }}>
-                      Restaurer
-                    </button>
-                  )}
-                  <button onClick={() => setDetail(a)} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', color: '#475569', borderRadius: 5, padding: '5px 10px', fontSize: 12, cursor: 'pointer' }}>
+                  <button onClick={() => setDetail(row)} style={{ height: 30, padding: '0 12px', border: '1px solid #e2e8f0', background: '#fff', color: '#475569', fontSize: 12, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' }}>
                     Détails
                   </button>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Regroupement par année */}
-        {filtreType === 'TOUS' && filtreAnnee === 'TOUTES' && recherche === '' && (
-          <>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.07em', margin: '28px 0 12px', paddingBottom: 6, borderBottom: '1px solid #e6ebf1' }}>
-              Résumé par année scolaire
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {annees.map(annee => {
-                const archivesAnnee = archives.filter(a => a.anneeScolaire === annee);
-                return (
-                  <div key={annee} style={{ background: '#fff', border: '1px solid #e6ebf1', padding: '12px 18px', display: 'flex', alignItems: 'center', gap: 16 }}>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: '#0f172a', minWidth: 120 }}>{annee}</div>
-                    <div style={{ display: 'flex', gap: 8, flex: 1, flexWrap: 'wrap' }}>
-                      {archivesAnnee.map(a => (
-                        <Badge key={a.id} label={`${TYPE_ICONS[a.type]} ${TYPE_LABELS[a.type]}`} color={TYPE_COLORS[a.type]} />
-                      ))}
-                    </div>
-                    <div style={{ fontSize: 12, color: '#94a3b8' }}>{archivesAnnee.length} archive(s)</div>
-                  </div>
-                );
-              })}
-            </div>
-          </>
+            ))}
+          </div>
         )}
       </div>
 
-      {/* Modal détail */}
       {detail && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ background: '#fff', width: 480, borderRadius: 8, boxShadow: '0 20px 60px rgba(0,0,0,.2)' }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.42)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ background: '#fff', width: 480, boxShadow: '0 20px 60px rgba(15,23,42,.22)' }}>
             <div style={{ padding: '18px 22px', borderBottom: '1px solid #e6ebf1', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontWeight: 700, fontSize: 15 }}>Détail de l&apos;archive</span>
               <button onClick={() => setDetail(null)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#94a3b8' }}>×</button>
             </div>
             <div style={{ padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div style={{ fontSize: 24, textAlign: 'center' }}>{TYPE_ICONS[detail.type]}</div>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
-                <Badge label={TYPE_LABELS[detail.type]} color={TYPE_COLORS[detail.type]} />
-                <Badge label={detail.anneeScolaire} color="#475569" />
-                {detail.restaurable && <Badge label="Restaurable" color="#2563eb" />}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <TypeMark type={detail.type} />
+                <div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: '#0f172a' }}>{detail.titre}</div>
+                  <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>{TYPE_LABELS[detail.type]} · {detail.anneeScolaire}</div>
+                </div>
               </div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', textAlign: 'center' }}>{detail.titre}</div>
-              <div style={{ fontSize: 13, color: '#64748b', lineHeight: 1.5, textAlign: 'center' }}>{detail.description}</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 5, fontSize: 12, color: '#64748b', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 6, padding: '12px 14px' }}>
-                <div><b>Date d&apos;archivage :</b> {new Date(detail.dateArchivage).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
-                <div><b>Archivé par :</b> {detail.archiviePar}</div>
-                {detail.nbElements !== undefined && <div><b>Nombre d&apos;éléments :</b> {detail.nbElements.toLocaleString('fr-FR')}</div>}
-                <div><b>Taille :</b> {detail.taille}</div>
-                <div><b>Restaurable :</b> {detail.restaurable ? 'Oui' : 'Non (archivage définitif)'}</div>
+              <div style={{ fontSize: 13, color: '#64748b', lineHeight: 1.5 }}>{detail.description}</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, fontSize: 12, color: '#64748b', background: '#f8fafc', border: '1px solid #e2e8f0', padding: '12px 14px' }}>
+                <div><strong>Éléments</strong><br />{detail.nbElements.toLocaleString('fr-FR')}</div>
+                <div><strong>Date référence</strong><br />{formatDate(detail.dateReference)}</div>
+                {detail.montant !== undefined && <div><strong>Montant</strong><br />{formatMoney(detail.montant)}</div>}
+                {detail.statut && <div><strong>Statut</strong><br />{detail.statut}</div>}
               </div>
+              {detail.details && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 12, color: '#475569', background: '#fff', border: '1px solid #e2e8f0', padding: '12px 14px', maxHeight: 260, overflow: 'auto' }}>
+                  {detail.type === 'ANNEE_SCOLAIRE' && (
+                    <>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                        <div><strong>Début</strong><br />{formatDate(String(detail.details.dateDebut ?? ''))}</div>
+                        <div><strong>Fin</strong><br />{formatDate(String(detail.details.dateFin ?? ''))}</div>
+                      </div>
+                      <DetailList title="Inscriptions par statut" items={asEntries(detail.details.inscriptionsParStatut)} />
+                      <DetailList title="Classes" items={asEntries(detail.details.classes)} />
+                      <DetailList title="Séries" items={asEntries(detail.details.series)} />
+                    </>
+                  )}
+                  {detail.type === 'BULLETIN' && (
+                    <>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                        <div><strong>PDF générés</strong><br />{(asNumber(detail.details.bulletinsAvecPdf) ?? 0).toLocaleString('fr-FR')}</div>
+                        <div><strong>Moyenne générale</strong><br />{asNumber(detail.details.moyenneGenerale)?.toLocaleString('fr-FR') ?? '—'}</div>
+                      </div>
+                      <DetailList title="Statuts" items={asEntries(detail.details.parStatut)} />
+                      <DetailList title="Périodes" items={asEntries(detail.details.parTrimestre)} />
+                      <DetailList title="Classes" items={asEntries(detail.details.classes)} />
+                      <DetailList title="Séries" items={asEntries(detail.details.series)} />
+                    </>
+                  )}
+                  {detail.type === 'PAIEMENT' && (
+                    <>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                        <div><strong>Validé</strong><br />{formatMoney(asNumber(detail.details.montantValide))}</div>
+                        <div><strong>En attente</strong><br />{formatMoney(asNumber(detail.details.montantEnAttente))}</div>
+                      </div>
+                      <DetailList title="Statuts" items={asEntries(detail.details.parStatut)} />
+                      <DetailList title="Types de paiement" items={asEntries(detail.details.parTypePaiement)} />
+                      <DetailList title="Modes de paiement" items={asEntries(detail.details.parModePaiement)} />
+                    </>
+                  )}
+                </div>
+              )}
             </div>
-            <div style={{ padding: '14px 22px', borderTop: '1px solid #e6ebf1', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button onClick={() => handleTelecharger(detail.id)} style={{ background: '#f1f5f9', border: '1px solid #e2e8f0', color: '#475569', borderRadius: 6, padding: '8px 14px', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Exporter</button>
-              {detail.restaurable && <button onClick={() => handleRestaurer(detail.id)} style={{ background: '#2563eb', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 14px', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Restaurer</button>}
-              <button onClick={() => setDetail(null)} style={{ border: '1px solid #e2e8f0', background: '#fff', color: '#475569', borderRadius: 6, padding: '8px 16px', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Fermer</button>
+            <div style={{ padding: '14px 22px', borderTop: '1px solid #e6ebf1', display: 'flex', justifyContent: 'flex-end' }}>
+              <button onClick={() => setDetail(null)} style={{ border: '1px solid #e2e8f0', background: '#fff', color: '#475569', padding: '8px 16px', fontWeight: 600, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>Fermer</button>
             </div>
           </div>
         </div>
