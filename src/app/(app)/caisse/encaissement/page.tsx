@@ -38,6 +38,7 @@ export default function EncaissementPage() {
 
   const [form, setForm] = useState(EMPTY_FORM);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [lastReference, setLastReference] = useState<string | null>(null);
 
   // Today's validated transactions for the summary panel
   const today = new Date().toISOString().split('T')[0];
@@ -64,16 +65,18 @@ export default function EncaissementPage() {
 
   const handleSubmit = async () => {
     if (!validate()) return;
-    await createPaiement.mutateAsync({
+    setLastReference(null);
+    const result = await createPaiement.mutateAsync({
       nomEleve: form.nomEleve,
       classe: form.classeEleve,
       type: form.typePaiement,
       montant: Number(form.montant),
       modePaiement: form.modePaiement,
-      reference: form.reference,
+      transactionId: form.reference || undefined,
       date: form.date,
       statut: 'VALIDE',
     });
+    setLastReference((result as Record<string, unknown>)?.reference as string ?? null);
     setForm(EMPTY_FORM);
   };
 
@@ -235,6 +238,16 @@ export default function EncaissementPage() {
               >
                 {createPaiement.isPending ? 'Enregistrement…' : 'Enregistrer le paiement'}
               </button>
+
+              {lastReference && (
+                <div style={{ marginTop: 12, background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: '#16a34a', textTransform: 'uppercase', letterSpacing: '.04em' }}>Paiement enregistré</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', marginTop: 2 }}>Réf : {lastReference}</div>
+                  </div>
+                  <button onClick={() => setLastReference(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#16a34a', fontSize: 16, lineHeight: 1 }}>✕</button>
+                </div>
+              )}
             </div>
           </div>
 

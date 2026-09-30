@@ -486,8 +486,9 @@ export default function ClassesPage() {
                       // 2. Sa spécialité nomme explicitement le cycle (« PRIMAIRE »).
                       if (attendu && p.specialite?.toUpperCase() === attendu) return true;
                       // 3. Enseignant sans aucune affectation : il peut aller partout.
-                      //    Sans ce cas, une école qui démarre n'aurait aucun choix.
-                      return !p.specialite && p.classeIdsEnseignes.length === 0;
+                      //    Pour lycée/collège (attendu vide), la spécialité est une matière,
+                      //    pas un type de cycle — ne pas l'utiliser comme filtre.
+                      return p.classeIdsEnseignes.length === 0 && (!p.specialite || !attendu);
                     });
 
                     if (filteredProfs.length === 0) {
