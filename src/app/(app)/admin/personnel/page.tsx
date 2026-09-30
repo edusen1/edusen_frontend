@@ -75,6 +75,16 @@ const CONTRATS = [
   { value: 'BENEVOLE', label: 'Bénévole' },
 ];
 
+function resolveAffectationType(p: PersonnelItem): string {
+  if ((p.niveauAffectations?.length ?? 0) > 0) {
+    return p.niveauAffectations![0].type; // SURVEILLANT ou SECRETAIRE_SURVEILLANT
+  }
+  if ((p.utilisateur?.surveillantCycles?.length ?? 0) > 0) {
+    return 'SURVEILLANT_GENERAL';
+  }
+  return p.utilisateur?.role ?? '';
+}
+
 function typeInfo(role?: string) {
   return TYPES_PERSONNEL.find((t) => t.value === role) ?? { label: role ?? '?', color: '#64748b', bg: '#f1f5f9', needsSection: false };
 }
@@ -225,8 +235,8 @@ export default function PersonnelPage() {
 
   const filtered = list.filter((p) => {
     const name = personnelName(p).toLowerCase();
-    const role = p.utilisateur?.role ?? '';
-    return name.includes(search.toLowerCase()) && (!filterType || role === filterType);
+    const affType = resolveAffectationType(p);
+    return name.includes(search.toLowerCase()) && (!filterType || affType === filterType);
   });
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
@@ -259,15 +269,17 @@ export default function PersonnelPage() {
 
   function openEdit(p: PersonnelItem) {
     setEditItem(p);
-    const role = p.utilisateur?.role ?? 'SURVEILLANT';
-    const sectionId = p.utilisateur?.surveillantCycles?.[0]?.cycle?.id ?? '';
+    const affectationType = resolveAffectationType(p);
+    // Pour SURVEILLANT/SECRETAIRE_SURVEILLANT : cycle = niveauAffectations[0].niveau.cycle
+    // Pour SURVEILLANT_GENERAL : pas de section dans le formulaire
+    const sectionId = p.niveauAffectations?.[0]?.niveau?.cycle?.id ?? '';
     setForm({
       prenom: p.utilisateur?.firstName ?? '',
       nom: p.utilisateur?.lastName ?? '',
       email: p.utilisateur?.email ?? '',
       telephone: p.utilisateur?.telephone ?? '',
       adresse: p.utilisateur?.adresse ?? '',
-      type: role,
+      type: affectationType || 'ENSEIGNANT',
       sectionId,
       typeContrat: p.typeContrat ?? 'CDI',
       dateEmbauche: p.dateEmbauche ? p.dateEmbauche.slice(0, 10) : '',
@@ -276,7 +288,7 @@ export default function PersonnelPage() {
     setPhotoFile(null);
     setPhotoPreview(personnelPhotoUrl(p));
     setPhotoChanged(false);
-    if (TYPES_PERSONNEL.find((t) => t.value === role)?.needsSection) void loadSections();
+    if (TYPES_PERSONNEL.find((t) => t.value === affectationType)?.needsSection) void loadSections();
     setShowModal(true);
   }
 
@@ -428,7 +440,9 @@ export default function PersonnelPage() {
               <div style={{ padding: '32px 16px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Aucun membre du personnel</div>
             )}
             {paged.map((p, idx) => {
-              const ti = typeInfo(p.utilisateur?.role);
+              const affType = resolveAffectationType(p);
+              const ti = typeInfo(affType);
+              const cycleLabel = p.niveauAffectations?.[0]?.niveau?.cycle?.libelle ?? p.utilisateur?.surveillantCycles?.[0]?.cycle?.libelle ?? '';
               const isSelected = selected?.id === p.id;
               const photoUrl = personnelPhotoUrl(p);
               return (
@@ -445,7 +459,10 @@ export default function PersonnelPage() {
                       <div style={{ fontSize: 11, color: '#94a3b8' }}>{p.utilisateur?.username ?? ''}</div>
                     </div>
                   </div>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: ti.color, background: ti.bg, padding: '3px 8px', display: 'inline-block' }}>{ti.label}</span>
+                  <div>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: ti.color, background: ti.bg, padding: '3px 8px', display: 'inline-block' }}>{ti.label}</span>
+                    {cycleLabel && <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 2 }}>{cycleLabel}</div>}
+                  </div>
                   <span style={{ fontSize: 12, color: '#64748b' }}>{p.utilisateur?.telephone ?? '—'}</span>
                   <span style={{ fontSize: 11, color: '#94a3b8', fontFamily: 'monospace' }}>{p.numeroMatricule ?? '—'}</span>
                   <span style={{ fontSize: 11, color: '#64748b' }}>{p.typeContrat ?? '—'}</span>
@@ -490,7 +507,16 @@ export default function PersonnelPage() {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a' }}>{personnelName(selected)}</div>
                 <div style={{ fontSize: 11, color: '#94a3b8', fontFamily: 'monospace' }}>{selected.numeroMatricule ?? '—'}</div>
-                {(() => { const ti = typeInfo(selected.utilisateur?.role); return <span style={{ fontSize: 11, fontWeight: 700, color: ti.color, background: ti.bg, padding: '2px 8px', display: 'inline-block', marginTop: 4 }}>{ti.label}</span>; })()}
+                {(() => {
+                  const ti = typeInfo(resolveAffectationType(selected));
+                  const cycle = selected.niveauAffectations?.[0]?.niveau?.cycle?.libelle ?? selected.utilisateur?.surveillantCycles?.[0]?.cycle?.libelle ?? '';
+                  return (
+                    <div style={{ marginTop: 4 }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: ti.color, background: ti.bg, padding: '2px 8px', display: 'inline-block' }}>{ti.label}</span>
+                      {cycle && <span style={{ fontSize: 11, color: '#64748b', marginLeft: 6 }}>{cycle}</span>}
+                    </div>
+                  );
+                })()}
               </div>
               <button onClick={() => setSelected(null)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#94a3b8', fontSize: 18, lineHeight: 1, padding: 0 }}>×</button>
             </div>
