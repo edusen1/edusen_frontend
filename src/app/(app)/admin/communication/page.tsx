@@ -480,7 +480,7 @@ export default function CommunicationPage() {
                   {m.documents.length > 0 && (
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 6 }}>
                       {m.documents.map((doc, i) => (
-                        <a key={i} href={doc.url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 20, padding: '2px 10px', fontSize: 11, color: '#1d4ed8', textDecoration: 'none' }}>
+                        <a key={i} href={doc.url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#fff', border: '1px solid #d9e0e8', borderRadius: 4, padding: '2px 8px', fontSize: 11, color: '#2563eb', textDecoration: 'none' }}>
                           <span>{docIcon(doc.mimeType)}</span>
                           <span style={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.nom}</span>
                           {doc.taille && <span style={{ color: '#64748b' }}>· {formatFileSize(doc.taille)}</span>}
@@ -499,11 +499,11 @@ export default function CommunicationPage() {
                 {/* Actions */}
                 <div style={{ display: 'flex', gap: 6, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
                   {(m.statut === 'BROUILLON' || m.statut === 'PLANIFIE') && (
-                    <button onClick={() => openEdit(m)} style={{ border: '1px solid #bfdbfe', background: '#eff6ff', color: '#2563eb', borderRadius: 5, padding: '5px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
+                    <button onClick={() => openEdit(m)} style={{ border: `1px solid ${BORDER}`, background: '#fff', color: '#2563eb', borderRadius: 4, padding: '5px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
                       Modifier
                     </button>
                   )}
-                  <button onClick={e => void handleDelete(m, e)} disabled={deleteCommunication.isPending} style={{ border: '1px solid #fecaca', background: '#fef2f2', color: '#dc2626', borderRadius: 5, padding: '5px 10px', fontSize: 11, fontWeight: 600, cursor: deleteCommunication.isPending ? 'not-allowed' : 'pointer' }}>
+                  <button onClick={e => void handleDelete(m, e)} disabled={deleteCommunication.isPending} style={{ border: '1px solid #fecaca', background: '#fff', color: '#dc2626', borderRadius: 4, padding: '5px 10px', fontSize: 11, fontWeight: 600, cursor: deleteCommunication.isPending ? 'not-allowed' : 'pointer' }}>
                     Supprimer
                   </button>
                 </div>
@@ -524,7 +524,7 @@ export default function CommunicationPage() {
             <div style={{ padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 16 }}>
 
               {/* Année académique (automatique) */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: anneeActive ? '#f0fdf4' : '#fef9c3', border: `1px solid ${anneeActive ? '#bbf7d0' : '#fde68a'}`, borderRadius: 6, padding: '8px 12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: anneeActive ? '#f0fdf4' : '#fef9c3', border: `1px solid ${anneeActive ? '#bbf7d0' : '#fde68a'}`, padding: '8px 12px' }}>
                 <span style={{ fontSize: 13, color: anneeActive ? '#15803d' : '#92400e' }}>
                   Année académique :
                   <b style={{ marginLeft: 4 }}>{anneeActive ? anneeActive.libelle : 'Aucune année active'}</b>
@@ -575,13 +575,13 @@ export default function CommunicationPage() {
                 )}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {documents.map((doc, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, background: PANEL_BG, border: `1px solid ${BORDER_SOFT}`, borderRadius: 6, padding: '7px 10px' }}>
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fff', border: `1px solid ${BORDER_SOFT}`, padding: '7px 10px' }}>
                       <span style={{ fontSize: 16 }}>{docIcon(doc.mimeType)}</span>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 12, color: '#0f172a', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.nom}</div>
                         <div style={{ fontSize: 11, color: '#64748b' }}>{formatFileSize(doc.taille)}</div>
                       </div>
-                      <button type="button" onClick={() => removeDocument(i)} style={{ border: '1px solid #fecaca', background: '#fef2f2', color: '#dc2626', borderRadius: 5, padding: '4px 8px', fontSize: 11, cursor: 'pointer' }}>Retirer</button>
+                      <button type="button" onClick={() => removeDocument(i)} style={{ border: '1px solid #fecaca', background: '#fff', color: '#dc2626', borderRadius: 4, padding: '4px 8px', fontSize: 11, cursor: 'pointer' }}>Retirer</button>
                     </div>
                   ))}
                 </div>
@@ -591,7 +591,7 @@ export default function CommunicationPage() {
               {/* ── Destinataires (multi-select checkboxes) ───────────────────── */}
               <div>
                 <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 8 }}>Destinataires *</label>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px 12px', background: PANEL_BG, border: `1px solid ${BORDER_SOFT}`, borderRadius: 6, padding: '12px 14px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px 12px', background: PANEL_BG, border: `1px solid ${BORDER_SOFT}`, padding: '12px 14px' }}>
                   {CIBLE_OPTIONS.map(opt => (
                     <label key={opt.value} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12, color: '#334155', userSelect: 'none' }}>
                       <input
@@ -617,7 +617,7 @@ export default function CommunicationPage() {
               </div>
 
               {/* Envoi */}
-              <div style={{ background: PANEL_BG, border: `1px solid ${BORDER_SOFT}`, borderRadius: 6, padding: '12px 14px' }}>
+              <div style={{ background: PANEL_BG, border: `1px solid ${BORDER_SOFT}`, padding: '12px 14px' }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
                   <input type="checkbox" checked={form.envoiImmediat} onChange={e => setForm({ ...form, envoiImmediat: e.target.checked })} />
                   <span>Envoyer immédiatement</span>
@@ -632,7 +632,7 @@ export default function CommunicationPage() {
               </div>
 
               {/* Aperçu destinataires */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'space-between', background: '#fff', border: `1px solid ${BORDER_SOFT}`, borderRadius: 6, padding: '10px 12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'space-between', background: '#fff', border: `1px solid ${BORDER_SOFT}`, padding: '10px 12px' }}>
                 <div style={{ fontSize: 12, color: '#475569' }}>
                   <b style={{ color: '#0f172a' }}>{preview?.total ?? '—'}</b> destinataire(s)
                   {preview?.parRole && Object.keys(preview.parRole).length > 0 && (
@@ -676,7 +676,7 @@ export default function CommunicationPage() {
                 <Badge label={cibleLabel(detail)} color="#475569" />
               </div>
               <div style={{ fontSize: 16, fontWeight: 700, color: '#0f172a' }}>{detail.titre}</div>
-              <div style={{ fontSize: 13, color: '#374151', lineHeight: 1.6, background: PANEL_BG, border: `1px solid ${BORDER_SOFT}`, borderRadius: 6, padding: '12px 14px', whiteSpace: 'pre-wrap' }}>{detail.contenu}</div>
+              <div style={{ fontSize: 13, color: '#374151', lineHeight: 1.6, background: PANEL_BG, border: `1px solid ${BORDER_SOFT}`, padding: '12px 14px', whiteSpace: 'pre-wrap' }}>{detail.contenu}</div>
 
               {/* Documents dans le détail */}
               {detail.documents.length > 0 && (
@@ -684,7 +684,7 @@ export default function CommunicationPage() {
                   <div style={{ fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 6 }}>Documents joints ({detail.documents.length})</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     {detail.documents.map((doc, i) => (
-                      <a key={i} href={doc.url} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 6, padding: '10px 12px', textDecoration: 'none' }}>
+                      <a key={i} href={doc.url} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, background: '#fff', border: `1px solid ${BORDER}`, borderRadius: 4, padding: '10px 12px', textDecoration: 'none' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
                           <span style={{ fontSize: 16 }}>{docIcon(doc.mimeType)}</span>
                           <span style={{ color: '#1d4ed8', fontSize: 13, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.nom}</span>
@@ -706,9 +706,9 @@ export default function CommunicationPage() {
             </div>
             <div style={{ padding: '14px 22px', borderTop: '1px solid #e6ebf1', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               {(detail.statut === 'BROUILLON' || detail.statut === 'PLANIFIE') && (
-                <button onClick={() => openEdit(detail)} style={{ border: '1px solid #bfdbfe', background: '#eff6ff', color: '#2563eb', borderRadius: 6, padding: '8px 16px', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Modifier</button>
+                <button onClick={() => openEdit(detail)} style={{ border: `1px solid ${BORDER}`, background: '#fff', color: '#2563eb', borderRadius: 6, padding: '8px 16px', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Modifier</button>
               )}
-              <button onClick={e => void handleDelete(detail, e)} disabled={deleteCommunication.isPending} style={{ border: '1px solid #fecaca', background: '#fef2f2', color: '#dc2626', borderRadius: 6, padding: '8px 16px', fontWeight: 600, fontSize: 13, cursor: deleteCommunication.isPending ? 'not-allowed' : 'pointer' }}>Supprimer</button>
+              <button onClick={e => void handleDelete(detail, e)} disabled={deleteCommunication.isPending} style={{ border: '1px solid #fecaca', background: '#fff', color: '#dc2626', borderRadius: 6, padding: '8px 16px', fontWeight: 600, fontSize: 13, cursor: deleteCommunication.isPending ? 'not-allowed' : 'pointer' }}>Supprimer</button>
               <button onClick={() => setDetail(null)} style={{ border: `1px solid ${BORDER}`, background: '#fff', color: '#475569', borderRadius: 6, padding: '8px 16px', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Fermer</button>
             </div>
           </div>
