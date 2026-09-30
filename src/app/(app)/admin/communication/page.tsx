@@ -410,7 +410,7 @@ export default function CommunicationPage() {
           <div style={{ fontSize: 17, fontWeight: 700, color: '#0f172a' }}>Communication</div>
           <div style={{ fontSize: 13, color: '#64748b', marginTop: 2 }}>Notifications · SMS · E-mail · WhatsApp</div>
         </div>
-        <button onClick={() => { resetComposer(); setShowModal(true); }} style={{ background: '#2563eb', color: '#fff', border: 'none', borderRadius: 6, padding: '9px 18px', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+        <button onClick={() => { resetComposer(); setShowModal(true); }} style={{ height: 36, background: '#2563eb', color: '#fff', border: 'none', padding: '0 16px', fontWeight: 600, fontSize: 13, fontFamily: 'inherit', cursor: 'pointer' }}>
           + Nouveau message
         </button>
       </div>
@@ -434,19 +434,19 @@ export default function CommunicationPage() {
         {/* Filtres */}
         <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
           {/* Année académique */}
-          <select value={filtreAnnee} onChange={e => setFiltreAnnee(e.target.value)} style={{ border: `1px solid ${BORDER}`, borderRadius: 6, padding: '7px 12px', fontSize: 13, background: '#fff', color: '#334155', outline: 'none' }}>
+          <select value={filtreAnnee} onChange={e => setFiltreAnnee(e.target.value)} style={{ height: 38, border: `1px solid ${BORDER}`, padding: '0 10px', fontSize: 12, fontFamily: 'inherit', background: '#fff', color: '#0f172a', outline: 'none' }}>
             <option value="">Toutes les années</option>
             {annees.map(a => <option key={a.id} value={a.id}>{a.libelle}{a.active ? ' ✓' : ''}</option>)}
           </select>
-          <select value={filtreStatut} onChange={e => setFiltreStatut(e.target.value)} style={{ border: `1px solid ${BORDER}`, borderRadius: 6, padding: '7px 12px', fontSize: 13, background: '#fff', color: '#334155', outline: 'none' }}>
+          <select value={filtreStatut} onChange={e => setFiltreStatut(e.target.value)} style={{ height: 38, border: `1px solid ${BORDER}`, padding: '0 10px', fontSize: 12, fontFamily: 'inherit', background: '#fff', color: '#0f172a', outline: 'none' }}>
             <option value="TOUS">Tous les statuts</option>
             {(['ENVOYE', 'PLANIFIE', 'BROUILLON', 'ECHEC'] as Statut[]).map(s => <option key={s} value={s}>{STATUT_LABELS[s]}</option>)}
           </select>
-          <select value={filtreCanal} onChange={e => setFiltreCanal(e.target.value)} style={{ border: `1px solid ${BORDER}`, borderRadius: 6, padding: '7px 12px', fontSize: 13, background: '#fff', color: '#334155', outline: 'none' }}>
+          <select value={filtreCanal} onChange={e => setFiltreCanal(e.target.value)} style={{ height: 38, border: `1px solid ${BORDER}`, padding: '0 10px', fontSize: 12, fontFamily: 'inherit', background: '#fff', color: '#0f172a', outline: 'none' }}>
             <option value="TOUS">Tous les canaux</option>
             {(['NOTIFICATION', 'SMS', 'EMAIL', 'WHATSAPP'] as Canal[]).map(c => <option key={c} value={c}>{CANAL_LABELS[c]}</option>)}
           </select>
-          <select value={filtreCible} onChange={e => setFiltreCible(e.target.value)} style={{ border: `1px solid ${BORDER}`, borderRadius: 6, padding: '7px 12px', fontSize: 13, background: '#fff', color: '#334155', outline: 'none' }}>
+          <select value={filtreCible} onChange={e => setFiltreCible(e.target.value)} style={{ height: 38, border: `1px solid ${BORDER}`, padding: '0 10px', fontSize: 12, fontFamily: 'inherit', background: '#fff', color: '#0f172a', outline: 'none' }}>
             <option value="TOUS">Toutes les cibles</option>
             {CIBLE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
@@ -480,7 +480,7 @@ export default function CommunicationPage() {
                   {m.documents.length > 0 && (
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 6 }}>
                       {m.documents.map((doc, i) => (
-                        <a key={i} href={doc.url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#fff', border: '1px solid #d9e0e8', borderRadius: 4, padding: '2px 8px', fontSize: 11, color: '#2563eb', textDecoration: 'none' }}>
+                        <a key={i} href={doc.url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#fff', border: '1px solid #d9e0e8', padding: '2px 8px', fontSize: 11, color: '#2563eb', textDecoration: 'none' }}>
                           <span>{docIcon(doc.mimeType)}</span>
                           <span style={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.nom}</span>
                           {doc.taille && <span style={{ color: '#64748b' }}>· {formatFileSize(doc.taille)}</span>}
@@ -499,11 +499,11 @@ export default function CommunicationPage() {
                 {/* Actions */}
                 <div style={{ display: 'flex', gap: 6, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
                   {(m.statut === 'BROUILLON' || m.statut === 'PLANIFIE') && (
-                    <button onClick={() => openEdit(m)} style={{ border: `1px solid ${BORDER}`, background: '#fff', color: '#2563eb', borderRadius: 4, padding: '5px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
+                    <button onClick={() => openEdit(m)} style={{ border: `1px solid ${BORDER}`, background: '#fff', color: '#2563eb', padding: '5px 10px', fontSize: 11, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' }}>
                       Modifier
                     </button>
                   )}
-                  <button onClick={e => void handleDelete(m, e)} disabled={deleteCommunication.isPending} style={{ border: '1px solid #fecaca', background: '#fff', color: '#dc2626', borderRadius: 4, padding: '5px 10px', fontSize: 11, fontWeight: 600, cursor: deleteCommunication.isPending ? 'not-allowed' : 'pointer' }}>
+                  <button onClick={e => void handleDelete(m, e)} disabled={deleteCommunication.isPending} style={{ border: '1px solid #fecaca', background: '#fff', color: '#dc2626', padding: '5px 10px', fontSize: 11, fontWeight: 600, fontFamily: 'inherit', cursor: deleteCommunication.isPending ? 'not-allowed' : 'pointer' }}>
                     Supprimer
                   </button>
                 </div>
@@ -516,12 +516,12 @@ export default function CommunicationPage() {
       {/* ── Modal nouveau message / modifier ──────────────────────────────── */}
       {(showModal || editMessage !== null) && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-          <div style={{ background: '#fff', width: 600, maxHeight: '92vh', overflowY: 'auto', borderRadius: 8, boxShadow: '0 20px 60px rgba(0,0,0,.2)' }}>
-            <div style={{ padding: '18px 22px', borderBottom: '1px solid #e6ebf1', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: '#fff', zIndex: 1 }}>
+          <div style={{ background: '#fff', width: 600, padding: 28, maxHeight: '92vh', overflowY: 'auto', boxShadow: '0 12px 40px rgba(0,0,0,.18)' }}>
+            <div style={{ marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff' }}>
               <span style={{ fontWeight: 700, fontSize: 15 }}>{editMessage ? 'Modifier le message' : 'Nouveau message'}</span>
               <button onClick={closeModal} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#94a3b8' }}>×</button>
             </div>
-            <div style={{ padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
               {/* Année académique (automatique) */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: anneeActive ? '#f0fdf4' : '#fef9c3', border: `1px solid ${anneeActive ? '#bbf7d0' : '#fde68a'}`, padding: '8px 12px' }}>
@@ -539,7 +539,7 @@ export default function CommunicationPage() {
                   {(['NOTIFICATION', 'SMS', 'EMAIL', 'WHATSAPP'] as Canal[]).map(c => {
                     const disabled = c !== 'NOTIFICATION';
                     return (
-                      <button key={c} disabled={disabled} onClick={() => setForm({ ...form, canal: c })} style={{ flex: 1, padding: '8px 4px', border: `1px solid ${form.canal === c ? CANAL_COLORS[c] : BORDER}`, borderRadius: 6, background: form.canal === c ? '#eff6ff' : '#fff', color: disabled ? '#cbd5e1' : form.canal === c ? CANAL_COLORS[c] : '#64748b', fontWeight: 600, fontSize: 12, cursor: disabled ? 'not-allowed' : 'pointer' }}>
+                      <button key={c} disabled={disabled} onClick={() => setForm({ ...form, canal: c })} style={{ flex: 1, height: 34, border: `1px solid ${form.canal === c ? CANAL_COLORS[c] : BORDER}`, background: form.canal === c ? '#eff6ff' : '#fff', color: disabled ? '#cbd5e1' : form.canal === c ? CANAL_COLORS[c] : '#64748b', fontWeight: 600, fontSize: 12, fontFamily: 'inherit', cursor: disabled ? 'not-allowed' : 'pointer' }}>
                         {CANAL_LABELS[c]}
                       </button>
                     );
@@ -550,14 +550,14 @@ export default function CommunicationPage() {
               {/* Titre */}
               <div>
                 <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Titre *</label>
-                <input value={form.titre} onChange={e => setForm({ ...form, titre: e.target.value })} placeholder="Titre du message" style={{ width: '100%', border: `1px solid ${errors.titre ? '#dc2626' : BORDER}`, borderRadius: 6, padding: '8px 10px', fontSize: 13, boxSizing: 'border-box', outline: 'none', color: '#0f172a' }} />
+                <input value={form.titre} onChange={e => setForm({ ...form, titre: e.target.value })} placeholder="Titre du message" style={{ width: '100%', height: 38, border: `1px solid ${errors.titre ? '#dc2626' : BORDER}`, padding: '0 12px', fontSize: 13, fontFamily: 'inherit', boxSizing: 'border-box', outline: 'none', color: '#0f172a' }} />
                 {errors.titre && <div style={{ color: '#dc2626', fontSize: 11, marginTop: 3 }}>{errors.titre}</div>}
               </div>
 
               {/* Contenu */}
               <div>
                 <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Contenu *</label>
-                <textarea value={form.contenu} onChange={e => setForm({ ...form, contenu: e.target.value })} rows={5} placeholder="Rédigez votre message..." style={{ width: '100%', border: `1px solid ${errors.contenu ? '#dc2626' : BORDER}`, borderRadius: 6, padding: '8px 10px', fontSize: 13, resize: 'vertical', boxSizing: 'border-box', outline: 'none', color: '#0f172a' }} />
+                <textarea value={form.contenu} onChange={e => setForm({ ...form, contenu: e.target.value })} rows={5} placeholder="Rédigez votre message..." style={{ width: '100%', border: `1px solid ${errors.contenu ? '#dc2626' : BORDER}`, padding: '8px 12px', fontSize: 13, fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box', outline: 'none', color: '#0f172a' }} />
                 {errors.contenu && <div style={{ color: '#dc2626', fontSize: 11, marginTop: 3 }}>{errors.contenu}</div>}
               </div>
 
@@ -565,7 +565,7 @@ export default function CommunicationPage() {
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                   <label style={{ fontSize: 12, fontWeight: 600, color: '#374151' }}>Documents joints</label>
-                  <button type="button" onClick={() => fileInputRef.current?.click()} style={{ border: `1px solid ${BORDER}`, background: '#fff', color: '#2563eb', borderRadius: 6, padding: '4px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                  <button type="button" onClick={() => fileInputRef.current?.click()} style={{ height: 30, border: `1px solid ${BORDER}`, background: '#fff', color: '#2563eb', padding: '0 14px', fontSize: 12, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' }}>
                     + Ajouter un fichier
                   </button>
                   <input ref={fileInputRef} type="file" accept="application/pdf,image/jpeg,image/png,image/webp,.doc,.docx" multiple hidden onChange={e => void handleFilesChange(e.target.files)} />
@@ -581,7 +581,7 @@ export default function CommunicationPage() {
                         <div style={{ fontSize: 12, color: '#0f172a', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.nom}</div>
                         <div style={{ fontSize: 11, color: '#64748b' }}>{formatFileSize(doc.taille)}</div>
                       </div>
-                      <button type="button" onClick={() => removeDocument(i)} style={{ border: '1px solid #fecaca', background: '#fff', color: '#dc2626', borderRadius: 4, padding: '4px 8px', fontSize: 11, cursor: 'pointer' }}>Retirer</button>
+                      <button type="button" onClick={() => removeDocument(i)} style={{ border: '1px solid #fecaca', background: '#fff', color: '#dc2626', padding: '4px 8px', fontSize: 11, fontFamily: 'inherit', cursor: 'pointer' }}>Retirer</button>
                     </div>
                   ))}
                 </div>
@@ -607,7 +607,7 @@ export default function CommunicationPage() {
                 {/* Sélection classe si CLASSE coché */}
                 {selectedCibles.includes('CLASSE') && (
                   <div style={{ marginTop: 8 }}>
-                    <select value={form.classeId} onChange={e => { setForm({ ...form, classeId: e.target.value }); setPreview(null); }} style={{ width: '100%', border: `1px solid ${errors.classeId ? '#dc2626' : BORDER}`, borderRadius: 6, padding: '8px 10px', fontSize: 13, color: '#334155', outline: 'none' }}>
+                    <select value={form.classeId} onChange={e => { setForm({ ...form, classeId: e.target.value }); setPreview(null); }} style={{ width: '100%', height: 38, border: `1px solid ${errors.classeId ? '#dc2626' : BORDER}`, padding: '0 12px', fontSize: 13, fontFamily: 'inherit', color: '#334155', outline: 'none' }}>
                       <option value="">Choisir une classe</option>
                       {classes.map(c => <option key={c.id} value={c.id}>{c.nom}</option>)}
                     </select>
@@ -625,7 +625,7 @@ export default function CommunicationPage() {
                 {!form.envoiImmediat && (
                   <div style={{ marginTop: 10 }}>
                     <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Date et heure d&apos;envoi *</label>
-                    <input type="datetime-local" value={form.dateEnvoi} onChange={e => setForm({ ...form, dateEnvoi: e.target.value })} style={{ width: '100%', border: `1px solid ${errors.dateEnvoi ? '#dc2626' : BORDER}`, borderRadius: 6, padding: '8px 10px', fontSize: 13, boxSizing: 'border-box', outline: 'none', color: '#334155' }} />
+                    <input type="datetime-local" value={form.dateEnvoi} onChange={e => setForm({ ...form, dateEnvoi: e.target.value })} style={{ width: '100%', height: 38, border: `1px solid ${errors.dateEnvoi ? '#dc2626' : BORDER}`, padding: '0 12px', fontSize: 13, fontFamily: 'inherit', boxSizing: 'border-box', outline: 'none', color: '#334155' }} />
                     {errors.dateEnvoi && <div style={{ color: '#dc2626', fontSize: 11, marginTop: 3 }}>{errors.dateEnvoi}</div>}
                   </div>
                 )}
@@ -641,19 +641,19 @@ export default function CommunicationPage() {
                     </span>
                   )}
                 </div>
-                <button onClick={() => void refreshPreview()} disabled={previewDestinataires.isPending} style={{ border: `1px solid ${BORDER}`, background: '#fff', color: '#2563eb', borderRadius: 6, padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: previewDestinataires.isPending ? 'not-allowed' : 'pointer', opacity: previewDestinataires.isPending ? 0.7 : 1 }}>
+                <button onClick={() => void refreshPreview()} disabled={previewDestinataires.isPending} style={{ height: 30, border: `1px solid ${BORDER}`, background: '#fff', color: '#2563eb', padding: '0 14px', fontSize: 12, fontWeight: 600, fontFamily: 'inherit', cursor: previewDestinataires.isPending ? 'not-allowed' : 'pointer', opacity: previewDestinataires.isPending ? 0.7 : 1 }}>
                   {previewDestinataires.isPending ? 'Calcul…' : 'Aperçu'}
                 </button>
               </div>
             </div>
 
-            <div style={{ padding: '14px 22px', borderTop: '1px solid #e6ebf1', display: 'flex', gap: 8, justifyContent: 'flex-end', position: 'sticky', bottom: 0, background: '#fff' }}>
+            <div style={{ borderTop: '1px solid #eef2f6', paddingTop: 14, marginTop: 2, display: 'flex', gap: 10, justifyContent: 'flex-end', background: '#fff' }}>
               {!editMessage && (
-                <button onClick={() => void handleEnvoyer(true)} disabled={createCommunication.isPending || updateCommunication.isPending} style={{ border: `1px solid ${BORDER}`, background: '#fff', color: '#475569', borderRadius: 6, padding: '8px 16px', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+                <button onClick={() => void handleEnvoyer(true)} disabled={createCommunication.isPending || updateCommunication.isPending} style={{ height: 38, border: `1px solid ${BORDER}`, background: '#fff', color: '#334155', padding: '0 16px', fontWeight: 600, fontSize: 13, fontFamily: 'inherit', cursor: 'pointer' }}>
                   Sauvegarder brouillon
                 </button>
               )}
-              <button onClick={() => void handleEnvoyer(false)} disabled={createCommunication.isPending || updateCommunication.isPending} style={{ background: '#2563eb', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 18px', fontWeight: 600, fontSize: 13, cursor: (createCommunication.isPending || updateCommunication.isPending) ? 'not-allowed' : 'pointer', opacity: (createCommunication.isPending || updateCommunication.isPending) ? 0.7 : 1 }}>
+              <button onClick={() => void handleEnvoyer(false)} disabled={createCommunication.isPending || updateCommunication.isPending} style={{ height: 38, background: '#2563eb', color: '#fff', border: 'none', padding: '0 22px', fontWeight: 700, fontSize: 13, fontFamily: 'inherit', cursor: (createCommunication.isPending || updateCommunication.isPending) ? 'not-allowed' : 'pointer', opacity: (createCommunication.isPending || updateCommunication.isPending) ? 0.7 : 1 }}>
                 {(createCommunication.isPending || updateCommunication.isPending) ? 'Enregistrement…' : editMessage ? 'Enregistrer les modifications' : form.envoiImmediat ? 'Envoyer maintenant' : "Planifier l'envoi"}
               </button>
             </div>
@@ -664,7 +664,7 @@ export default function CommunicationPage() {
       {/* ── Modal détail ───────────────────────────────────────────────────── */}
       {detail && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-          <div style={{ background: '#fff', width: 520, maxHeight: '90vh', overflowY: 'auto', borderRadius: 8, boxShadow: '0 20px 60px rgba(0,0,0,.2)' }}>
+          <div style={{ background: '#fff', width: 520, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 12px 40px rgba(0,0,0,.18)' }}>
             <div style={{ padding: '18px 22px', borderBottom: '1px solid #e6ebf1', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontWeight: 700, fontSize: 15 }}>Détail du message</span>
               <button onClick={() => setDetail(null)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#94a3b8' }}>×</button>
@@ -684,7 +684,7 @@ export default function CommunicationPage() {
                   <div style={{ fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 6 }}>Documents joints ({detail.documents.length})</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     {detail.documents.map((doc, i) => (
-                      <a key={i} href={doc.url} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, background: '#fff', border: `1px solid ${BORDER}`, borderRadius: 4, padding: '10px 12px', textDecoration: 'none' }}>
+                      <a key={i} href={doc.url} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, background: '#fff', border: `1px solid ${BORDER}`, padding: '10px 12px', textDecoration: 'none' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
                           <span style={{ fontSize: 16 }}>{docIcon(doc.mimeType)}</span>
                           <span style={{ color: '#1d4ed8', fontSize: 13, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.nom}</span>
@@ -706,10 +706,10 @@ export default function CommunicationPage() {
             </div>
             <div style={{ padding: '14px 22px', borderTop: '1px solid #e6ebf1', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               {(detail.statut === 'BROUILLON' || detail.statut === 'PLANIFIE') && (
-                <button onClick={() => openEdit(detail)} style={{ border: `1px solid ${BORDER}`, background: '#fff', color: '#2563eb', borderRadius: 6, padding: '8px 16px', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Modifier</button>
+                <button onClick={() => openEdit(detail)} style={{ height: 38, border: `1px solid ${BORDER}`, background: '#fff', color: '#2563eb', padding: '0 16px', fontWeight: 600, fontSize: 13, fontFamily: 'inherit', cursor: 'pointer' }}>Modifier</button>
               )}
-              <button onClick={e => void handleDelete(detail, e)} disabled={deleteCommunication.isPending} style={{ border: '1px solid #fecaca', background: '#fff', color: '#dc2626', borderRadius: 6, padding: '8px 16px', fontWeight: 600, fontSize: 13, cursor: deleteCommunication.isPending ? 'not-allowed' : 'pointer' }}>Supprimer</button>
-              <button onClick={() => setDetail(null)} style={{ border: `1px solid ${BORDER}`, background: '#fff', color: '#475569', borderRadius: 6, padding: '8px 16px', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Fermer</button>
+              <button onClick={e => void handleDelete(detail, e)} disabled={deleteCommunication.isPending} style={{ height: 38, border: '1px solid #fecaca', background: '#fff', color: '#dc2626', padding: '0 16px', fontWeight: 600, fontSize: 13, fontFamily: 'inherit', cursor: deleteCommunication.isPending ? 'not-allowed' : 'pointer' }}>Supprimer</button>
+              <button onClick={() => setDetail(null)} style={{ height: 38, border: `1px solid ${BORDER}`, background: '#fff', color: '#475569', padding: '0 16px', fontWeight: 600, fontSize: 13, fontFamily: 'inherit', cursor: 'pointer' }}>Fermer</button>
             </div>
           </div>
         </div>
@@ -718,7 +718,7 @@ export default function CommunicationPage() {
       {/* ── Modal confirmation suppression ─────────────────────────────────── */}
       {confirmDelete && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-          <div style={{ background: '#fff', width: 420, borderRadius: 8, boxShadow: '0 20px 60px rgba(0,0,0,.2)' }}>
+          <div style={{ background: '#fff', width: 420, boxShadow: '0 12px 40px rgba(0,0,0,.18)' }}>
             <div style={{ padding: '20px 24px 16px' }}>
               <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', marginBottom: 8 }}>Supprimer ce message ?</div>
               <div style={{ fontSize: 13, color: '#64748b', lineHeight: 1.5 }}>
@@ -726,10 +726,10 @@ export default function CommunicationPage() {
               </div>
             </div>
             <div style={{ padding: '12px 24px 20px', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button onClick={() => setConfirmDelete(null)} disabled={deleteCommunication.isPending} style={{ border: `1px solid ${BORDER}`, background: '#fff', color: '#475569', borderRadius: 6, padding: '8px 16px', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+              <button onClick={() => setConfirmDelete(null)} disabled={deleteCommunication.isPending} style={{ height: 38, border: `1px solid ${BORDER}`, background: '#fff', color: '#475569', padding: '0 16px', fontWeight: 600, fontSize: 13, fontFamily: 'inherit', cursor: 'pointer' }}>
                 Annuler
               </button>
-              <button onClick={() => void handleConfirmDelete()} disabled={deleteCommunication.isPending} style={{ background: '#dc2626', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 18px', fontWeight: 600, fontSize: 13, cursor: deleteCommunication.isPending ? 'not-allowed' : 'pointer', opacity: deleteCommunication.isPending ? 0.7 : 1 }}>
+              <button onClick={() => void handleConfirmDelete()} disabled={deleteCommunication.isPending} style={{ height: 38, background: '#dc2626', color: '#fff', border: 'none', padding: '0 22px', fontWeight: 700, fontSize: 13, fontFamily: 'inherit', cursor: deleteCommunication.isPending ? 'not-allowed' : 'pointer', opacity: deleteCommunication.isPending ? 0.7 : 1 }}>
                 {deleteCommunication.isPending ? 'Suppression…' : 'Supprimer'}
               </button>
             </div>
