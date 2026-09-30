@@ -12,6 +12,12 @@ type MatiereItem = { id: string; libelle?: string; code?: string; nom?: string }
 type Credentials = { username: string; password: string; photoUrl?: string; name?: string } | null;
 
 const PAGE_SIZE = 12;
+const TYPE_ENSEIGNANT_OPTIONS = [
+  { value: 'PRESCOLAIRE', label: 'Prescolaire (maternelle, creche)' },
+  { value: 'PRIMAIRE', label: 'Primaire (elementaire)' },
+  { value: 'SECONDAIRE', label: 'Secondaire (college et lycee)' },
+];
+
 function pageItems<T>(items: T[], page: number) {
   return items.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 }
@@ -82,7 +88,7 @@ function matiereCode(m: MatiereItem, allMatieres?: MatiereItem[]): string {
   return String(m.code ?? m.libelle ?? '?');
 }
 
-const EMPTY_FORM = { prenom: '', nom: '', email: '', telephone: '', matricule: '', specialite: '', adresse: '' };
+const EMPTY_FORM = { prenom: '', nom: '', email: '', telephone: '', matricule: '', typeEnseignant: '', adresse: '' };
 
 export default function ProfesseursPage() {
   const { data, isLoading } = useAdminProfesseurs();
@@ -214,7 +220,7 @@ export default function ProfesseursPage() {
       email:      String(p.email ?? ''),
       telephone:  String(p.telephone ?? ''),
       matricule:  String(p.matricule ?? ''),
-      specialite: String(p.specialite ?? ''),
+      typeEnseignant: String(p.typeEnseignant ?? (TYPE_ENSEIGNANT_OPTIONS.some((option) => option.value === p.specialite) ? p.specialite : '') ?? ''),
       adresse:    String(p.adresse ?? ''),
     });
     // backend returns matières as `specialites` (array of { id, code, libelle }) after sanitization
@@ -258,7 +264,7 @@ export default function ProfesseursPage() {
         email:      form.email.trim(),
         telephone:  form.telephone.trim() || undefined,
         matricule:  form.matricule.trim() || undefined,
-        specialite: form.specialite.trim() || undefined,
+        typeEnseignant: form.typeEnseignant.trim() || undefined,
         adresse:    form.adresse.trim() || undefined,
         matiereIds: selectedMatieres.length > 0 ? selectedMatieres : undefined,
       };
@@ -694,14 +700,14 @@ export default function ProfesseursPage() {
               <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 10, marginTop: 4 }}>Type d&apos;enseignant</div>
               <div style={{ marginBottom: 14 }}>
                 <select
-                  value={form.specialite}
-                  onChange={(e) => setForm((f) => ({ ...f, specialite: e.target.value }))}
+                  value={form.typeEnseignant}
+                  onChange={(e) => setForm((f) => ({ ...f, typeEnseignant: e.target.value }))}
                   style={{ height: 38, width: '100%', border: '1px solid #d9e0e8', padding: '0 12px', fontSize: 13, fontFamily: 'inherit', background: '#fff' }}
                 >
                   <option value="">-- Selectionner le type --</option>
-                  <option value="PRESCOLAIRE">Prescolaire (maternelle, creche)</option>
-                  <option value="PRIMAIRE">Primaire (elementaire)</option>
-                  <option value="SECONDAIRE">Secondaire (college et lycee)</option>
+                  {TYPE_ENSEIGNANT_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
                 </select>
               </div>
 
